@@ -161,7 +161,7 @@ void metal_set_colorspace_srgb(const MetalLayer *layer) {
   CFRelease(colorspace);
 }
 
-// NOLINTNEXTLINE(misc-const-correctness): consumes @p layer and frees it.
+// NOLINTNEXTLINE(misc-const-correctness): consumes `layer` and frees it.
 void metal_teardown_layer(MetalLayer *layer) {
   @autoreleasepool {
     if (layer == nullptr)

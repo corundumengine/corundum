@@ -24,34 +24,31 @@ struct ListOptions {
   std::vector<std::string_view> extensions = {};
 
   /// If true, walk subdirectories recursively. Subdirectories themselves are always reported;
-  /// the @p extensions filter applies only to non-directory entries.
+  /// the `extensions` filter applies only to non-directory entries.
   bool recursive = false;
 };
 
-/**
- * @brief Return the immediate children (or recursive subtree) of @p dir as DirEntry.
+/** Return the immediate children (or recursive subtree) of `dir` as DirEntry.
  *
- * Returned entries are sorted directories-first, then alphabetically by @c name. On a missing
- * directory, a path that exists but isn't a directory, or an iteration error, the returned
- * expected holds an error string instead of silently producing an empty list — callers that
- * want the legacy silent-empty behavior can check @c .has_value() and ignore the error.
+ *  Returned entries are sorted directories-first, then alphabetically by `name`. On a missing
+ *  directory, a path that exists but isn't a directory, or an iteration error, the returned
+ *  expected holds an error string, never an empty list.
  *
- * @param dir Directory to list.
- * @param options Listing options (recursive walk, extension filter).
- * @return Sorted directory entries, or an error message.
+ *  @param dir Directory to list.
+ *  @param options Listing options (recursive walk, extension filter).
+ *  @return Sorted directory entries, or an error message.
  */
 [[nodiscard]] std::expected<std::vector<DirEntry>, std::string> list_dir_entries(const std::filesystem::path &dir,
                                                                                  ListOptions options = {});
 
-/**
- * @brief Check whether @p path's extension matches @p ext.
+/** Check whether `path`'s extension matches `ext`.
  *
- * Comparison is case-insensitive and ignores a leading dot on either side, so both "json" and
- * ".json" match "foo.JSON".
+ *  Comparison is case-insensitive and ignores a leading dot on either side, so both "json" and
+ *  ".json" match "foo.JSON".
  *
- * @param path Path to test.
- * @param ext Expected extension (leading dot optional).
- * @return True if the path's extension matches.
+ *  @param path Path to test.
+ *  @param ext Expected extension (leading dot optional).
+ *  @return True if the path's extension matches.
  */
 [[nodiscard]] bool has_extension(const std::filesystem::path &path, std::string_view ext) noexcept;
 

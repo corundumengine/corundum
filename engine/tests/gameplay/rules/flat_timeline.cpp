@@ -32,7 +32,7 @@ struct Landing {
   int beats{};
 };
 
-/// @p name when @p callback is empty, and nullopt when it is set.
+/// `name` when `callback` is empty, and nullopt when it is set.
 template <typename Callback>
 [[nodiscard]] std::optional<std::string_view> missing_callback(std::string_view name, const Callback &callback) {
   if (callback)
@@ -40,7 +40,7 @@ template <typename Callback>
   return name;
 }
 
-/// The name of the first empty callback in @p rules, in declaration order; nullopt when all are set.
+/// The name of the first empty callback in `rules`, in declaration order; nullopt when all are set.
 [[nodiscard]] std::optional<std::string_view> first_missing_callback(const CombatRules &rules) {
   const std::array checks{
       missing_callback("can_act", rules.can_act), missing_callback("commands", rules.commands),
@@ -54,7 +54,7 @@ template <typename Callback>
   return std::nullopt;
 }
 
-/// Whether @p index's ordered target stands within @p reach_tiles of it.
+/// Whether `index`'s ordered target stands within `reach_tiles` of it.
 template <typename Marker>
 [[nodiscard]] bool in_reach(std::span<const rules::Tile> tiles, int reach_tiles, const std::vector<Marker> &markers,
                             std::size_t index) {
@@ -64,7 +64,7 @@ template <typename Marker>
   return rules::tile_distance(tiles[index], tiles[*target]) <= reach_tiles;
 }
 
-/// Whether @p index's next command can start: a queued command needs nothing, the standing
+/// Whether `index`'s next command can start: a queued command needs nothing, the standing
 /// attack needs its target in reach.
 template <typename Marker>
 [[nodiscard]] bool can_start_command(const CombatRules &rules, std::span<const rules::Tile> tiles,
@@ -74,7 +74,7 @@ template <typename Marker>
   return in_reach(tiles, rules.reach_tiles, markers, index);
 }
 
-/// Start @p marker's wind-up: its queued command, or else the standing attack. The queue empties.
+/// Start `marker`'s wind-up: its queued command, or else the standing attack. The queue empties.
 template <typename Marker>
 void start_windup(const std::vector<rules::CommandOption> &commands, Marker &marker, std::size_t index,
                   std::vector<std::size_t> &windups_started) {
@@ -361,7 +361,7 @@ Encounter::Encounter(CombatRules rules, std::vector<Combatant> combatants, std::
 
 namespace {
 
-/// The rules::Fight that runs every command and query on @p encounter.
+/// The rules::Fight that runs every command and query on `encounter`.
 [[nodiscard]] rules::Fight bind_fight(const std::shared_ptr<Encounter> &encounter) {
   rules::Fight fight{.reach_tiles = encounter->reach_tiles()};
   for (std::size_t i = 0; i < encounter->size(); ++i)

@@ -20,7 +20,7 @@
 
 namespace corundum::render {
 
-/** @brief A single loaded world chunk (world mode only). */
+/** A single loaded world chunk (world mode only). */
 struct ChunkEntry {
   corundum::world::tilemap::ChunkCoord coord{};
   corundum::world::tilemap::Tilemap tilemap{};
@@ -30,7 +30,7 @@ struct ChunkEntry {
   std::vector<corundum::world::Portal> portals;
 };
 
-/** @brief Owns the World-mode streamed chunk window: the active/pending chunk
+/** Owns the World-mode streamed chunk window: the active/pending chunk
  *  sets, the last-synced center chunk, the offset→slot lookup used by
  *  elevation_under(), and the dirty flag that gates the above_z_cache rebuild in
  *  render(). Every mutator that changes the active set marks it dirty, and every
@@ -96,7 +96,7 @@ public:
     dirty_ = true;
   }
 
-  /// Remove active chunks for which @p keep returns false, re-deriving the slot table.
+  /// Remove active chunks for which `keep` returns false, re-deriving the slot table.
   /// @return true if any chunk was removed.
   template <std::predicate<const ChunkEntry &> Keep> bool prune_active(const Keep &keep) {
     const std::size_t before = active_.size();
@@ -108,29 +108,29 @@ public:
     return true;
   }
 
-  /// True if @p c is active, queued in pending, or failed to load (see mark_failed()).
+  /// True if `c` is active, queued in pending, or failed to load (see mark_failed()).
   [[nodiscard]] bool has(world::tilemap::ChunkCoord c) const noexcept {
     return is_active(c) || std::ranges::contains(pending_, c) || std::ranges::contains(failed_, c);
   }
 
-  /// True if @p c is resident in the active window (ignores chunks still pending).
+  /// True if `c` is resident in the active window (ignores chunks still pending).
   [[nodiscard]] bool is_active(world::tilemap::ChunkCoord c) const noexcept {
     return std::ranges::any_of(active_, [&](const ChunkEntry &e) { return e.coord == c; });
   }
 
-  /// Queue @p c for loading unless has(c) already reports it (active, pending or failed).
+  /// Queue `c` for loading unless has(c) already reports it (active, pending or failed).
   void enqueue_pending(world::tilemap::ChunkCoord c) {
     if (!has(c))
       pending_.push_back(c);
   }
 
-  /// Drop pending coords for which @p keep returns false — chunks the window moved away from
+  /// Drop pending coords for which `keep` returns false — chunks the window moved away from
   /// before they were loaded.
   template <std::predicate<world::tilemap::ChunkCoord> Keep> void prune_pending(const Keep &keep) {
     std::erase_if(pending_, [&](world::tilemap::ChunkCoord c) { return !keep(c); });
   }
 
-  /// Record that @p c failed to load, so has() reports it and it is never re-queued. Failed
+  /// Record that `c` failed to load, so has() reports it and it is never re-queued. Failed
   /// chunks stay failed until the WorldArea is replaced (the next load_world()).
   void mark_failed(world::tilemap::ChunkCoord c) { failed_.push_back(c); }
 

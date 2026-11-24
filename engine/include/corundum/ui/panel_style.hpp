@@ -14,7 +14,7 @@ namespace corundum::ui {
 /// Visual configuration shared by every screen panel, prompt, toast and menu. Pure data — no
 /// behaviour. Owned by RenderState so a single settings change restyles every panel at once.
 struct PanelStyle {
-  /** @brief Per-role font families, indexed by FontRole. */
+  /** Per-role font families, indexed by FontRole. */
   std::array<FontFamily, k_font_role_count> fonts{};
 
   unsigned font_size_speaker{26};
@@ -23,10 +23,10 @@ struct PanelStyle {
 
   unsigned font_size_prompt{18};
 
-  /** @brief Size for static headings drawn in the display family. */
+  /** Size for static headings drawn in the display family. */
   unsigned font_size_heading{48};
 
-  /** @brief Size for transient banners drawn in the display family. */
+  /** Size for transient banners drawn in the display family. */
   unsigned font_size_banner{64};
 
   float margin{20.f};
@@ -45,7 +45,7 @@ struct PanelStyle {
 
   core::math::Colour selected{.r = 255, .g = 255, .b = 0, .a = 255};
 
-  /// @return The family for @p role.
+  /// @return The family for `role`.
   [[nodiscard]] const FontFamily &family(FontRole role) const noexcept { return fonts[static_cast<std::size_t>(role)]; }
 };
 

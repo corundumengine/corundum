@@ -30,7 +30,7 @@ struct ContentVfs {
 static_assert(std::is_standard_layout_v<ContentVfs>, "miniaudio reinterprets ContentVfs* as ma_vfs_callbacks*");
 static_assert(offsetof(ContentVfs, callbacks) == 0, "callbacks must remain the first member");
 
-/// A ContentVfs whose callbacks are installed and which reads through @p content.
+/// A ContentVfs whose callbacks are installed and which reads through `content`.
 [[nodiscard]] ContentVfs make_content_vfs(const core::ContentSource &content);
 
 } // namespace corundum::platform::miniaudio

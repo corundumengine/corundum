@@ -83,9 +83,9 @@ struct SpriteAtlas {
 [[nodiscard]] std::expected<SpriteAtlas, std::string> load_sprite_atlas(const core::ContentSource &content,
                                                                         const std::filesystem::path &path);
 
-/// Resolve @p sprite's pivot into the canonical full (untrimmed) frame, bottom-origin basis,
-/// collapsing @p basis so callers never re-derive the trimmed-box conversion themselves.
-/// @pre @p sprite.source_width and @p sprite.source_height are > 0 (guaranteed by load_sprite_atlas).
+/// Resolve `sprite`'s pivot into the canonical full (untrimmed) frame, bottom-origin basis,
+/// collapsing `basis` so callers never re-derive the trimmed-box conversion themselves.
+/// @pre `sprite.source_width` and `sprite.source_height` are > 0 (guaranteed by load_sprite_atlas).
 /// @return Pivot as a fraction of the full frame, y measured from the bottom.
 [[nodiscard]] PivotPoint resolve_pivot(const AtlasSprite &sprite, PivotBasis basis) noexcept;
 

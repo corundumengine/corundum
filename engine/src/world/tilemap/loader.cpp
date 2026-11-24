@@ -34,7 +34,7 @@ namespace corundum::world::tilemap {
 
 namespace {
 
-/// Read the optional sidecar @c {atlas_path.stem()}.tiledata.json sitting next to @p atlas_path.
+/// Read the optional sidecar `{atlas_path.stem()}.tiledata.json` sitting next to `atlas_path`.
 /// @return The parsed object, or std::nullopt when the sidecar is absent or malformed — a broken
 ///         sidecar is treated as absent rather than failing the whole load.
 std::optional<json> read_sidecar(const core::ContentSource &content, const fs::path &atlas_path) {
@@ -52,7 +52,7 @@ struct TilesetTiles {
   std::unordered_map<std::string, int> name_to_local_id;
 };
 
-/// Build @p atlas's per-tile arrays (rects, trim, pivot, names) into a fresh TilesetInfo.
+/// Build `atlas`'s per-tile arrays (rects, trim, pivot, names) into a fresh TilesetInfo.
 TilesetTiles build_tileset_tiles(const corundum::sprites::SpriteAtlas &atlas, const fs::path &tileset_path) {
   TilesetTiles tiles;
   TilesetInfo &info = tiles.info;
@@ -103,7 +103,7 @@ std::string resolve_tileset_material(const json &atlas_json, const json *sidecar
   return {};
 }
 
-/// @return @p name's local tile id in @p name_to_local_id, or nullopt if the atlas has no such sprite.
+/// @return `name`'s local tile id in `name_to_local_id`, or nullopt if the atlas has no such sprite.
 std::optional<int> resolve_sprite_id(const std::unordered_map<std::string, int> &name_to_local_id,
                                      const std::string &name) {
   const auto it = name_to_local_id.find(name);
@@ -134,7 +134,7 @@ std::expected<std::string, std::string> parse_clip_name(const json &clip, std::s
   return name;
 }
 
-/// Read a clip's optional positive `fps`, falling back to @p default_fps.
+/// Read a clip's optional positive `fps`, falling back to `default_fps`.
 std::expected<float, std::string> parse_clip_fps(const json &clip, std::size_t clip_index, float default_fps,
                                                  const fs::path &tileset_path) {
   if (!clip.contains("fps"))
@@ -180,7 +180,7 @@ parse_clip_frames(const json &clip, std::size_t clip_index, const fs::path &tile
 }
 
 /// Parse one `animations.clips` entry.
-/// @param clip_index Index of @p clip in the clips array, for error messages.
+/// @param clip_index Index of `clip` in the clips array, for error messages.
 /// @param default_fps Clip fps used when the entry does not set its own.
 /// @return The resolved clip, or a message describing the first malformed field.
 std::expected<AnimationClip, std::string>
@@ -258,7 +258,7 @@ parse_tileset_animations(const json &atlas_json, const json *sidecar, const fs::
 /// gives no stable grid position and array order isn't something an author should have to
 /// track across repacks.
 ///
-/// When a sidecar file @c {tileset_path.stem()}.tiledata.json exists alongside the atlas JSON,
+/// When a sidecar file `{tileset_path.stem()}.tiledata.json` exists alongside the atlas JSON,
 /// its fields override the atlas-sourced authoring data (material, animations). Pivots and tile
 /// footprints are intentionally NOT read from the sidecar — pivots live in the atlas JSON
 /// (spritepacker `--pivot full-canvas`), so re-packing never loses alignment.
@@ -287,9 +287,9 @@ std::expected<TilesetInfo, std::string> load_tileset(const core::ContentSource &
 
 namespace {
 
-/// Split @p row_str into comma-separated integers, rejecting a count other than @p width.
+/// Split `row_str` into comma-separated integers, rejecting a count other than `width`.
 /// @param what Human-readable locator (e.g. "layer 'ground' row 3") prefixed to any error.
-/// @return Exactly @p width values, or a message describing the first malformed token.
+/// @return Exactly `width` values, or a message describing the first malformed token.
 std::expected<std::vector<int>, std::string> parse_csv_row(const std::string &row_str, int width,
                                                            const std::string &what) {
   std::vector<int> values;
@@ -561,7 +561,7 @@ std::expected<TilemapTileset, std::string> parse_tileset(TilemapLoader &loader, 
   return ts;
 }
 
-/// Check @p tilesets starts at GID 0 and its sorted ranges are duplicate-free and contiguous.
+/// Check `tilesets` starts at GID 0 and its sorted ranges are duplicate-free and contiguous.
 std::expected<void, std::string> validate_tileset_ranges(const std::vector<TilemapTileset> &tilesets,
                                                          const std::string &id) {
   if (tilesets[0].first_gid != 0)
@@ -1067,7 +1067,7 @@ parse_layers(const json &j, const std::string &id, int width, int height, const 
   return layers;
 }
 
-/// The largest full tile frame across @p tilesets, in pixels.
+/// The largest full tile frame across `tilesets`, in pixels.
 TileExtent max_tile_extent(const std::vector<TilemapTileset> &tilesets) {
   TileExtent extent;
   for (const auto &ts : tilesets) {

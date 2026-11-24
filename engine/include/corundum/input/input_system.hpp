@@ -12,23 +12,23 @@ class Window;
 
 namespace corundum::input {
 
-/** @brief Read pending input and OS lifecycle events from @p window.
+/** Read pending input and OS lifecycle events from `window`.
  *
- * Brackets @c Window::poll_game_input between @c mapper.begin_poll() and
- * @c mapper.end_poll(state), which translates this frame's input events and
- * reports the OS events it observed since the previous poll. Held flags are overwritten with
- * the window's current key state; pressed flags, the mouse click, and the scroll delta
- * accumulate, so a press survives every render frame that runs no fixed step.
+ *  Brackets `Window::poll_game_input` between `mapper.begin_poll()` and
+ *  `mapper.end_poll(state)`, which translates this frame's input events and
+ *  reports the OS events it observed since the previous poll. Held flags are overwritten with
+ *  the window's current key state; pressed flags, the mouse click, and the scroll delta
+ *  accumulate, so a press survives every render frame that runs no fixed step.
  *
- *  @param[in,out] mapper  Binding table and translation state; the window feeds it this poll's
- *                         physical input.
- *  @param[in,out] state   Snapshot accumulated into; this call does not clear it.
- *  @param[in]     window  Source window; must be open.
- *  @param[out]    events  Freshly-observed OS lifecycle events; caller supplies a fresh struct.
- *  @pre Must be called once per frame before any system reads @p state.
- *  @pre @p state must be cleared with @c clear_pressed each simulation step, or a
- *       latched press is re-observed on every subsequent read.
- *  @note Not thread-safe; call it from the main thread only.
+ *   @param mapper  Binding table and translation state; the window feeds it this poll's
+ *                  physical input.
+ *   @param state   Snapshot accumulated into; this call does not clear it.
+ *   @param window  Source window; must be open.
+ *   @param events  Freshly-observed OS lifecycle events; caller supplies a fresh struct.
+ *   @pre Must be called once per frame before any system reads `state`.
+ *   @pre `state` must be cleared with `clear_pressed` each simulation step, or a
+ *        latched press is re-observed on every subsequent read.
+ *   @note Not thread-safe; call it from the main thread only.
  */
 void poll(InputMapper &mapper, InputState &state, platform::Window &window, platform::PlatformEvents &events) noexcept;
 

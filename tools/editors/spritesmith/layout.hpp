@@ -3,7 +3,7 @@
 
 #pragma once
 
-/// @brief Spritesmith window and panel layout constants.
+/// Spritesmith window and panel layout constants.
 
 namespace tools::spritesmith {
 

@@ -48,7 +48,7 @@ struct DialogLayout {
   gameplay::dialogue::NodeType node_type{gameplay::dialogue::NodeType::End};
 };
 
-/// True when @p layout's choices carry @p indices in order. Labels are a pure function of
+/// True when `layout`'s choices carry `indices` in order. Labels are a pure function of
 /// the index, so comparing indices is enough to detect a changed visible-choice set.
 [[nodiscard]] inline bool choices_match(const DialogLayout &layout, const std::vector<std::size_t> &indices) noexcept {
   if (layout.choices.size() != indices.size())

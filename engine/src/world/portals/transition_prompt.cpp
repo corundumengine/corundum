@@ -8,7 +8,7 @@
 namespace corundum::world {
 
 namespace {
-/** @brief Derive the transition stashed by @ref TransitionPrompt from its portal. */
+/** Derive the transition stashed by `TransitionPrompt` from its portal. */
 MapTransition transition_from(const Portal &portal) {
   return {
       .target_map = portal.target_map,

@@ -92,7 +92,7 @@ MusicRecorder &boot(corundum::Engine &engine, bool show_title,
 constexpr int k_step_budget = 60 * 10;
 
 /// One fixed step as run_fixed_steps() drives a step-owning screen: advance the fade, then
-/// dispatch the top screen with @p action (if any) pressed.
+/// dispatch the top screen with `action` (if any) pressed.
 void step(corundum::Engine &engine, std::optional<corundum::input::Action> action = std::nullopt) {
   engine.screen_transition.update(engine.timer.target_dt);
   corundum::input::InputState state{};

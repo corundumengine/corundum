@@ -31,17 +31,17 @@ inline constexpr std::array<Direction, k_num_directions> k_opposite_direction = 
 static_assert(k_direction_names.size() == k_num_directions);
 static_assert(k_opposite_direction.size() == k_num_directions);
 
-/** @brief Direction directly opposite @p dir. @pre dir must not be Count. */
+/** Direction directly opposite `dir`. @pre dir must not be Count. */
 [[nodiscard]] constexpr Direction opposite(Direction dir) noexcept {
   return k_opposite_direction[std::to_underlying(dir)];
 }
 
-/** @brief Canonical name of @p dir. @pre dir must not be Count. */
+/** Canonical name of `dir`. @pre dir must not be Count. */
 [[nodiscard]] constexpr std::string_view direction_name(Direction dir) noexcept {
   return k_direction_names[std::to_underlying(dir)];
 }
 
-/** @brief Resolve a canonical direction name to a Direction; nullopt if unknown. */
+/** Resolve a canonical direction name to a Direction; nullopt if unknown. */
 [[nodiscard]] constexpr std::optional<Direction> direction_from_name(std::string_view name) noexcept {
   for (uint8_t i = 0; i < k_num_directions; ++i)
     if (k_direction_names[i] == name)
@@ -49,15 +49,16 @@ static_assert(k_opposite_direction.size() == k_num_directions);
   return std::nullopt;
 }
 
-/** @brief Ratio above which the dominant tile axis counts as cardinal rather than diagonal. */
+/** Ratio above which the dominant tile axis counts as cardinal rather than diagonal. */
 inline constexpr float k_cardinal_dominance_ratio = 2.f;
 
-/** @brief The screen Direction nearest a tile-grid displacement.
+/** The screen Direction nearest a tile-grid displacement.
  *
  *  The isometric projection rotates the grid 45° against the screen:
  *    tile SE (+,+) is screen South, tile NW (-,-) is North,
  *    tile NE (+,-) is East, tile SW (-,+) is West.
- *  @note Zero displacement gives North. */
+ *  @note Zero displacement gives North.
+ */
 [[nodiscard]] inline Direction direction_from_tile_delta(float delta_col, float delta_row) noexcept {
   const float abs_col = std::abs(delta_col);
   const float abs_row = std::abs(delta_row);

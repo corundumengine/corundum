@@ -14,14 +14,14 @@ struct ScreenScale {
   float y{1.f};
 };
 
-/** @brief Derive the content scale from a framebuffer/window size pair.
+/** Derive the content scale from a framebuffer/window size pair.
  *
- * Deriving the scale from the same measured pair the screen projection spans keeps emitted
- * geometry and the projection from disagreeing — unlike querying a second API
- * (glfwGetWindowContentScale) that can round or lag independently.
+ *  Deriving the scale from the same measured pair the screen projection spans keeps emitted
+ *  geometry and the projection from disagreeing — unlike querying a second API
+ *  (glfwGetWindowContentScale) that can round or lag independently.
  *
- * @pre All sizes are >= 0.
- * @return Per-axis scale; 1.0 on an axis whose logical size is zero (degenerate window).
+ *  @pre All sizes are >= 0.
+ *  @return Per-axis scale; 1.0 on an axis whose logical size is zero (degenerate window).
  */
 [[nodiscard]] constexpr ScreenScale derive_screen_scale(int fb_w, int fb_h, int win_w, int win_h) noexcept {
   const float sx = win_w > 0 ? static_cast<float>(fb_w) / static_cast<float>(win_w) : 1.f;
@@ -29,17 +29,17 @@ struct ScreenScale {
   return {.x = sx, .y = sy};
 }
 
-/** @brief Render scale that makes the internal render target span the physical framebuffer.
+/** Render scale that makes the internal render target span the physical framebuffer.
  *
- * A backend that presents the framebuffer directly, with no layer to up-scale a
- * logical-resolution drawable, must render at the framebuffer size or its viewport lands in the
- * corner of a high-DPI window. The per-axis framebuffer/window ratio is the content scale; the
- * larger axis is returned and compute_render_resolution() clamps it to the framebuffer per axis,
- * so one scalar covers both. Half a pixel is added to each ratio so integer truncation cannot
- * leave a one-pixel strip.
+ *  A backend that presents the framebuffer directly, with no layer to up-scale a
+ *  logical-resolution drawable, must render at the framebuffer size or its viewport lands in the
+ *  corner of a high-DPI window. The per-axis framebuffer/window ratio is the content scale; the
+ *  larger axis is returned and compute_render_resolution() clamps it to the framebuffer per axis,
+ *  so one scalar covers both. Half a pixel is added to each ratio so integer truncation cannot
+ *  leave a one-pixel strip.
  *
- * @pre All sizes are >= 0.
- * @return At least 1.0; 1.0 on a degenerate (zero-size) logical axis.
+ *  @pre All sizes are >= 0.
+ *  @return At least 1.0; 1.0 on a degenerate (zero-size) logical axis.
  */
 [[nodiscard]] constexpr float native_render_scale(int fb_w, int fb_h, int win_w, int win_h) noexcept {
   const auto axis = [](int physical, int logical) -> float {
@@ -48,16 +48,16 @@ struct ScreenScale {
   return std::max({axis(fb_w, win_w), axis(fb_h, win_h), 1.f});
 }
 
-/** @brief Rasterisation size in physical pixels for a logical font size.
+/** Rasterisation size in physical pixels for a logical font size.
  *
- * FreeType's pixel size is a height, so the vertical scale is the one that applies.
- * @pre scale_y > 0.
+ *  FreeType's pixel size is a height, so the vertical scale is the one that applies.
+ *  @pre scale_y > 0.
  */
 [[nodiscard]] inline uint32_t physical_font_size(uint32_t char_size, float scale_y) noexcept {
   return static_cast<uint32_t>(std::lround(static_cast<float>(char_size) * scale_y));
 }
 
-/** @brief Convert a physical-pixel metric back to logical units. @pre scale > 0. */
+/** Convert a physical-pixel metric back to logical units. @pre scale > 0. */
 [[nodiscard]] constexpr float to_logical(float physical, float scale) noexcept {
   return physical / scale;
 }

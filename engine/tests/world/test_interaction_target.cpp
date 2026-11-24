@@ -29,7 +29,7 @@ using corundum::sprites::AnimId;
 using corundum::sprites::k_null_sprite_id;
 
 /// A scene with an animated player at (5,5), a flat map, and an interactable NPC at
-/// (@p npc_col, @p npc_row) unless @p npc_present is false.
+/// (`npc_col`, `npc_row`) unless `npc_present` is false.
 struct Fixture {
   corundum::world::Scene scene;
   corundum::world::MapView map;

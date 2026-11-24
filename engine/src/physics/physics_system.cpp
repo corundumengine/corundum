@@ -36,13 +36,13 @@ using corundum::core::math::IsometricParams;
 using corundum::core::math::tile_to_screen_delta;
 using corundum::core::math::Vec2;
 
-/** @brief Convert a screen-space velocity back to tile-grid velocity components.
+/** Convert a screen-space velocity back to tile-grid velocity components.
  *
- * Inverse of the projection used by tile_to_screen_delta():
- *   dc = (svx / half_tw + svy / half_th) / 2
- *   dr = (svy / half_th - svx / half_tw) / 2
+ *  Inverse of the projection used by tile_to_screen_delta():
+ *    dc = (svx / half_tw + svy / half_th) / 2
+ *    dr = (svy / half_th - svx / half_tw) / 2
  *
- * @pre iso.half_tw > 0 and iso.half_th > 0.
+ *  @pre iso.half_tw > 0 and iso.half_th > 0.
  */
 [[nodiscard]] constexpr Vec2 screen_to_tile_delta(float svx, float svy, IsometricParams iso) noexcept {
   return {
@@ -51,23 +51,23 @@ using corundum::core::math::Vec2;
   };
 }
 
-/** @brief Borrow @p graph as a reference when present, or std::nullopt when null. */
+/** Borrow `graph` as a reference when present, or std::nullopt when null. */
 [[nodiscard]] std::optional<std::reference_wrapper<const corundum::world::tilemap::WalkabilityGraph>>
 borrow_walkability(const corundum::world::tilemap::WalkabilityGraph *graph) noexcept {
   return graph != nullptr ? std::make_optional(std::cref(*graph)) : std::nullopt;
 }
 
-/** @brief Test the player's post-move AABB against every portal in @p map.
+/** Test the player's post-move AABB against every portal in `map`.
  *
- * Both the AABB and the portal rects are tile-grid, so no iso↔cart conversion is needed. A
- * chunk-to-chunk portal teleports immediately (writing the spawn back through @p transforms);
- * a cross-map or return-to-world portal arms scene.transition_prompt, so the actual map swap
- * waits for the player to confirm. Clears a declined prompt once the player steps off its rect
- * — otherwise standing on a portal they cancelled would suppress every later re-prompt.
- * Elevation-gated via portal_elev_matches, so a player on a bridge does not trip a
- * ground-floor portal authored at the same cell.
+ *  Both the AABB and the portal rects are tile-grid, so no iso↔cart conversion is needed. A
+ *  chunk-to-chunk portal teleports immediately (writing the spawn back through `transforms`);
+ *  a cross-map or return-to-world portal arms scene.transition_prompt, so the actual map swap
+ *  waits for the player to confirm. Clears a declined prompt once the player steps off its rect
+ *  — otherwise standing on a portal they cancelled would suppress every later re-prompt.
+ *  Elevation-gated via portal_elev_matches, so a player on a bridge does not trip a
+ *  ground-floor portal authored at the same cell.
  *
- * @pre @p player_slot is the dense index of the player in @p transforms.
+ *  @pre `player_slot` is the dense index of the player in `transforms`.
  */
 void resolve_portals(corundum::entities::TransformTable &transforms, std::uint32_t player_slot,
                      corundum::entities::Position pos, float col_span, float row_span,
@@ -129,7 +129,7 @@ void queue_click_path(corundum::world::Scene &scene, const corundum::world::MapV
   scene.path = corundum::world::find_path(map, start, *scene.hovered_tile, &collisions, &transforms, player);
 }
 
-/** @brief Snapshot of every non-player entity's collision AABB and rounded tile elevation. */
+/** Snapshot of every non-player entity's collision AABB and rounded tile elevation. */
 struct NpcColliders {
   std::array<float, corundum::entities::k_max_entities> cols{};
   std::array<float, corundum::entities::k_max_entities> rows{};
@@ -149,7 +149,7 @@ struct NpcColliders {
   }
 };
 
-/// Fill @p out with every entity in @p collisions except @p exclude, converting each feet
+/// Fill `out` with every entity in `collisions` except `exclude`, converting each feet
 /// position to a collision AABB top-left and capturing its elevation so the player-vs-NPC pass
 /// can gate by elevation (same band as player-vs-world).
 void gather_npc_colliders(NpcColliders &out, corundum::entities::TransformTable &transforms,

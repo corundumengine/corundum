@@ -30,7 +30,7 @@ corundum::sprites::CharacterRegistry load_fixture_registry() {
   return registry;
 }
 
-/// Calls @p check for every non-empty animation frame of every sprite.
+/// Calls `check` for every non-empty animation frame of every sprite.
 template <typename Check>
 void for_each_animated_frame(const corundum::sprites::CharacterRegistry &registry, const Check &check) {
   for (const auto &[name, frame] : registry.frames()) {

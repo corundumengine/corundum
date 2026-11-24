@@ -8,7 +8,7 @@
 
 namespace corundum::gameplay::dialogue {
 
-/** @brief Serialize an in-memory Graph to JSON matching the engine's dialogue schema.
+/** Serialize an in-memory Graph to JSON matching the engine's dialogue schema.
  *  @param graph A fully-constructed dialogue graph.
  *  @return nlohmann::json object suitable for write_json().
  */

@@ -17,7 +17,7 @@ namespace corundum::gameplay::item {
 
 namespace {
 
-/// The held-item count key for @p item_id (`item.<id>`).
+/// The held-item count key for `item_id` (`item.<id>`).
 std::string held_flag_key(std::string_view item_id) {
   return std::format("{}{}", k_flag_prefix, item_id);
 }

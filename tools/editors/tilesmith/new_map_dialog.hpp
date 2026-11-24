@@ -8,11 +8,10 @@
 
 namespace tools::tilesmith {
 
-/**
- * @brief Transient state for the New Tilemap creation dialog.
+/** Transient state for the New Tilemap creation dialog.
  *
- * Owned by main() in new-map mode. Fields are written by ImGui widgets
- * each frame and read when the user clicks "Create".
+ *  Owned by main() in new-map mode. Fields are written by ImGui widgets
+ *  each frame and read when the user clicks "Create".
  */
 struct NewMapDialogState {
   char id[128] = {};
@@ -27,22 +26,20 @@ struct NewMapDialogState {
   bool cancelled = false;
 };
 
-/**
- * @brief Render the "New Tilemap" modal popup.
+/** Render the "New Tilemap" modal popup.
  *
- * Must be called every frame while the dialog is active. The caller is responsible for calling
- * ImGui::OpenPopup("New Tilemap") once, the frame the dialog becomes active — see menu.cpp's
- * open_new_map_dialog(). Sets dlg.confirmed or dlg.cancelled when the user acts.
+ *  Must be called every frame while the dialog is active. The caller is responsible for calling
+ *  ImGui::OpenPopup("New Tilemap") once, the frame the dialog becomes active — see menu.cpp's
+ *  open_new_map_dialog(). Sets dlg.confirmed or dlg.cancelled when the user acts.
  *
- * @param [in,out] dlg Dialog state updated each frame.
+ *  @param [in,out] dlg Dialog state updated each frame.
  */
 void render_new_map_dialog(NewMapDialogState &dlg);
 
-/**
- * @brief Write a minimal tilemap JSON to data/tilemaps/<dlg.id>.json.
+/** Write a minimal tilemap JSON to data/tilemaps/<dlg.id>.json.
  *
- * @param [in] dlg Validated dialog state.
- * @return The path written on success, or an error string on failure.
+ *  @param [in] dlg Validated dialog state.
+ *  @return The path written on success, or an error string on failure.
  */
 [[nodiscard]] std::expected<std::filesystem::path, std::string> write_new_tilemap_json(const NewMapDialogState &dlg);
 

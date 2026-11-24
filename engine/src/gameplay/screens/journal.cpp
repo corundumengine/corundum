@@ -45,7 +45,7 @@ constexpr std::string_view k_journal_empty = "(no quests)";
 constexpr std::string_view k_objective_done = "[x] ";
 constexpr std::string_view k_objective_pending = "[ ] ";
 
-/// True when @p lifecycle belongs to the section @p tab names.
+/// True when `lifecycle` belongs to the section `tab` names.
 bool tab_matches(JournalTab tab, gameplay::quest::Lifecycle lifecycle) noexcept {
   switch (tab) {
     case JournalTab::Active: return lifecycle == gameplay::quest::Lifecycle::Active;
@@ -108,7 +108,7 @@ struct JournalWindow {
   int visible_rows{};
 };
 
-/// Window the journal list to @p available pixels, keeping @p cursor visible. Each entry is an
+/// Window the journal list to `available` pixels, keeping `cursor` visible. Each entry is an
 /// option line plus either its single objective line or, when highlighted, its full checklist,
 /// so the window is sized by the summed row heights rather than a fixed slot count.
 JournalWindow compute_journal_window(int scroll, int cursor, const std::vector<JournalEntry> &entries, float available,

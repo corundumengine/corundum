@@ -60,7 +60,7 @@ struct TileTextureView {
                                                const corundum::world::tilemap::Tilemap &map,
                                                corundum::world::tilemap::TileId gid) noexcept;
 
-/// Render a single z-index layer of map into the canvas draw list, skipping layers @p layer_visible hides.
+/// Render a single z-index layer of map into the canvas draw list, skipping layers `layer_visible` hides.
 /// @pre layer_visible.size() == map.layers.size().
 void render_tilemap(corundum::toolkit::host::ToolHost &host, CanvasContext ctx,
                     const corundum::world::tilemap::Tilemap &map, const LayerVisibility &layer_visible,

@@ -11,10 +11,10 @@
 
 namespace corundum::input {
 
-/** @brief Upper bound on the number of physical input sources one resolver tracks. */
+/** Upper bound on the number of physical input sources one resolver tracks. */
 inline constexpr std::size_t k_max_input_sources = 96;
 
-/** @brief Folds many physical input sources bound to one Action into a single held bit and press edge.
+/** Folds many physical input sources bound to one Action into a single held bit and press edge.
  *
  *  Several bindings routinely map to the same Action (W and Up both mean MoveUp;
  *  keyboard Enter, mouse-left and gamepad A all mean Select). Writing
@@ -28,18 +28,18 @@ inline constexpr std::size_t k_max_input_sources = 96;
  */
 class ActionResolver {
 public:
-  /** @brief Record a source transition and fold it into @p state.
+  /** Record a source transition and fold it into `state`.
    *
-   *  A press edge is raised only when @p action moves from "no source active" to
+   *  A press edge is raised only when `action` moves from "no source active" to
    *  "at least one source active", so pressing a second binding while the first is
    *  still held is not a new press.
    *
-   *  @param[in]     source  Stable index of the source, in [0, k_max_input_sources).
-   *  @param[in]     action  Action the source is bound to.
-   *  @param[in]     down    New state of the source.
-   *  @param[in,out] state   Per-poll input state updated in place.
-   *  @pre @p source < k_max_input_sources.
-   *  @pre @p action must not be Action::Count; Count is a sentinel, not an action.
+   *  @param source  Stable index of the source, in [0, k_max_input_sources).
+   *  @param action  Action the source is bound to.
+   *  @param down    New state of the source.
+   *  @param state   Per-poll input state updated in place.
+   *  @pre `source` < k_max_input_sources.
+   *  @pre `action` must not be Action::Count; Count is a sentinel, not an action.
    */
   void update(std::size_t source, Action action, bool down, InputState &state) noexcept {
     assert(action != Action::Count && "Count is a sentinel, not an action");

@@ -31,26 +31,26 @@ inline void destroy_renderer(platform::Renderer *renderer) noexcept {
 
 } // namespace detail
 
-/** @brief Owned bundle of no-op Window + Renderer for tests.
+/** Owned bundle of no-op Window + Renderer for tests.
  *
- * Carries no @c GpuContext: this backend provides none, and initialize()
- * permits @c Engine::gpu() to be null because the main loop never touches it.
+ *  Carries no `GpuContext`: this backend provides none, and initialize()
+ *  permits `Engine::gpu()` to be null because the main loop never touches it.
  *
- * adopt_null_platform() moves the members into the Engine, leaving the bundle
- * empty and safe to destroy at any point afterwards.
+ *  adopt_null_platform() moves the members into the Engine, leaving the bundle
+ *  empty and safe to destroy at any point afterwards.
  */
 struct NullPlatform {
-  /** @brief No-op renderer; every asset load returns the shared dummy handle. */
+  /** No-op renderer; every asset load returns the shared dummy handle. */
   Handle<platform::Renderer> renderer;
 
-  /** @brief No-op window of the requested size. */
+  /** No-op window of the requested size. */
   Handle<platform::Window> window;
 };
 
-/** @brief Construct a NullPlatform bundle with a window of the given size.
+/** Construct a NullPlatform bundle with a window of the given size.
  *
- *  @param[in] width   Initial window width in pixels (stored for `size()`).
- *  @param[in] height  Initial window height in pixels.
+ *  @param width   Initial window width in pixels (stored for `size()`).
+ *  @param height  Initial window height in pixels.
  *  @return A bundle whose Window/Renderer are ready to adopt.
  */
 [[nodiscard]] inline NullPlatform make_null_platform(unsigned width, unsigned height) {
@@ -62,14 +62,14 @@ struct NullPlatform {
   return bundle;
 }
 
-/** @brief Move the NullPlatform's Window/Renderer into @p engine.
+/** Move the NullPlatform's Window/Renderer into `engine`.
  *
- *  @p platform is left empty and may be destroyed immediately; nothing in the
- *  engine refers back to it. The audio backend and @c Engine::gpu() stay null
+ *  `platform` is left empty and may be destroyed immediately; nothing in the
+ *  engine refers back to it. The audio backend and `Engine::gpu()` stay null
  *  (initialize() downgrades audio init to a WARN when no backend is present).
  *
- *  @param[in,out] engine Uninitialised Engine.
- *  @param[in,out] platform The bundle; its members are moved out.
+ *  @param engine Uninitialised Engine.
+ *  @param platform The bundle; its members are moved out.
  */
 inline void adopt_null_platform(corundum::Engine &engine, NullPlatform &platform) {
   engine.adopt_platform(PlatformContext{

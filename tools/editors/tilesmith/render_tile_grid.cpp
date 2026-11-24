@@ -160,7 +160,7 @@ void do_remove_tileset(corundum::toolkit::host::ToolHost &host, EditorState &sta
   state.dirty = true;
 }
 
-/// Add the sheet at @p typed_path, accepting a pasted path wrapped in double quotes.
+/// Add the sheet at `typed_path`, accepting a pasted path wrapped in double quotes.
 /// @return Whether the sheet was added; a failure is printed to stderr.
 bool try_add_tileset(corundum::toolkit::host::ToolHost &host, EditorState &state, TilemapTextureStore &texture_store,
                      std::vector<TilesetView> &tileset_views, std::string_view typed_path) {
@@ -183,7 +183,7 @@ std::string sheet_display_name(const TilesetView &view) {
   return std::filesystem::path(view.tileset->info.source).stem().string();
 }
 
-/// Display name of the sheet at @p idx, or std::nullopt when @p idx names no sheet.
+/// Display name of the sheet at `idx`, or std::nullopt when `idx` names no sheet.
 std::optional<std::string> find_sheet_name(const std::vector<TilesetView> &tileset_views, int idx) {
   if (idx < 0 || std::cmp_greater_equal(idx, tileset_views.size()))
     return std::nullopt;
@@ -335,8 +335,8 @@ void render_add_popup(corundum::toolkit::host::ToolHost &host, EditorState &stat
   ImGui::EndPopup();
 }
 
-/// The panel-local y at which to draw @p cell once scrolled by @p scroll_y, or std::nullopt
-/// when no part of the cell lies inside the grid's @p grid_h-pixel band.
+/// The panel-local y at which to draw `cell` once scrolled by `scroll_y`, or std::nullopt
+/// when no part of the cell lies inside the grid's `grid_h`-pixel band.
 std::optional<float> visible_cell_y(const PaletteCell &cell, float scroll_y, int grid_h) {
   const float draw_y = static_cast<float>(cell.y) - scroll_y;
   const bool is_above = draw_y + static_cast<float>(cell.h) < 0.f;
@@ -401,7 +401,7 @@ void render_tile_images(const EditorState &state, const TilesetView &view, const
   ImGui::End();
 }
 
-/// Local id of the palette's selected tile within @p ts, or std::nullopt when the selection
+/// Local id of the palette's selected tile within `ts`, or std::nullopt when the selection
 /// belongs to another sheet.
 std::optional<std::size_t> selected_local_id(const EditorState &state, const TilemapTileset &ts) {
   const int local_id = static_cast<int>(state.selected_gid) - static_cast<int>(ts.first_gid);

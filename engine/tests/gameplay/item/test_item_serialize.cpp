@@ -38,7 +38,7 @@ corundum::test::TempDir temp_dir(std::string_view tag) {
   return corundum::test::TempDir{"crpg_test_item_serialize_", tag};
 }
 
-/** @brief Load -> serialize -> write -> load, returning the final parse. */
+/** Load -> serialize -> write -> load, returning the final parse. */
 std::expected<std::vector<item::Item>, std::string> round_trip(const fs::path &src, item::ItemCategory category,
                                                                const fs::path &out) {
   auto loaded = item::Loader{}.load(disk(), src, category);

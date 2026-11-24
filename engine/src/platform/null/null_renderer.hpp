@@ -20,14 +20,14 @@ constexpr corundum::platform::TextureId k_dummy_texture{1};
 /// every request aliases this.
 constexpr corundum::platform::FontId k_dummy_font{1};
 
-/** @brief Assumed per-glyph advance width reported by measure_text(). */
+/** Assumed per-glyph advance width reported by measure_text(). */
 constexpr float k_glyph_advance_px = 8.f;
 
-/** @brief No-op Renderer for headless lifecycle tests.
+/** No-op Renderer for headless lifecycle tests.
  *
- * Satisfies the platform::Renderer interface without touching a GPU: every
- * load returns a fixed dummy id, drawing is discarded, and measure_text()
- * reports a rough per-character width.
+ *  Satisfies the platform::Renderer interface without touching a GPU: every
+ *  load returns a fixed dummy id, drawing is discarded, and measure_text()
+ *  reports a rough per-character width.
  */
 class NullRenderer final : public corundum::platform::Renderer {
 public:
@@ -74,12 +74,12 @@ public:
 
   [[nodiscard]] RendererStats stats() const override { return {}; }
 
-  /** @brief Camera top-left recorded by the most recent set_world_view() call.
+  /** Camera top-left recorded by the most recent set_world_view() call.
    *  @note Exposed so tests can observe the camera position render() computes.
    */
   [[nodiscard]] core::math::Vec2 last_camera_top_left() const noexcept { return last_cam_; }
 
-  /** @brief Zoom recorded by the most recent set_world_view() call.
+  /** Zoom recorded by the most recent set_world_view() call.
    *  @note Exposed so tests can observe the zoom render() computes.
    */
   [[nodiscard]] float last_zoom() const noexcept { return last_zoom_; }

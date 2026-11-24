@@ -93,7 +93,7 @@ inline constexpr uint8_t k_flip_v = 0x02;
 /// (walkable both up and down); does nothing for the other axis or the four diagonals.
 enum class RampAxis : uint8_t { NorthSouth, EastWest };
 
-/** @brief Row-major index of cell (@p col, @p row) in a grid @p width cells wide: the one place the
+/** Row-major index of cell (`col`, `row`) in a grid `width` cells wide: the one place the
  *  layout of tiles, elevation and every other per-cell array is spelled.
  *  @pre 0 <= col < width and 0 <= row.
  */
@@ -112,7 +112,7 @@ struct TilemapLayer {
   int z_index = 0; ///< >= 0; clamped to 0 by loader if negative.
 
   bool depth_sorted = false; ///< Only meaningful when z_index > 0. false (default): layer always draws above all
-                             ///< entities (rooftops, canopy, decals) — unchanged legacy behavior. true: layer's tiles
+                             ///< entities (rooftops, canopy, decals). true: layer's tiles
                              ///< are depth-sorted against entities and elevated ground tiles via iso_depth_key
                              ///< instead (walls, pillars, other tall props players walk around/behind).
 
@@ -176,7 +176,7 @@ struct TilePivot {
   float y = 0.f;
 };
 
-/// Returns the pivot for @p local_id in @p info; {0.5, 0} if local_id is out of range.
+/// Returns the pivot for `local_id` in `info`; {0.5, 0} if local_id is out of range.
 [[nodiscard]] inline TilePivot get_tile_pivot(const TilesetInfo &info, int local_id) noexcept {
   const auto i = static_cast<std::size_t>(local_id);
   if (local_id < 0 || i >= info.tile_pivot_x.size() || i >= info.tile_pivot_y.size())
@@ -198,7 +198,7 @@ struct TileFrameOffset {
   int full_height = 0;
 };
 
-/// Returns the frame offset/size for @p local_id in @p info; all-zero if local_id is out of range.
+/// Returns the frame offset/size for `local_id` in `info`; all-zero if local_id is out of range.
 [[nodiscard]] inline TileFrameOffset get_tile_frame_offset(const TilesetInfo &info, int local_id) noexcept {
   const auto i = static_cast<std::size_t>(local_id);
   if (local_id < 0 || i >= info.tile_trim_x.size() || i >= info.tile_trim_y.size() ||
@@ -212,7 +212,7 @@ struct TileFrameOffset {
   };
 }
 
-/// Returns the source rect in the tileset texture for @p gid — spritepacker already trims and
+/// Returns the source rect in the tileset texture for `gid` — spritepacker already trims and
 /// packs tightly, so this is a direct array read, not a computed grid cell.
 /// @param tileset Tileset entry that owns gid (caller must use find_tileset first).
 /// @param gid Global tile ID.
@@ -238,12 +238,11 @@ struct CollisionRect {
   float row_span = 0.f;
 };
 
-/**
- * @brief Non-owning Structure-of-Arrays view over collision rect data in tile-grid space.
+/** Non-owning Structure-of-Arrays view over collision rect data in tile-grid space.
  *
- * Passed to collision functions. Enables SIMD auto-vectorization by
- * exposing each field as a contiguous span rather than interleaved structs.
- * Construct from CollisionRects::view() or directly from stack arrays.
+ *  Passed to collision functions. Enables SIMD auto-vectorization by
+ *  exposing each field as a contiguous span rather than interleaved structs.
+ *  Construct from CollisionRects::view() or directly from stack arrays.
  */
 struct CollisionRectsView {
   std::span<const float> cols; ///< Left edges (tile columns).
@@ -263,7 +262,7 @@ struct CollisionRectsView {
 };
 
 namespace detail {
-/// O(1) swap-and-pop erase of @p i across parallel SoA vectors; order is not preserved.
+/// O(1) swap-and-pop erase of `i` across parallel SoA vectors; order is not preserved.
 /// @pre every vector is non-empty, shares the same size, and i < size().
 template <typename First, typename... Rest> void swap_pop_at(std::size_t i, First &first, Rest &...rest) noexcept {
   const std::size_t last = first.size() - 1;
@@ -277,14 +276,13 @@ template <typename First, typename... Rest> void swap_pop_at(std::size_t i, Firs
 }
 } // namespace detail
 
-/**
- * @brief Owned Structure-of-Arrays storage for collision rects in tile-grid space.
+/** Owned Structure-of-Arrays storage for collision rects in tile-grid space.
  *
- * Stores rect fields in four parallel vectors so that overlaps_any() can
- * iterate each field as a contiguous float array, enabling auto-vectorization.
- * Populated once at load time; no per-frame allocation.
+ *  Stores rect fields in four parallel vectors so that overlaps_any() can
+ *  iterate each field as a contiguous float array, enabling auto-vectorization.
+ *  Populated once at load time; no per-frame allocation.
  *
- * @see CollisionRectsView for the non-owning counterpart passed to collision functions.
+ *  CollisionRectsView is the non-owning counterpart passed to collision functions.
  */
 struct CollisionRects {
   std::vector<float> cols; ///< Left edges (tile columns).
@@ -316,16 +314,15 @@ struct CollisionRects {
     return {.cols = cols, .rows = rows, .col_spans = col_spans, .row_spans = row_spans, .elevations = elevations};
   }
 
-  /// Remove the rect at index @p i in O(1) via swap-and-pop. Order is not preserved.
+  /// Remove the rect at index `i` in O(1) via swap-and-pop. Order is not preserved.
   /// @pre i < size()
   void erase(std::size_t i) noexcept { detail::swap_pop_at(i, cols, rows, col_spans, row_spans, elevations); }
 };
 
-/**
- * @brief Identifies which corner of a tile is the empty (non-solid) region.
+/** Identifies which corner of a tile is the empty (non-solid) region.
  *
- * The solid region is the triangle that does NOT contain the named corner.
- * NW/SE triangles share the TR→BL hypotenuse; NE/SW share the TL→BR hypotenuse.
+ *  The solid region is the triangle that does NOT contain the named corner.
+ *  NW/SE triangles share the TR→BL hypotenuse; NE/SW share the TL→BR hypotenuse.
  */
 enum class TriangleCut : uint8_t { NorthWest, NorthEast, SouthWest, SouthEast };
 
@@ -348,11 +345,10 @@ struct CollisionTrianglesView {
   [[nodiscard]] std::size_t size() const noexcept { return cols.size(); }
 };
 
-/**
- * @brief Owned Structure-of-Arrays storage for diagonal half-tile collision shapes in tile-grid space.
+/** Owned Structure-of-Arrays storage for diagonal half-tile collision shapes in tile-grid space.
  *
- * Each entry is a right-isoceles triangle occupying half a tile. The empty corner
- * is identified by TriangleCut; the other half is solid.
+ *  Each entry is a right-isoceles triangle occupying half a tile. The empty corner
+ *  is identified by TriangleCut; the other half is solid.
  */
 struct CollisionTriangles {
   std::vector<float> cols; ///< Left edges (tile columns).
@@ -392,7 +388,7 @@ struct CollisionTriangles {
     };
   }
 
-  /// Remove the triangle at index @p i in O(1) via swap-and-pop. Order is not preserved.
+  /// Remove the triangle at index `i` in O(1) via swap-and-pop. Order is not preserved.
   /// @pre i < size()
   void erase(std::size_t i) noexcept { detail::swap_pop_at(i, cols, rows, col_spans, row_spans, cuts, elevations); }
 };
@@ -438,13 +434,13 @@ struct Tilemap {
     return diamond_w() / 2;
   }
 
-  /// Tile GID at (col, row) in @p layer; undefined behaviour if out of bounds.
-  /// @pre @p layer belongs to this Tilemap.
+  /// Tile GID at (col, row) in `layer`; undefined behaviour if out of bounds.
+  /// @pre `layer` belongs to this Tilemap.
   [[nodiscard]] TileId tile_at(const TilemapLayer &layer, int col, int row) const noexcept {
     return layer.tile_at_unchecked(col, row, width);
   }
 
-  /// 2D mdspan view over @p layer's tile grid — rows × cols layout. Lives on Tilemap
+  /// 2D mdspan view over `layer`'s tile grid — rows × cols layout. Lives on Tilemap
   /// (not TilemapLayer) since width/height are Tilemap-owned; layer doesn't self-construct.
   /// @pre &layer must belong to this Tilemap's layers, and layer.tiles.size() == width * height.
   [[nodiscard]] auto layer_view(TilemapLayer &layer) const noexcept {
@@ -463,11 +459,10 @@ struct Tilemap {
   }
 };
 
-/**
- * @brief Check whether (col, row) is a valid tile index for @p tilemap.
+/** Check whether (col, row) is a valid tile index for `tilemap`.
  *
- * @return true if col and row are both non-negative and less than the map's
- *         width/height respectively.
+ *  @return true if col and row are both non-negative and less than the map's
+ *          width/height respectively.
  */
 [[nodiscard]] inline bool in_bounds(const Tilemap &tilemap, int col, int row) noexcept {
   return col >= 0 && row >= 0 && col < tilemap.width && row < tilemap.height;
@@ -476,30 +471,30 @@ struct Tilemap {
 template <std::predicate<std::size_t> KeepLayer>
 [[nodiscard]] int elevation_at(const Tilemap &tilemap, int col, int row, const KeepLayer &keep_layer) noexcept;
 
-/**
- * @brief Elevation of the tile at (col, row), for entities standing on it.
+/** Elevation of the tile at (col, row), for entities standing on it.
  *
- * A cell can carry independent elevation data on more than one z_index==0
- * layer; this resolves to the last (topmost-painted) such layer that has a
- * tile present at the cell — a deliberate convention, since no single
- * canonical "ground layer" is otherwise designated.
+ *  A cell can carry independent elevation data on more than one z_index==0
+ *  layer; this resolves to the last (topmost-painted) such layer that has a
+ *  tile present at the cell — a deliberate convention, since no single
+ *  canonical "ground layer" is otherwise designated.
  *
- * @return Elevation [0–255], or 0 if out of bounds (use in_bounds() to
- *         disambiguate a legitimate zero elevation from the OOB sentinel),
- *         no z_index==0 layer has a tile there, or the layer has no
- *         elevation data.
+ *  @return Elevation [0–255], or 0 if out of bounds (use in_bounds() to
+ *          disambiguate a legitimate zero elevation from the OOB sentinel),
+ *          no z_index==0 layer has a tile there, or the layer has no
+ *          elevation data.
  *
- * @note Out-of-bounds → 0 is the intentional sentinel: the downstream
- *       WalkabilityGraph allows movement at map edges (can_move returns
- *       true for OOB cells), and interpolated_elevation_at relies on the 0
- *       fallback when sampling outside the map during interpolation.
+ *  @note Out-of-bounds → 0 is the intentional sentinel: the downstream
+ *        WalkabilityGraph allows movement at map edges (can_move returns
+ *        true for OOB cells), and interpolated_elevation_at relies on the 0
+ *        fallback when sampling outside the map during interpolation.
  */
 [[nodiscard]] inline int elevation_at(const Tilemap &tilemap, int col, int row) noexcept {
   return elevation_at(tilemap, col, row, [](std::size_t /*layer_index*/) { return true; });
 }
 
-/** @brief elevation_at(), counting only the layers @p keep_layer accepts (by index in tilemap.layers).
- *  Same resolution rule: the topmost accepted z_index==0 layer with a tile at the cell wins. */
+/** elevation_at(), counting only the layers `keep_layer` accepts (by index in tilemap.layers).
+ *  Same resolution rule: the topmost accepted z_index==0 layer with a tile at the cell wins.
+ */
 template <std::predicate<std::size_t> KeepLayer>
 [[nodiscard]] int elevation_at(const Tilemap &tilemap, int col, int row, const KeepLayer &keep_layer) noexcept {
   if (!in_bounds(tilemap, col, row))
@@ -524,16 +519,15 @@ template <std::predicate<std::size_t> KeepLayer>
   return result;
 }
 
-/**
- * @brief Ramp axis of the tile at (col, row), if it's a ramp.
+/** Ramp axis of the tile at (col, row), if it's a ramp.
  *
- * Same topmost-z_index==0-layer-with-a-tile resolution convention as elevation_at().
+ *  Same topmost-z_index==0-layer-with-a-tile resolution convention as elevation_at().
  *
- * @param tilemap The tilemap to query.
- * @param col Column index (0-based).
- * @param row Row index (0-based).
- * @return The axis this cell bridges, or std::nullopt if out of bounds, no z_index==0 layer
- *         has a tile there, or the cell isn't a ramp.
+ *  @param tilemap The tilemap to query.
+ *  @param col Column index (0-based).
+ *  @param row Row index (0-based).
+ *  @return The axis this cell bridges, or std::nullopt if out of bounds, no z_index==0 layer
+ *          has a tile there, or the cell isn't a ramp.
  */
 [[nodiscard]] inline std::optional<RampAxis> ramp_axis_at(const Tilemap &tilemap, int col, int row) noexcept {
   if (!in_bounds(tilemap, col, row))
@@ -558,18 +552,17 @@ template <std::predicate<std::size_t> KeepLayer>
   return result;
 }
 
-/**
- * @brief Smoothly-interpolated elevation at a fractional world position — used for the
- * entity height lift so crossing a ramp doesn't pop between its two flanking elevations.
+/** Smoothly-interpolated elevation at a fractional world position — used for the
+ *  entity height lift so crossing a ramp doesn't pop between its two flanking elevations.
  *
- * Falls back to plain elevation_at() (floored) for any non-ramp cell, so behavior for the
- * rest of the map is unchanged. Single-map mode only — chunked/streamed World mode has no
- * caller for this yet and keeps the discrete per-tile elevation_at() lift.
+ *  Falls back to plain elevation_at() (floored) for any non-ramp cell, so behavior for the
+ *  rest of the map is unchanged. Single-map mode only — chunked/streamed World mode has no
+ *  caller for this yet and keeps the discrete per-tile elevation_at() lift.
  *
- * @param tilemap The tilemap to query.
- * @param col_f   Fractional column (e.g. an entity's world position in tile-grid units).
- * @param row_f   Fractional row.
- * @return Elevation, linearly interpolated across a ramp cell along its axis.
+ *  @param tilemap The tilemap to query.
+ *  @param col_f   Fractional column (e.g. an entity's world position in tile-grid units).
+ *  @param row_f   Fractional row.
+ *  @return Elevation, linearly interpolated across a ramp cell along its axis.
  */
 [[nodiscard]] inline float interpolated_elevation_at(const Tilemap &tilemap, float col_f, float row_f) noexcept {
   const int col = static_cast<int>(std::floor(col_f));
@@ -587,14 +580,13 @@ template <std::predicate<std::size_t> KeepLayer>
                    static_cast<float>(elevation_at(tilemap, col + 1, row)), t);
 }
 
-/**
- * @brief Material tag for @p layer at cell @p idx, or std::nullopt when the layer has no
- * z_index==0 tile there.
+/** Material tag for `layer` at cell `idx`, or std::nullopt when the layer has no
+ *  z_index==0 tile there.
  *
- * @param tilemap The tilemap owning @p layer, for the tileset default lookup.
- * @param layer Layer to resolve.
- * @param uidx Byte index of the cell in the layer's tile array.
- * @param idx Signed cell index used by the override and animation maps.
+ *  @param tilemap The tilemap owning `layer`, for the tileset default lookup.
+ *  @param layer Layer to resolve.
+ *  @param uidx Byte index of the cell in the layer's tile array.
+ *  @param idx Signed cell index used by the override and animation maps.
  */
 [[nodiscard]] inline std::optional<std::string> layer_material_at(const Tilemap &tilemap, const TilemapLayer &layer,
                                                                   std::size_t uidx, int idx) {
@@ -619,25 +611,24 @@ template <std::predicate<std::size_t> KeepLayer>
   return tileset != nullptr ? tileset->info.material : std::string{};
 }
 
-/**
- * @brief Terrain-material tag of the tile at (col, row), for footstep/ambient audio selection.
+/** Terrain-material tag of the tile at (col, row), for footstep/ambient audio selection.
  *
- * Resolves a per-cell material_overrides entry on the topmost z_index==0 layer with a tile
- * present at the cell (same layer-precedence convention as elevation_at); if that cell has no
- * override, falls back to the owning tileset's default TilesetInfo::material. This keeps the
- * common case (every tile of a terrain type sharing one material) free, while still letting an
- * individual placed tile diverge from its tileset's default (e.g. a snow-dusted patch of an
- * otherwise-stone floor) without deriving the tag from the tile's visual art index.
+ *  Resolves a per-cell material_overrides entry on the topmost z_index==0 layer with a tile
+ *  present at the cell (same layer-precedence convention as elevation_at); if that cell has no
+ *  override, falls back to the owning tileset's default TilesetInfo::material. This keeps the
+ *  common case (every tile of a terrain type sharing one material) free, while still letting an
+ *  individual placed tile diverge from its tileset's default (e.g. a snow-dusted patch of an
+ *  otherwise-stone floor) without deriving the tag from the tile's visual art index.
  *
- * @param tilemap The tilemap to query.
- * @param col Column index (0-based, left to right).
- * @param row Row index (0-based, top to bottom).
- * @return The resolved material tag, or an empty string if out of bounds (use in_bounds() to
- *         disambiguate a legitimate empty material from the OOB sentinel), no z_index==0 layer
- *         has a tile there, or neither an override nor a tileset default is set.
+ *  @param tilemap The tilemap to query.
+ *  @param col Column index (0-based, left to right).
+ *  @param row Row index (0-based, top to bottom).
+ *  @return The resolved material tag, or an empty string if out of bounds (use in_bounds() to
+ *          disambiguate a legitimate empty material from the OOB sentinel), no z_index==0 layer
+ *          has a tile there, or neither an override nor a tileset default is set.
  *
- * @note Out-of-bounds → empty string is the intentional sentinel — see elevation_at() for the
- *       rationale that applies equally to material resolution.
+ *  @note Out-of-bounds → empty string is the intentional sentinel — see elevation_at() for the
+ *        rationale that applies equally to material resolution.
  */
 [[nodiscard]] inline std::string material_at(const Tilemap &tilemap, int col, int row) {
   if (!in_bounds(tilemap, col, row))
@@ -655,20 +646,19 @@ template <std::predicate<std::size_t> KeepLayer>
   return result;
 }
 
-/**
- * @brief Validates a tilemap for author-time errors: orphaned tile references, duplicate layer
- * names, layer tile-count mismatches, out-of-bounds collision geometry, and ramps whose
- * axis-neighbors fall outside the map.
+/** Validates a tilemap for author-time errors: orphaned tile references, duplicate layer
+ *  names, layer tile-count mismatches, out-of-bounds collision geometry, and ramps whose
+ *  axis-neighbors fall outside the map.
  *
- * Intended to be run explicitly before save/export (e.g. by an editor), not as a load-time gate —
- * @see corundum::world::tilemap::load_tilemap for load-time structural checks.
+ *  Intended to be run explicitly before save/export (e.g. by an editor), not as a load-time gate;
+ *  load_tilemap() does the load-time structural checks.
  *
- * @param tilemap The tilemap to validate.
- * @return One human-readable message per problem found, each naming the offending layer/cell/rect
- *         so an editor can point the author at a specific location. Empty if the map is valid.
+ *  @param tilemap The tilemap to validate.
+ *  @return One human-readable message per problem found, each naming the offending layer/cell/rect
+ *          so an editor can point the author at a specific location. Empty if the map is valid.
  *
- * @note A non-positive width or height is reported as a single error and short-circuits the
- *       remaining checks, which all index cells by width.
+ *  @note A non-positive width or height is reported as a single error and short-circuits the
+ *        remaining checks, which all index cells by width.
  */
 [[nodiscard]] std::vector<std::string> validate(const Tilemap &tilemap);
 

@@ -29,44 +29,44 @@ namespace {
 constexpr float k_sqrt2 = std::numbers::sqrt2_v<float>;
 constexpr float k_sqrt2_minus_1 = k_sqrt2 - 1.f;
 
-/** @brief True if @p cell lies inside @p graph's window (global tile coordinates). */
+/** True if `cell` lies inside `graph`'s window (global tile coordinates). */
 [[nodiscard]] bool in_graph_bounds(TileCoord cell, const corundum::world::tilemap::WalkabilityGraph &graph) noexcept {
   return cell.col >= graph.col_origin && cell.row >= graph.row_origin && cell.col < graph.col_origin + graph.width &&
          cell.row < graph.row_origin + graph.height;
 }
 
-/** @brief Row-major index of @p cell into @p graph's window. @pre cell is in bounds and width > 0. */
+/** Row-major index of `cell` into `graph`'s window. @pre cell is in bounds and width > 0. */
 [[nodiscard]] std::size_t index_of(TileCoord cell, int width, int col0, int row0) noexcept {
   return (static_cast<std::size_t>(cell.row - row0) * static_cast<std::size_t>(width)) +
          static_cast<std::size_t>(cell.col - col0);
 }
 
-/** @brief Global tile coordinate for a row-major window index. @pre width > 0. */
+/** Global tile coordinate for a row-major window index. @pre width > 0. */
 [[nodiscard]] TileCoord from_index(std::size_t idx, int width, int col0, int row0) noexcept {
   const auto cell_width = static_cast<std::size_t>(width);
   return {.col = static_cast<int>(idx % cell_width) + col0, .row = static_cast<int>(idx / cell_width) + row0};
 }
 
-/** @brief True if the unit cell [c0,c1) x [r0,r1) overlaps the AABB (@p col, @p row, spans). */
+/** True if the unit cell [c0,c1) x [r0,r1) overlaps the AABB (`col`, `row`, spans). */
 [[nodiscard]] bool cell_overlaps(float c0, float c1, float r0, float r1, float col, float row, float col_span,
                                  float row_span) noexcept {
   return c0 < col + col_span && c1 > col && r0 < row + row_span && r1 > row;
 }
 
-/** @brief True if the unit cell [c0,c1) x [r0,r1) overlaps @p box. */
+/** True if the unit cell [c0,c1) x [r0,r1) overlaps `box`. */
 [[nodiscard]] bool cell_overlaps(float c0, float c1, float r0, float r1,
                                  const corundum::entities::GridBox &box) noexcept {
   return cell_overlaps(c0, c1, r0, r1, box.col, box.row, box.col_span, box.row_span);
 }
 
-/** @brief True if collider @p i's elevation is outside @p gate's tolerance of the cell's own elevation. */
+/** True if collider `i`'s elevation is outside `gate`'s tolerance of the cell's own elevation. */
 [[nodiscard]] bool elevation_outside_gate(std::span<const uint8_t> elevations, std::size_t i,
                                           const corundum::physics::ElevationGate &gate) noexcept {
   return !elevations.empty() && std::abs(static_cast<int>(elevations[i]) - gate.player_elevation) > gate.tolerance;
 }
 
 /// True if any authored collider in the parallel spans overlaps the cell while inside
-/// @p gate's elevation band.
+/// `gate`'s elevation band.
 [[nodiscard]] bool spans_block_cell(float c0, float c1, float r0, float r1, std::span<const float> cols,
                                     std::span<const float> rows, std::span<const float> col_spans,
                                     std::span<const float> row_spans, std::span<const uint8_t> elevations,
@@ -80,7 +80,7 @@ constexpr float k_sqrt2_minus_1 = k_sqrt2 - 1.f;
   return false;
 }
 
-/// True if any NPC AABB overlaps the cell while inside @p gate's elevation band.
+/// True if any NPC AABB overlaps the cell while inside `gate`'s elevation band.
 [[nodiscard]] bool npc_colliders_block_cell(float c0, float c1, float r0, float r1,
                                             const corundum::physics::ElevationGate &gate,
                                             const corundum::world::MapView &map,
@@ -140,7 +140,7 @@ constexpr float k_sqrt2_minus_1 = k_sqrt2 - 1.f;
   return npc_colliders_block_cell(c0, c1, r0, r1, gate, map, *npc_collisions, *npc_transforms, exclude);
 }
 
-/** @brief Per-cell collision test with a lazy memo, so A* rescanning a cell stays O(1). */
+/** Per-cell collision test with a lazy memo, so A* rescanning a cell stays O(1). */
 struct CollisionQuery {
   const corundum::world::MapView *map;
   const corundum::entities::CollisionTable *npc_collisions;
@@ -159,7 +159,7 @@ struct CollisionQuery {
   }
 };
 
-/** @brief True if a step of (@p dc, @p dr) from @p cur clears the graph edges, corner-cut rule, and collision. */
+/** True if a step of (`dc`, `dr`) from `cur` clears the graph edges, corner-cut rule, and collision. */
 [[nodiscard]] bool step_allowed(const corundum::world::tilemap::WalkabilityGraph &graph, CollisionQuery &collision,
                                 TileCoord cur, int dc, int dr) noexcept {
   const TileCoord next{.col = cur.col + dc, .row = cur.row + dr};
@@ -182,7 +182,7 @@ struct CollisionQuery {
   return !collision.blocked(next);
 }
 
-/** @brief Walk @p came_from back from @p goal_idx, excluding the start cell. */
+/** Walk `came_from` back from `goal_idx`, excluding the start cell. */
 [[nodiscard]] std::vector<TileCoord> reconstruct_path(std::size_t goal_idx, std::size_t start_idx,
                                                       const std::vector<std::size_t> &came_from, int width, int col0,
                                                       int row0) {
@@ -209,7 +209,7 @@ struct OpenEntry {
   return a.f > b.f;
 }
 
-/// Relax @p cur's eight neighbors into the open set: gated by step_allowed, then pushed
+/// Relax `cur`'s eight neighbors into the open set: gated by step_allowed, then pushed
 /// only when the new cost beats the recorded one.
 void expand_neighbors(const corundum::world::tilemap::WalkabilityGraph &graph, CollisionQuery &collision, TileCoord cur,
                       TileCoord goal, int width, int col0, int row0, std::vector<float> &g_score,

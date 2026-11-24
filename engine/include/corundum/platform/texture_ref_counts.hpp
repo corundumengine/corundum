@@ -8,7 +8,7 @@
 
 namespace corundum::platform {
 
-/** @brief Reference counts for a renderer's append-only texture ids.
+/** Reference counts for a renderer's append-only texture ids.
  *
  *  Bookkeeping owned by a renderer backend, never by game code: only the backend's
  *  load_texture() calls acquire(), once per call (a fresh load and a path-dedup hit alike),
@@ -25,7 +25,7 @@ namespace corundum::platform {
  */
 class TextureRefCounts {
 public:
-  /** @brief Add one reference to @p id. Id 0 and a purged id are ignored. */
+  /** Add one reference to `id`. Id 0 and a purged id are ignored. */
   void acquire(std::uint32_t id) {
     if (id == 0)
       return;
@@ -38,8 +38,9 @@ public:
     ++entry.count;
   }
 
-  /** @brief Drop one reference to @p id. Id 0, an untracked id or an id already at zero is
-   *  ignored. */
+  /** Drop one reference to `id`. Id 0, an untracked id or an id already at zero is
+   *  ignored.
+   */
   void release(std::uint32_t id) {
     if (id == 0 || id >= counts_.size())
       return;
@@ -49,14 +50,14 @@ public:
     --entry.count;
   }
 
-  /** @brief Current reference count of @p id; 0 for an untracked or purged id. */
+  /** Current reference count of `id`; 0 for an untracked or purged id. */
   [[nodiscard]] std::uint32_t count(std::uint32_t id) const {
     if (id >= counts_.size() || counts_[id].state != State::Live)
       return 0;
     return counts_[id].count;
   }
 
-  /** @brief Every id whose count is zero, each returned once; they become purged for good. */
+  /** Every id whose count is zero, each returned once; they become purged for good. */
   [[nodiscard]] std::vector<std::uint32_t> take_unreferenced() {
     std::vector<std::uint32_t> ids;
     for (std::size_t id{1}; id < counts_.size(); ++id) {

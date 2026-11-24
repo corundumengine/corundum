@@ -22,8 +22,8 @@ struct StyledRun {
   bool operator==(const StyledRun &) const = default;
 };
 
-/// A run positioned within a wrapped line. @c x is the cumulative offset from the line
-/// origin, so callers draw each segment at @c line_origin.x + x.
+/// A run positioned within a wrapped line. `x` is the cumulative offset from the line
+/// origin, so callers draw each segment at `line_origin.x` + x.
 struct StyledSegment {
   std::string text{};
 
@@ -45,11 +45,11 @@ struct StyledSegment {
 /// @return The styled runs; empty for empty input.
 [[nodiscard]] std::vector<StyledRun> parse_styled(std::string_view text);
 
-/// Returns the longest prefix of @p segments that fits @p budget visible codepoints, and how
+/// Returns the longest prefix of `segments` that fits `budget` visible codepoints, and how
 /// many codepoints that prefix consumed. A truncation mid-segment keeps that segment's style
 /// and x offset. Used by the typewriter reveal, which reveals by codepoint across style
 /// boundaries.
-/// @pre @p budget may be zero or negative, in which case the result is empty.
+/// @pre `budget` may be zero or negative, in which case the result is empty.
 [[nodiscard]] std::pair<std::vector<StyledSegment>, int> reveal_prefix_styled(std::span<const StyledSegment> segments,
                                                                               int budget);
 

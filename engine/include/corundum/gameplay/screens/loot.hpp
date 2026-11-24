@@ -17,20 +17,20 @@
 
 namespace corundum::gameplay::screens {
 
-/** @brief Which pane of the loot screen owns the cursor. */
+/** Which pane of the loot screen owns the cursor. */
 enum class LootPane : std::uint8_t {
   Container = 0,
   Player = 1,
 };
 
-/** @brief Loot-screen state: the active pane and the highlighted row within it. */
+/** Loot-screen state: the active pane and the highlighted row within it. */
 struct LootState {
   int cursor{};
 
   LootPane pane{LootPane::Container};
 };
 
-/** @brief Screen-space geometry of the loot screen, shared by render and mouse hit-testing. */
+/** Screen-space geometry of the loot screen, shared by render and mouse hit-testing. */
 struct LootLayout {
   core::math::Vec2 panel_pos{};
 
@@ -45,13 +45,13 @@ struct LootLayout {
   ui::ListHit player_rows{};
 };
 
-/** @brief Compute the loot panel's geometry for @p viewport. */
+/** Compute the loot panel's geometry for `viewport`. */
 [[nodiscard]] LootLayout loot_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
                                            std::string_view container_name, const std::vector<InventoryLine> &container,
                                            const std::vector<InventoryLine> &player, core::math::Vec2 viewport,
                                            input::InputDevice last_device);
 
-/** @brief Draw the two-pane loot transfer screen: container contents left, inventory right.
+/** Draw the two-pane loot transfer screen: container contents left, inventory right.
  *
  *  Pure render, like inventory_panel_render. The active pane's rows are drawn with a cursor;
  *  the inactive pane's are plain. Rows are "name xcount", as build_item_lines() produces.

@@ -113,7 +113,7 @@ struct AtlasImage {
 
 /// One resolved, drawable tile sprite.
 struct DrawItem {
-  int image_slot{}; ///< Index into the (fully-loaded) @c images vector; all images are loaded
+  int image_slot{}; ///< Index into the (fully-loaded) `images` vector; all images are loaded
                     ///< before any drawing, so indexing by slot is stable across reallocation.
   IntRect src{};
   float pos_x{};
@@ -125,8 +125,8 @@ struct DrawItem {
   bool above{}; ///< Non-depth-sorted z>0 layer (roofs) drawn on top of everything.
 };
 
-/// Loads (cached) the atlas image for @p png_path, storing it in @p images. All images are loaded
-/// before any drawing begins, so indexing @p images by the returned slot is stable. Returns the
+/// Loads (cached) the atlas image for `png_path`, storing it in `images`. All images are loaded
+/// before any drawing begins, so indexing `images` by the returned slot is stable. Returns the
 /// image slot, or std::nullopt on failure.
 std::optional<int> load_image(std::unordered_map<std::string, int> &slot_by_path, std::vector<AtlasImage> &images,
                               const std::string &png_path) {
@@ -153,7 +153,7 @@ std::optional<int> load_image(std::unordered_map<std::string, int> &slot_by_path
   return slot;
 }
 
-/// The tile GID at @p cell_index: the layer's tile, or an animation's first frame; nullopt when empty.
+/// The tile GID at `cell_index`: the layer's tile, or an animation's first frame; nullopt when empty.
 std::optional<TileId> cell_gid(const TilemapLayer &layer, std::size_t cell_index) {
   const TileId tile = layer.tiles[cell_index];
   if (tile != k_empty_tile)
@@ -237,12 +237,12 @@ std::optional<DrawItem> resolve_tile(const Tilemap &tm, const TilemapLayer &laye
   return make_draw_item(layer, *source, cell_idx, world_col, world_row, elevation, iso, scale);
 }
 
-/// Mirror a clamped source coordinate onto its flipped counterpart when @p flipped is set.
+/// Mirror a clamped source coordinate onto its flipped counterpart when `flipped` is set.
 int flip_coordinate(int coordinate, int last, bool flipped) {
   return flipped ? (last - coordinate) : coordinate;
 }
 
-/// Copy one source pixel into @p pixels at @p destination_index unless it is mostly transparent.
+/// Copy one source pixel into `pixels` at `destination_index` unless it is mostly transparent.
 void blend_pixel(std::vector<std::uint8_t> &pixels, const std::vector<std::uint8_t> &source, std::size_t source_index,
                  std::size_t destination_index) {
   if (source[source_index + 3] < 128)
@@ -410,7 +410,7 @@ void track_bounds(CollectedDraw &draw, const DrawItem &item) {
   draw.max_y = std::max(draw.max_y, item.pos_y + (static_cast<float>(item.src.height) * item.scale));
 }
 
-/// One image slot per tileset of @p tm, loading each atlas once into @p draw.
+/// One image slot per tileset of `tm`, loading each atlas once into `draw`.
 std::vector<int> chunk_image_slots(const Tilemap &tm, CollectedDraw &draw) {
   std::vector<int> image_slots;
   image_slots.reserve(tm.tilesets.size());
@@ -419,7 +419,7 @@ std::vector<int> chunk_image_slots(const Tilemap &tm, CollectedDraw &draw) {
   return image_slots;
 }
 
-/// Resolve one cell and, when it draws, file it into @p draw and widen the bounds.
+/// Resolve one cell and, when it draws, file it into `draw` and widen the bounds.
 void collect_cell(const Tilemap &tm, const TilemapLayer &layer, int col, int row, int world_col, int world_row,
                   const IsometricParams &iso, float scale, const std::vector<int> &image_slots, CollectedDraw &draw) {
   const auto item = resolve_tile(tm, layer, iso, col, row, world_col, world_row, scale, image_slots);
@@ -432,7 +432,7 @@ void collect_cell(const Tilemap &tm, const TilemapLayer &layer, int col, int row
     draw.depth_items.push_back(*item);
 }
 
-/// Resolve every cell of @p tm into @p draw's depth-sorted or above lists.
+/// Resolve every cell of `tm` into `draw`'s depth-sorted or above lists.
 void collect_chunk(const Tilemap &tm, int chunk_col, int chunk_row, const WorldLayout &layout,
                    const IsometricParams &iso, float scale, CollectedDraw &draw) {
   const std::vector<int> image_slots = chunk_image_slots(tm, draw);

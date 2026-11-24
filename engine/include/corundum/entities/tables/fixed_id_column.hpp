@@ -15,15 +15,15 @@
 
 namespace corundum::entities {
 
-/** @brief Shared storage for a fixed-capacity string column keyed by EntityId.
+/** Shared storage for a fixed-capacity string column keyed by EntityId.
  *
- * Backs the tables that map an entity to a stable authoring id (actor ids,
- * dialogue graph ids). Each id lives in a fixed-size `char[]` buffer so the
- * derived table stays trivially copyable (required by the GameTable concept);
- * an id must be shorter than k_max_id_len characters: loaders reject longer
- * ones, and insert() and assign() abort on them. The sparse/dense spine and
- * the swap-and-pop bookkeeping live here once — derive and add domain-named
- * accessors over the protected helpers.
+ *  Backs the tables that map an entity to a stable authoring id (actor ids,
+ *  dialogue graph ids). Each id lives in a fixed-size `char[]` buffer so the
+ *  derived table stays trivially copyable (required by the GameTable concept);
+ *  an id must be shorter than k_max_id_len characters: loaders reject longer
+ *  ones, and insert() and assign() abort on them. The sparse/dense spine and
+ *  the swap-and-pop bookkeeping live here once — derive and add domain-named
+ *  accessors over the protected helpers.
  */
 template <std::uint32_t KMax> struct FixedIdColumn {
   static constexpr std::size_t k_max_id_len = 128;
@@ -36,18 +36,18 @@ template <std::uint32_t KMax> struct FixedIdColumn {
 
   std::uint32_t count = 0;
 
-  /** @brief Span over id buffers (alias for GameTable concept compliance). */
+  /** Span over id buffers (alias for GameTable concept compliance). */
   [[nodiscard]] auto active_span(this auto &self) noexcept { return std::span(self.ids).first(self.count); }
 
-  /** @brief Contiguous span of EntityIds in dense order. */
+  /** Contiguous span of EntityIds in dense order. */
   [[nodiscard]] auto active_entities(this auto &self) noexcept { return self.index.active_entities(self.count); }
 
-  /** @brief True if @p e has an id row. @param[in] e Entity to query. */
+  /** True if `e` has an id row. @param e Entity to query. */
   [[nodiscard]] bool has(EntityId e) const noexcept { return index.has(e); }
 
-  /** @brief Add an id row for @p e.
-   *  @param[in] e  Entity (must not already be present).
-   *  @param[in] id Id string.
+  /** Add an id row for `e`.
+   *  @param e  Entity (must not already be present).
+   *  @param id Id string.
    *  @pre id.size() < k_max_id_len, enforced in every build type.
    *  @pre has(e) must be false.
    */
@@ -55,8 +55,8 @@ template <std::uint32_t KMax> struct FixedIdColumn {
     index.insert(e, count, [&](auto slot) { write(slot, id); });
   }
 
-  /** @brief Remove @p e's id row via swap-and-pop.
-   *  @param[in] e Entity to remove. @pre has(e) must be true.
+  /** Remove `e`'s id row via swap-and-pop.
+   *  @param e Entity to remove. @pre has(e) must be true.
    */
   void remove(EntityId e) noexcept {
     index.remove(e, count, [&](auto slot, auto last) {
@@ -66,14 +66,14 @@ template <std::uint32_t KMax> struct FixedIdColumn {
   }
 
 protected:
-  /** @brief Replace @p e's id in place. @pre has(e). */
+  /** Replace `e`'s id in place. @pre has(e). */
   void assign(EntityId e, std::string_view id) noexcept {
     assert(has(e));
     write(index.dense_index(e), id);
   }
 
-  /** @brief Non-owning view of @p e's id.
-   *  @param[in] e Entity to query. @pre has(e).
+  /** Non-owning view of `e`'s id.
+   *  @param e Entity to query. @pre has(e).
    *  @return View valid until the next insert/remove.
    */
   [[nodiscard]] std::string_view id_of(EntityId e) const noexcept {

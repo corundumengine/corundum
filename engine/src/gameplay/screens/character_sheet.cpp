@@ -112,8 +112,8 @@ float draw_labeled_row(platform::Renderer &r, const ui::PanelStyle &style, const
   return y + body_line_height(style);
 }
 
-/// Draw @p rows from @p first_y down @p section, scrolling so @p cursor stays visible.
-/// A negative @p cursor draws every row unselected (a section the cursor is not in).
+/// Draw `rows` from `first_y` down `section`, scrolling so `cursor` stays visible.
+/// A negative `cursor` draws every row unselected (a section the cursor is not in).
 void draw_section_rows(platform::Renderer &r, const ui::PanelStyle &style, const ui::RowRect &section, float first_y,
                        const std::vector<std::string> &rows, int cursor) {
   if (rows.empty())

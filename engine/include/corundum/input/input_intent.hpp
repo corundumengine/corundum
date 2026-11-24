@@ -7,7 +7,7 @@
 
 namespace corundum::input {
 
-/** @brief One frame of abstract navigational intent, decoded from raw InputState.
+/** One frame of abstract navigational intent, decoded from raw InputState.
  *
  *  This is the "Input → Intent" seam: a small value type a screen consumes in place of
  *  the device that produced the input, so gamepad, keyboard, and mouse+keyboard all drive
@@ -19,57 +19,59 @@ namespace corundum::input {
  *  before Activate existed still drives the world.
  */
 struct InputIntent {
-  /** @brief -1/0/+1 pressed step along each navigation axis; a press moves one row/column. */
+  /** -1/0/+1 pressed step along each navigation axis; a press moves one row/column. */
   int navigate_x{};
   int navigate_y{};
 
-  /** @brief Action::Select was pressed this step (dialogue/confirm). */
+  /** Action::Select was pressed this step (dialogue/confirm). */
   bool select{};
 
-  /** @brief A world/UI "use this thing" press this step.
+  /** A world/UI "use this thing" press this step.
    *
    *  Raised by Action::Activate or, so a binding table saved before that action existed
-   *  still drives the world, by Action::Select. Distinct from @c select: a screen that means
-   *  dialogue/confirm reads @c select, while the world and menus read this. */
+   *  still drives the world, by Action::Select. Distinct from `select`: a screen that means
+   *  dialogue/confirm reads `select`, while the world and menus read this.
+   */
   bool activate{};
 
-  /** @brief Action::Cancel was pressed this step. */
+  /** Action::Cancel was pressed this step. */
   bool back{};
 
-  /** @brief Action::TabNext was pressed this step (settings pages, barter Buy/Sell, hub tabs). */
+  /** Action::TabNext was pressed this step (settings pages, barter Buy/Sell, hub tabs). */
   bool next_tab{};
 
-  /** @brief Action::TabPrev was pressed this step (settings pages, barter Buy/Sell, hub tabs). */
+  /** Action::TabPrev was pressed this step (settings pages, barter Buy/Sell, hub tabs). */
   bool prev_tab{};
 
-  /** @brief Action::SubTabNext was pressed this step (Journal Active/Completed/Failed). */
+  /** Action::SubTabNext was pressed this step (Journal Active/Completed/Failed). */
   bool next_sub_tab{};
 
-  /** @brief Action::SubTabPrev was pressed this step (Journal Active/Completed/Failed). */
+  /** Action::SubTabPrev was pressed this step (Journal Active/Completed/Failed). */
   bool prev_sub_tab{};
 
-  /** @brief Cursor position in window pixels. */
+  /** Cursor position in window pixels. */
   float cursor_x{};
   float cursor_y{};
 
-  /** @brief True when the cursor moved since the previous poll cycle.
+  /** True when the cursor moved since the previous poll cycle.
    *
-   *  Screens shift a list's focus to the hovered row only when this or @c cursor_clicked is
+   *  Screens shift a list's focus to the hovered row only when this or `cursor_clicked` is
    *  true, so opening a screen with the pointer resting over a row never steals focus from
-   *  keyboard or gamepad navigation. */
+   *  keyboard or gamepad navigation.
+   */
   bool mouse_moved{};
 
-  /** @brief Accumulated scroll wheel delta this step (positive = away from the user). */
+  /** Accumulated scroll wheel delta this step (positive = away from the user). */
   float scroll_y{};
 
-  /** @brief True only on the step the left mouse button was pressed. */
+  /** True only on the step the left mouse button was pressed. */
   bool cursor_clicked{};
 
-  /** @brief Device of the most recent press; selects which on-screen glyph a prompt shows. */
+  /** Device of the most recent press; selects which on-screen glyph a prompt shows. */
   InputDevice last_device{InputDevice::Keyboard};
 };
 
-/** @brief Decode @p state into abstract navigational intent.
+/** Decode `state` into abstract navigational intent.
  *
  *  @param state       Per-frame input snapshot.
  *  @param last_device Device of the most recent press, from InputMapper::last_device().

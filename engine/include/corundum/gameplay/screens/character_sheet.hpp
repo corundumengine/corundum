@@ -18,27 +18,30 @@
 
 namespace corundum::gameplay::screens {
 
-/** @brief FlagStore key holding the inventory's slot capacity; 0 means unbounded/unknown. */
+/** FlagStore key holding the inventory's slot capacity; 0 means unbounded/unknown. */
 inline constexpr std::string_view k_inventory_capacity_flag = "player.inventory_capacity";
 
-/** @brief The character sheet's display values.
+/** The character sheet's display values.
  *
  *  Pure data assembled from the FlagStore and the game's ruleset by build_character_info(); the
  *  screen never reads the game itself. An equipment slot's empty item name draws as "(empty)".
  */
 struct CharacterInfo {
   /** Rows the game's ruleset supplies for the Stats column, drawn above Gold in the order given;
-   *  empty when the ruleset installs no character_rows callback. */
+   *  empty when the ruleset installs no character_rows callback.
+   */
   std::vector<rules::StatRow> rule_rows{};
 
   int gold{};
 
   /** Distinct equipment slots among held items, as the Inventory panel's left column shows
-   *  them (free-form slot names, sorted). */
+   *  them (free-form slot names, sorted).
+   */
   std::vector<EquipmentLine> equipment{};
 
   /** Held item rows, as the Inventory panel lists them (sorted by category then name). The
-   *  character sheet highlights and equips from these; @c inventory_count mirrors its size. */
+   *  character sheet highlights and equips from these; `inventory_count` mirrors its size.
+   */
   std::vector<InventoryLine> inventory{};
 
   int inventory_count{};
@@ -46,7 +49,7 @@ struct CharacterInfo {
   int inventory_capacity{};
 };
 
-/** @brief Highlighted cell of the character sheet: a section column and a row within it.
+/** Highlighted cell of the character sheet: a section column and a row within it.
  *
  *  Sections are 0 = Stats, 1 = Equipment, 2 = Inventory. Every section exposes at least one
  *  highlightable row, so the cursor always has a valid target. Equipment and Inventory rows are
@@ -58,7 +61,7 @@ struct CharacterSheetState {
   int row{};
 };
 
-/** @brief Number of highlightable rows in @p section, always at least 1.
+/** Number of highlightable rows in `section`, always at least 1.
  *
  *  Stats holds one row per ruleset row and Gold; Equipment holds one row per known slot (or the
  *  single "(empty)" row); Inventory holds one row per held item.
@@ -68,26 +71,26 @@ struct CharacterSheetState {
  */
 [[nodiscard]] int character_section_row_count(const CharacterInfo &info, int section) noexcept;
 
-/** @brief Apply one navigation step to @p state.
+/** Apply one navigation step to `state`.
  *
- *  @p dx moves between sections (wrapping), clamping the row into the new section; @p dy moves
+ *  `dx` moves between sections (wrapping), clamping the row into the new section; `dy` moves
  *  within the current section, wrapping past either end. Pass 0 to leave an axis untouched.
  *
- *  @param[in,out] state Cursor to move.
- *  @param[in]     info  Values deciding each section's row count.
- *  @param[in]     dx    Section step, -1/0/+1.
- *  @param[in]     dy    Row step, -1/0/+1.
+ *  @param state Cursor to move.
+ *  @param info  Values deciding each section's row count.
+ *  @param dx    Section step, -1/0/+1.
+ *  @param dy    Row step, -1/0/+1.
  */
 void move_character_cursor(CharacterSheetState &state, const CharacterInfo &info, int dx, int dy) noexcept;
 
-/** @brief Read the character sheet's values from @p flags and @p ruleset.
+/** Read the character sheet's values from `flags` and `ruleset`.
  *
  *  Every field but rule_rows comes from a FlagStore key; the game decides the RPG policy and
  *  writes the keys. Missing keys take their documented defaults, and negative counts clamp to 0.
  *  `inventory_count` counts the held item rows (`item.<id>` flags with a positive count), matching
  *  the inventory panel's rows. `equipment` lists one row per equipment slot among held items,
- *  resolving the equipped item through @p items. `rule_rows` is @p ruleset's character_rows for
- *  @p flags, or empty when that callback is empty.
+ *  resolving the equipped item through `items`. `rule_rows` is `ruleset`'s character_rows for
+ *  `flags`, or empty when that callback is empty.
  *
  *  @param flags   Active FlagStore.
  *  @param items   Loaded item registry; resolves equipment slot names and display names.
@@ -96,7 +99,7 @@ void move_character_cursor(CharacterSheetState &state, const CharacterInfo &info
 [[nodiscard]] CharacterInfo build_character_info(const world::FlagStore &flags, const item::Registry &items,
                                                  const rules::Ruleset &ruleset);
 
-/** @brief Screen-space geometry of the character sheet, shared by render and hit-testing. */
+/** Screen-space geometry of the character sheet, shared by render and hit-testing. */
 struct CharacterSheetLayout {
   core::math::Vec2 panel_pos{};
 
@@ -109,23 +112,23 @@ struct CharacterSheetLayout {
   ui::RowRect inventory{}; ///< Item count and capacity column.
 };
 
-/** @brief Compute the character sheet panel and section geometry for @p viewport.
+/** Compute the character sheet panel and section geometry for `viewport`.
  *
  *  The panel fills the viewport minus PanelStyle::margin (capped at k_screen_panel_max_width)
  *  and is split into three equal columns under a centered title. The result is a pure function
- *  of @p style and @p viewport, so render and hit-testing cannot disagree.
+ *  of `style` and `viewport`, so render and hit-testing cannot disagree.
  *
  *  @param style    Panel style supplying fonts, sizes and spacing.
  *  @param viewport Screen size in logical pixels; the panel is centered within it.
  */
 [[nodiscard]] CharacterSheetLayout character_sheet_layout(const ui::PanelStyle &style, core::math::Vec2 viewport);
 
-/** @brief Draw the character sheet panel: stats, equipment and inventory sections.
+/** Draw the character sheet panel: stats, equipment and inventory sections.
  *
  *  Pure render, invoked only while the Character mode is on top of the UI stack. The three
  *  sections are columns of labeled rows; the ruleset's rows sit above Gold, and the inventory
  *  capacity suffix is omitted when inventory_capacity is 0. A footer shows the Close glyph for
- *  @p last_device.
+ *  `last_device`.
  *
  *  @param r           Renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
  *  @param style       Panel style supplying fonts, sizes and colours.

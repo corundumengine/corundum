@@ -44,22 +44,22 @@ constexpr std::size_t k_font_style_count{4};
 struct FontFamily {
   std::array<platform::FontId, k_font_style_count> ids{};
 
-  /// @return The renderer id for @p style, or FontId::Invalid when the family is unloaded.
+  /// @return The renderer id for `style`, or FontId::Invalid when the family is unloaded.
   [[nodiscard]] platform::FontId get(FontStyle style) const noexcept { return ids[static_cast<std::size_t>(style)]; }
 };
 
 /// Config-supplied file names for one role, relative to ResourcePaths::font_dir.
 struct FontFamilyPaths {
-  /** @brief Bold file name; empty when the family has no bold face. */
+  /** Bold file name; empty when the family has no bold face. */
   std::string bold{};
 
-  /** @brief Bold-italic file name; empty when the family has no bold-italic face. */
+  /** Bold-italic file name; empty when the family has no bold-italic face. */
   std::string bold_italic{};
 
-  /** @brief Italic file name; empty when the family has no italic face. */
+  /** Italic file name; empty when the family has no italic face. */
   std::string italic{};
 
-  /** @brief Regular file name; required for every family. */
+  /** Regular file name; required for every family. */
   std::string regular{};
 };
 

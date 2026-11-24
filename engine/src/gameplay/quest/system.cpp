@@ -18,7 +18,7 @@ namespace corundum::gameplay::quest {
 
 namespace {
 
-/** @brief FlagStore key recording that the player has entered a stage, e.g. quest.{id}.seen.{stage}. */
+/** FlagStore key recording that the player has entered a stage, e.g. quest.{id}.seen.{stage}. */
 [[nodiscard]] std::string seen_flag_key(std::string_view quest_id, std::string_view stage_name) {
   return std::format("quest.{}.seen.{}", quest_id, stage_name);
 }

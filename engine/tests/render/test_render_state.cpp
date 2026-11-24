@@ -445,7 +445,7 @@ namespace {
 
 constexpr std::string_view k_one_chunk_tileset_path{"one_chunk_world/tileset.json"};
 
-/// A one-tile spritepacker atlas whose texture is @p texture_path.
+/// A one-tile spritepacker atlas whose texture is `texture_path`.
 std::string one_tile_atlas_json(std::string_view texture_path) {
   return std::format(R"({{"schema_version":2,"path":"{}","width":16,"height":16,"sprites":[)"
                      R"({{"name":"tile_0","x":0,"y":0,"w":16,"h":16,"trim_x":0,"trim_y":0,)"

@@ -9,39 +9,39 @@
 
 namespace corundum::platform {
 
-/** @brief Backend-neutral id table shared by the texture caches.
+/** Backend-neutral id table shared by the texture caches.
  *
- * A cache hands the table a freshly created set of backend handles and gets
- * back the id it was published under; releasing an id hands the handles back
- * so the backend can tear down whatever GPU resources they name. Ids stay
- * valid for as long as their texture is live, and a released id goes to the
- * next texture that needs one, so the table never grows past its high-water
- * mark and no live texture is ever renumbered.
+ *  A cache hands the table a freshly created set of backend handles and gets
+ *  back the id it was published under; releasing an id hands the handles back
+ *  so the backend can tear down whatever GPU resources they name. Ids stay
+ *  valid for as long as their texture is live, and a released id goes to the
+ *  next texture that needs one, so the table never grows past its high-water
+ *  mark and no live texture is ever renumbered.
  *
- * The handles are never interpreted here — the table only stores and returns
- * them — so it compiles and unit-tests without any graphics backend.
+ *  The handles are never interpreted here — the table only stores and returns
+ *  them — so it compiles and unit-tests without any graphics backend.
  *
- * @tparam Payload  Backend handles belonging to one texture.
+ *  @tparam Payload  Backend handles belonging to one texture.
  *
- * @note Not thread-safe. Call only from the main thread.
+ *  @note Not thread-safe. Call only from the main thread.
  */
 template <typename Payload> class TextureSlotTable {
 public:
-  /** @brief One published texture: its backend handles and its pixel extent. */
+  /** One published texture: its backend handles and its pixel extent. */
   struct Slot {
-    /** @brief Texture height in pixels. */
+    /** Texture height in pixels. */
     unsigned height{0};
 
-    /** @brief Handles to release once the slot is no longer live. */
+    /** Handles to release once the slot is no longer live. */
     Payload payload{};
 
-    /** @brief Texture width in pixels. */
+    /** Texture width in pixels. */
     unsigned width{0};
   };
 
-  /** @brief Publish @p payload in the first free slot.
+  /** Publish `payload` in the first free slot.
    *
-   * @return The id it was published under; ids are 1-based.
+   *  @return The id it was published under; ids are 1-based.
    */
   uint32_t adopt(Payload payload, unsigned width, unsigned height) {
     const Slot slot{.height = height, .payload = payload, .width = width};
@@ -57,10 +57,10 @@ public:
     return static_cast<uint32_t>(slots_.size());
   }
 
-  /** @brief Retire @p id, freeing it for reuse.
+  /** Retire `id`, freeing it for reuse.
    *
-   * @param[in] id  Id returned by adopt().
-   * @return The retired texture's handles, or std::nullopt if @p id is not live.
+   *  @param id  Id returned by adopt().
+   *  @return The retired texture's handles, or std::nullopt if `id` is not live.
    */
   [[nodiscard]] std::optional<Payload> release(uint32_t id) {
     if (id == 0 || id > slots_.size())
@@ -75,17 +75,17 @@ public:
     return payload;
   }
 
-  /** @brief Number of ids the table has handed out — its high-water mark, not its live count.
+  /** Number of ids the table has handed out — its high-water mark, not its live count.
    *
-   * Every id in 1..slot_count() can be passed to release(); the ids that are
-   * already retired return nothing.
+   *  Every id in 1..slot_count() can be passed to release(); the ids that are
+   *  already retired return nothing.
    */
   [[nodiscard]] std::size_t slot_count() const { return slots_.size(); }
 
-  /** @brief The slot published under @p id, or std::nullopt if @p id is not live.
+  /** The slot published under `id`, or std::nullopt if `id` is not live.
    *
-   * @note Copies the slot, and with it the payload; use peek() to read a field
-   *       or two without copying.
+   *  @note Copies the slot, and with it the payload; use peek() to read a field
+   *        or two without copying.
    */
   [[nodiscard]] std::optional<Slot> find(uint32_t id) const {
     const Slot *slot = peek(id);
@@ -95,9 +95,9 @@ public:
     return *slot;
   }
 
-  /** @brief The live slot under @p id, or nullptr if @p id is not live.
+  /** The live slot under `id`, or nullptr if `id` is not live.
    *
-   * @note The pointer is invalidated by the next adopt() or release().
+   *  @note The pointer is invalidated by the next adopt() or release().
    */
   [[nodiscard]] const Slot *peek(uint32_t id) const {
     if (id == 0 || id > slots_.size())

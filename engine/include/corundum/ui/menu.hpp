@@ -14,7 +14,7 @@
 
 namespace corundum::ui {
 
-/** @brief What the player picked from the pause menu. */
+/** What the player picked from the pause menu. */
 enum class MenuCommand : std::uint8_t {
   Resume,
   Settings,
@@ -24,22 +24,23 @@ enum class MenuCommand : std::uint8_t {
   Count,
 };
 
-/** @brief Number of pause-menu rows. */
+/** Number of pause-menu rows. */
 inline constexpr int k_menu_command_count = static_cast<int>(MenuCommand::Count);
 
-/** @brief Display label for @p command. */
+/** Display label for `command`. */
 [[nodiscard]] std::string_view menu_command_label(MenuCommand command) noexcept;
 
-/** @brief The command at row @p row.
- *  @pre 0 <= @p row < k_menu_command_count. */
+/** The command at row `row`.
+ *  @pre 0 <= `row` < k_menu_command_count.
+ */
 [[nodiscard]] MenuCommand menu_command_at(int row) noexcept;
 
-/** @brief Pause-menu selection state: the highlighted row only. */
+/** Pause-menu selection state: the highlighted row only. */
 struct MenuState {
   int cursor{};
 };
 
-/** @brief Screen-space geometry of the pause menu, shared by render and mouse hit-testing. */
+/** Screen-space geometry of the pause menu, shared by render and mouse hit-testing. */
 struct MenuLayout {
   core::math::Vec2 panel_pos{};
 
@@ -48,11 +49,11 @@ struct MenuLayout {
   ListHit rows{};
 };
 
-/** @brief Compute the pause menu's panel and row geometry for @p viewport. */
+/** Compute the pause menu's panel and row geometry for `viewport`. */
 [[nodiscard]] MenuLayout menu_panel_layout(const platform::Renderer &r, const PanelStyle &style,
                                            core::math::Vec2 viewport, input::InputDevice last_device);
 
-/** @brief Draw the centered pause menu with Resume / Settings / Save / Load / Quit rows.
+/** Draw the centered pause menu with Resume / Settings / Save / Load / Quit rows.
  *
  *  Pure render, like inventory_panel_render. Only invoked while GameMode::Menu is on top of
  *  the UI stack.

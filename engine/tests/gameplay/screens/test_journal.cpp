@@ -41,7 +41,7 @@ corundum::gameplay::quest::Quest make_two_stage_quest(std::string id, std::strin
   return q;
 }
 
-/// Advance @p id to its second (resolved) stage.
+/// Advance `id` to its second (resolved) stage.
 void complete(FlagStore &flags, std::string_view quest_id) {
   flags[corundum::gameplay::quest::quest_flag_key(quest_id)] = 2;
 }
@@ -55,7 +55,7 @@ std::vector<std::string> recorded_texts(const corundum::test::RecordingRenderer 
   return texts;
 }
 
-/// The recorded DrawText with exactly @p text, or nullptr.
+/// The recorded DrawText with exactly `text`, or nullptr.
 const corundum::platform::DrawText *find_text(const corundum::test::RecordingRenderer &r, std::string_view text) {
   for (const auto &call : r.log) {
     if (const auto *drawn = std::get_if<corundum::platform::DrawText>(&call); drawn != nullptr && drawn->text == text)

@@ -6,23 +6,23 @@
 
 namespace corundum::core {
 
-/** @brief Size of the internal render target, in pixels. */
+/** Size of the internal render target, in pixels. */
 struct RenderResolution {
   int width{};
 
   int height{};
 };
 
-/** @brief Internal render resolution for a window.
+/** Internal render resolution for a window.
  *
  *  Decouples the resolution the game renders at from the display's physical pixel count: the
- *  render target is the logical window size scaled by @p scale and clamped to the physical
+ *  render target is the logical window size scaled by `scale` and clamped to the physical
  *  framebuffer, then the compositor up-scales it to the panel. This is the fixed form of the
  *  internal-render-resolution technique (Game Engine Architecture): a smaller equal-aspect target
  *  costs proportionally less fill, which is what keeps a high-DPI or oversized display inside its
  *  frame budget.
  *
- *  @p scale is relative to logical window points, not physical pixels: 1.0 renders one pixel per
+ *  `scale` is relative to logical window points, not physical pixels: 1.0 renders one pixel per
  *  point, and the display's content scale (2.0 on a Retina panel) is the scale that renders at
  *  native resolution.
  *

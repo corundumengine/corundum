@@ -42,42 +42,40 @@ namespace corundum::gameplay::dialogue {
 
 // ── Query functions ───────────────────────────────────────────────────────────
 
-/**
- * @brief Advance to the next node.
+/** Advance to the next node.
  *
- * Talk / Event — choice_index is ignored; follows node.next_id.
- * Choice       — follows choices[choice_index].target_id.
- *                choice_index is an index into the FULL choices vector.
- *                Returns nullptr if out of range.
- * End          — always returns nullptr (conversation is over).
+ *  Talk / Event — choice_index is ignored; follows node.next_id.
+ *  Choice       — follows choices[choice_index].target_id.
+ *                 choice_index is an index into the FULL choices vector.
+ *                 Returns nullptr if out of range.
+ *  End          — always returns nullptr (conversation is over).
  *
- * @return Pointer to the next node, or nullptr on end/failure.
+ *  @return Pointer to the next node, or nullptr on end/failure.
  */
 [[nodiscard]]
 const Node *advance(const Graph &graph, const Node &node, int choice_index = 0) noexcept;
 
-/**
- * @brief Returns the indices into node.choices of choices currently visible.
+/** Returns the indices into node.choices of choices currently visible.
  *
- * A choice is visible when ALL conditions hold:
- *   - condition is absent/empty, or the expression evaluates to true
- *   - sequence == None, or sequencing logic allows it for this visit
- *   - min_visits is absent, or the node's visit count >= min_visits
+ *  A choice is visible when ALL conditions hold:
+ *    - condition is absent/empty, or the expression evaluates to true
+ *    - sequence == None, or sequencing logic allows it for this visit
+ *    - min_visits is absent, or the node's visit count >= min_visits
  *
- * Sequencing rules:
- *   Once   — hidden after the edge has been taken (once-key set in flags).
- *   Cycle  — the N Cycle choices on this node rotate; only one is shown per
- *            visit (determined by visit_count % N).
- *   Random — one of the Random choices is shown per visit, selected via a
- *            deterministic hash of (graph_id, node_id, visit_count).
+ *  Sequencing rules:
+ *    Once   — hidden after the edge has been taken (once-key set in flags).
+ *    Cycle  — the N Cycle choices on this node rotate; only one is shown per
+ *             visit (determined by visit_count % N).
+ *    Random — one of the Random choices is shown per visit, selected via a
+ *             deterministic hash of (graph_id, node_id, visit_count).
  *
- * Bad condition expressions are treated as false (choice hidden).
- * Always returns an empty vector for non-Choice nodes.
+ *  Bad condition expressions are treated as false (choice hidden).
+ *  Always returns an empty vector for non-Choice nodes.
  *
- * @param node     The Choice node to evaluate.
- * @param flags    Active FlagStore used for condition and visit-count checks.
- * @param graph_id Owning graph's id, used to construct internal flag keys.
- * @param zone_id  Current zone; `local.<key>` conditions resolve against it.
+ *  @param node     The Choice node to evaluate.
+ *  @param flags    Active FlagStore used for condition and visit-count checks.
+ *  @param graph_id Owning graph's id, used to construct internal flag keys.
+ *  @param zone_id  Current zone; `local.<key>` conditions resolve against it.
  */
 [[nodiscard]]
 std::vector<std::size_t> visible_choices(const Node &node, const corundum::world::FlagStore &flags,

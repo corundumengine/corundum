@@ -24,22 +24,23 @@ class UserStorage;
 
 namespace corundum::save {
 
-/** @brief Current on-disk save format version. */
+/** Current on-disk save format version. */
 constexpr int k_save_version = 1;
 
-/** @brief Number of manual save slots (`slot_01` … `slot_10`). */
+/** Number of manual save slots (`slot_01` … `slot_10`). */
 constexpr int k_manual_slot_count = 10;
 
-/** @brief Slot id of the framework-written autosave; the game decides when it happens. */
+/** Slot id of the framework-written autosave; the game decides when it happens. */
 constexpr std::string_view k_autosave_slot = "autosave";
 
-/** @brief Slot id of the F5/F9 quicksave. */
+/** Slot id of the F5/F9 quicksave. */
 constexpr std::string_view k_quicksave_slot = "quicksave";
 
-/** @brief Human-readable metadata shown in the save/load list.
+/** Human-readable metadata shown in the save/load list.
  *
  *  The runtime cannot name gameplay types, so location_name is resolved by the caller
- *  (Gameplay maps the scene's zone id through its location registry). */
+ *  (Gameplay maps the scene's zone id through its location registry).
+ */
 struct SaveMeta {
   std::string location_name{}; ///< Display name of the location at save time.
 
@@ -48,10 +49,11 @@ struct SaveMeta {
   std::int64_t saved_at_unix{}; ///< Wall-clock save time, as Unix epoch seconds.
 };
 
-/** @brief One row of the save/load list: a slot on disk, or the error that makes it corrupt.
+/** One row of the save/load list: a slot on disk, or the error that makes it corrupt.
  *
- *  @c meta is set only for a valid, loadable slot; @c error is set only for a corrupt one.
- *  A slot whose file does not exist produces no row at all. */
+ *  `meta` is set only for a valid, loadable slot; `error` is set only for a corrupt one.
+ *  A slot whose file does not exist produces no row at all.
+ */
 struct SaveSlotInfo {
   std::string slot_id{}; ///< File stem: `slot_01`, `quicksave` or `autosave`.
 
@@ -60,18 +62,18 @@ struct SaveSlotInfo {
   std::string error{}; ///< Why the slot is corrupt; empty when valid.
 };
 
-/** @brief JSON `mode` value for a single loaded tilemap. */
+/** JSON `mode` value for a single loaded tilemap. */
 constexpr std::string_view k_mode_single_map = "single_map";
 
-/** @brief JSON `mode` value for streamed world mode. */
+/** JSON `mode` value for streamed world mode. */
 constexpr std::string_view k_mode_world = "world";
 
-/** @brief Everything serialized by a save: world/quest state plus spawn context.
+/** Everything serialized by a save: world/quest state plus spawn context.
  *
- * The whole global FlagStore is stored verbatim, including `zone.<id>.*` and
- * `npc.<id>.*` keys, so unknown author flags survive a round trip unchanged.
- * Anything that must survive a save (inventory, quest progress) therefore has
- * to be mirrored into the FlagStore; the record captures nothing else.
+ *  The whole global FlagStore is stored verbatim, including `zone.<id>.*` and
+ *  `npc.<id>.*` keys, so unknown author flags survive a round trip unchanged.
+ *  Anything that must survive a save (inventory, quest progress) therefore has
+ *  to be mirrored into the FlagStore; the record captures nothing else.
  */
 struct SaveState {
   int version = k_save_version; ///< On-disk format version.
@@ -95,19 +97,20 @@ struct SaveState {
   corundum::world::FlagStore flags; ///< Global flags, verbatim.
 };
 
-/** @brief The file name for manual slot @p index (0-based), e.g. `slot_01`.
- *  @pre 0 <= index < k_manual_slot_count. */
+/** The file name for manual slot `index` (0-based), e.g. `slot_01`.
+ *  @pre 0 <= index < k_manual_slot_count.
+ */
 [[nodiscard]] std::string manual_slot_id(int index);
 
-/** @brief The UserStorage entry of slot @p slot_id: `saves/<slot_id>.json`. */
+/** The UserStorage entry of slot `slot_id`: `saves/<slot_id>.json`. */
 [[nodiscard]] std::string slot_name(std::string_view slot_id);
 
-/** @brief List the save slots that exist in @p storage.
+/** List the save slots that exist in `storage`.
  *
- *  Returns one row per existing manual slot, plus @c autosave and @c quicksave when present,
+ *  Returns one row per existing manual slot, plus `autosave` and `quicksave` when present,
  *  ordered autosave, quicksave, then `slot_01` … `slot_10`. A slot file that fails to parse,
- *  declares a different format version, or was written for a @p game_id other than the
- *  current one becomes a row with @c error set and @c meta empty; a missing file produces no
+ *  declares a different format version, or was written for a `game_id` other than the
+ *  current one becomes a row with `error` set and `meta` empty; a missing file produces no
  *  row.
  *
  *  @param storage  The player's user storage.
@@ -115,55 +118,56 @@ struct SaveState {
  */
 [[nodiscard]] std::vector<SaveSlotInfo> list_saves(const core::UserStorage &storage, std::string_view game_id);
 
-/** @brief Serialize a SaveState to JSON.
+/** Serialize a SaveState to JSON.
  *  @param state The state to serialize.
  *  @return The JSON document; save_game() writes it via core::write_json, which
- *          sorts keys for stable diffs. */
+ *          sorts keys for stable diffs.
+ */
 [[nodiscard]] nlohmann::json serialize(const SaveState &state);
 
-/** @brief Deserialize a SaveState from JSON.
+/** Deserialize a SaveState from JSON.
  *
- * Refuses any version but k_save_version, and applies defaults to any missing
- * field. Unknown flag keys are preserved verbatim.
+ *  Refuses any version but k_save_version, and applies defaults to any missing
+ *  field. Unknown flag keys are preserved verbatim.
  *
- * @param j The JSON document produced by serialize.
- * @return The deserialized state, or an error message.
+ *  @param j The JSON document produced by serialize.
+ *  @return The deserialized state, or an error message.
  */
 [[nodiscard]] std::expected<SaveState, std::string> parse(const nlohmann::json &j);
 
-/** @brief Write the engine's current state to a save file.
+/** Write the engine's current state to a save file.
  *
- * Captures the mode, active map/world, zone, player position, return-journey
- * marker, and the whole global FlagStore. The engine never auto-saves; game
- * code calls this when the player saves.
+ *  Captures the mode, active map/world, zone, player position, return-journey
+ *  marker, and the whole global FlagStore. The engine never auto-saves; game
+ *  code calls this when the player saves.
  *
- * @param engine          The initialized engine to snapshot.
- * @param storage         The player's user storage.
- * @param slot_id         Slot to write (`slot_01`, `quicksave`, `autosave`).
- * @param location_name   Display name of the current location, for the slot list.
- * @param playtime_seconds Accumulated playtime to record, in seconds.
- * @param saved_at        Wall-clock time to record as the slot's saved_at_unix, truncated to whole seconds.
- * @return ok, or an error if the engine has no active map or the file cannot be written.
+ *  @param engine          The initialized engine to snapshot.
+ *  @param storage         The player's user storage.
+ *  @param slot_id         Slot to write (`slot_01`, `quicksave`, `autosave`).
+ *  @param location_name   Display name of the current location, for the slot list.
+ *  @param playtime_seconds Accumulated playtime to record, in seconds.
+ *  @param saved_at        Wall-clock time to record as the slot's saved_at_unix, truncated to whole seconds.
+ *  @return ok, or an error if the engine has no active map or the file cannot be written.
  */
 [[nodiscard]] std::expected<void, std::string> save_game(const Engine &engine, core::UserStorage &storage,
                                                          std::string_view slot_id, std::string_view location_name,
                                                          std::int64_t playtime_seconds,
                                                          std::chrono::system_clock::time_point saved_at);
 
-/** @brief Load a save file, replacing flags and respawning at the saved location.
+/** Load a save file, replacing flags and respawning at the saved location.
  *
- * Loads the saved spawn, then replaces engine.flags and the return-journey
- * marker, driving the existing transition machinery (render::load_map /
- * world::enter_world) to rebuild the scene at the saved location. NPCs respawn
- * from data; their state returns from `npc.<id>.*` flags.
+ *  Loads the saved spawn, then replaces engine.flags and the return-journey
+ *  marker, driving the existing transition machinery (render::load_map /
+ *  world::enter_world) to rebuild the scene at the saved location. NPCs respawn
+ *  from data; their state returns from `npc.<id>.*` flags.
  *
- * @param engine  The initialized engine to overwrite.
- * @param storage The player's user storage.
- * @param slot_id Slot to read.
- * @return The save's SaveMeta on success, or an error if the file is missing, malformed, a newer
- *         format, for a different game_id or world, or the map/world cannot be loaded.
- * @post If the scene rebuild fails, the world is unloaded (world::unload_world) rather than left
- *       half-built; flags are untouched.
+ *  @param engine  The initialized engine to overwrite.
+ *  @param storage The player's user storage.
+ *  @param slot_id Slot to read.
+ *  @return The save's SaveMeta on success, or an error if the file is missing, malformed, a newer
+ *          format, for a different game_id or world, or the map/world cannot be loaded.
+ *  @post If the scene rebuild fails, the world is unloaded (world::unload_world) rather than left
+ *        half-built; flags are untouched.
  */
 [[nodiscard]] std::expected<SaveMeta, std::string> load_game(Engine &engine, const core::UserStorage &storage,
                                                              std::string_view slot_id);

@@ -40,10 +40,11 @@ public:
   /// Returns frame data for an interned SpriteId, or nullptr for null or unknown ids.
   [[nodiscard]] const Frames *get_sprite_by_id(SpriteId sprite_id) const noexcept;
 
-  /** @brief The sprite playing @p motion for the same character as @p sprite_id: its name up to
-   *  the last '_', then @p motion, so "skeleton_idle" and "walk" give "skeleton_walk".
+  /** The sprite playing `motion` for the same character as `sprite_id`: its name up to
+   *  the last '_', then `motion`, so "skeleton_idle" and "walk" give "skeleton_walk".
    *  @return nullopt for an unknown id, a name with no '_', or no such sprite. A character's
-   *          motions are optional, so a missing one isn't an error. */
+   *          motions are optional, so a missing one isn't an error.
+   */
   [[nodiscard]] std::optional<SpriteId> find_companion(SpriteId sprite_id, std::string_view motion) const;
 
   /// All loaded sheets keyed by numeric Id.

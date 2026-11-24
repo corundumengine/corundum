@@ -53,7 +53,7 @@ corundum::gameplay::item::Registry make_equipment_registry() {
   return items;
 }
 
-/// The recorded DrawText with exactly @p text, or nullptr.
+/// The recorded DrawText with exactly `text`, or nullptr.
 const corundum::platform::DrawText *find_text(const RecordingRenderer &r, std::string_view text) {
   for (const auto &call : r.log) {
     if (const auto *drawn = std::get_if<corundum::platform::DrawText>(&call); drawn != nullptr && drawn->text == text)
@@ -62,7 +62,7 @@ const corundum::platform::DrawText *find_text(const RecordingRenderer &r, std::s
   return nullptr;
 }
 
-/// True when some recorded DrawText contains @p fragment.
+/// True when some recorded DrawText contains `fragment`.
 bool has_text_containing(const RecordingRenderer &r, std::string_view fragment) {
   for (const auto &call : r.log) {
     if (const auto *drawn = std::get_if<corundum::platform::DrawText>(&call);

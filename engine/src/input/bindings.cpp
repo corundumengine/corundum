@@ -68,7 +68,7 @@ constexpr std::array<std::pair<Action, std::string_view>, k_action_count> k_acti
     },
 };
 
-/// @p action's first input on @p device other than @p input, or nullopt when it has none.
+/// `action`'s first input on `device` other than `input`, or nullopt when it has none.
 std::optional<PhysicalInput> first_other_input(const Bindings &bindings, Action action, InputDevice device,
                                                PhysicalInput input) {
   const auto row = std::ranges::find_if(bindings, [action, device, input](const Binding &candidate) {
@@ -79,7 +79,7 @@ std::optional<PhysicalInput> first_other_input(const Bindings &bindings, Action 
   return row->input;
 }
 
-/// Whether @p action has any row on @p device.
+/// Whether `action` has any row on `device`.
 bool has_input_on(const Bindings &bindings, Action action, InputDevice device) {
   return std::ranges::any_of(bindings, [action, device](const Binding &row) {
     return row.action == action && device_of(row.input) == device;
@@ -268,14 +268,14 @@ std::string parse_entry_error(const nlohmann::json &entry, std::size_t index) {
   return {};
 }
 
-/// Whether @p default_row's input is shared with another action by @p defaults themselves.
+/// Whether `default_row`'s input is shared with another action by `defaults` themselves.
 bool is_shared_default(const Bindings &defaults, const Binding &default_row) {
   return std::ranges::any_of(defaults, [&default_row](const Binding &row) {
     return row.action != default_row.action && row.input == default_row.input;
   });
 }
 
-/// Whether @p bindings holds @p default_row's input on a row the defaults don't contain, which
+/// Whether `bindings` holds `default_row`'s input on a row the defaults don't contain, which
 /// means the player moved it to another action.
 bool is_moved_by_player(const Bindings &bindings, const Bindings &defaults, const Binding &default_row) {
   return std::ranges::any_of(bindings, [&defaults, &default_row](const Binding &row) {

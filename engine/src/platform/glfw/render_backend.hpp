@@ -12,20 +12,20 @@
 
 namespace corundum::platform::glfw::render_backend {
 
-/** @brief Vertex-shader source in this backend's shading language. */
+/** Vertex-shader source in this backend's shading language. */
 [[nodiscard]] const char *vertex_shader_source() noexcept;
 
-/** @brief Fragment-shader source in this backend's shading language. */
+/** Fragment-shader source in this backend's shading language. */
 [[nodiscard]] const char *fragment_shader_source() noexcept;
 
-/** @brief Fill the shader-descriptor fields that differ by backend: entry points and bindings.
+/** Fill the shader-descriptor fields that differ by backend: entry points and bindings.
  *
- * @pre @p desc's backend-independent fields (stages, sizes, formats, slots) are already set.
+ *  @pre `desc`'s backend-independent fields (stages, sizes, formats, slots) are already set.
  */
 void configure_shader(sg_shader_desc &desc) noexcept;
 
-/** @brief Render scale this backend needs to span a @p fb_w x @p fb_h framebuffer of a
- *         @p win_w x @p win_h logical window.
+/** Render scale this backend needs to span a `fb_w` x `fb_h` framebuffer of a
+ *         `win_w` x `win_h` logical window.
  */
 [[nodiscard]] float render_scale(int fb_w, int fb_h, int win_w, int win_h) noexcept;
 

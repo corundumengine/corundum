@@ -17,7 +17,7 @@ namespace tools::loom {
 
 namespace {
 
-/** @brief A blank item matching the document's category, with its payload set. */
+/** A blank item matching the document's category, with its payload set. */
 corundum::gameplay::item::Item make_blank_item(corundum::gameplay::item::ItemCategory category) {
   corundum::gameplay::item::Item item;
   item.category = category;
@@ -30,7 +30,7 @@ corundum::gameplay::item::Item make_blank_item(corundum::gameplay::item::ItemCat
   return item;
 }
 
-/** @brief Collect inline validation warnings for the batch. */
+/** Collect inline validation warnings for the batch. */
 std::vector<std::string> item_validation_warnings(const std::vector<corundum::gameplay::item::Item> &items) {
   std::vector<std::string> warnings;
   for (std::size_t i = 0; i < items.size(); ++i) {

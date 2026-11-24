@@ -20,33 +20,33 @@
 
 namespace corundum::gameplay::screens {
 
-/** @brief Which lifecycle section of the journal is showing. */
+/** Which lifecycle section of the journal is showing. */
 enum class JournalTab : std::uint8_t {
   Active = 0,
   Completed = 1,
   Failed = 2,
 };
 
-/** @brief The journal sub-tabs, in strip order. */
+/** The journal sub-tabs, in strip order. */
 inline constexpr std::array<JournalTab, 3> k_journal_tabs{
     JournalTab::Active,
     JournalTab::Completed,
     JournalTab::Failed,
 };
 
-/** @brief Display label for journal sub-tab @p tab. */
+/** Display label for journal sub-tab `tab`. */
 [[nodiscard]] std::string_view journal_tab_label(JournalTab tab) noexcept;
 
-/** @brief Advance @p tab by @p direction (+1 / -1) steps, wrapping. */
+/** Advance `tab` by `direction` (+1 / -1) steps, wrapping. */
 [[nodiscard]] JournalTab cycle_journal_tab(JournalTab tab, int direction) noexcept;
 
-/** @brief One objective of a quest's current stage, with its done mark. */
+/** One objective of a quest's current stage, with its done mark. */
 struct JournalObjective {
   std::string text{};
   bool done{false};
 };
 
-/** @brief One selectable journal row: a started quest's name, lifecycle, and current objective.
+/** One selectable journal row: a started quest's name, lifecycle, and current objective.
  *
  *  `objectives` carries the highlighted row's full stage checklist; a non-highlighted row draws
  *  only its single `objective` line. `tracked` mirrors the `quest.<id>.tracked` flag.
@@ -60,7 +60,7 @@ struct JournalEntry {
   std::vector<JournalObjective> objectives{};
 };
 
-/** @brief Journal-screen state: the active sub-tab, highlighted row, and first visible row. */
+/** Journal-screen state: the active sub-tab, highlighted row, and first visible row. */
 struct JournalState {
   JournalTab tab{JournalTab::Active};
 
@@ -69,9 +69,9 @@ struct JournalState {
   int scroll{};
 };
 
-/** @brief Build the journal rows for every started quest in @p tab.
+/** Build the journal rows for every started quest in `tab`.
  *
- *  Quests are filtered to the lifecycle section @p tab names and sorted by name. `objective` is
+ *  Quests are filtered to the lifecycle section `tab` names and sorted by name. `objective` is
  *  the current stage's first not-yet-done objective, falling back to its first objective, or
  *  empty when the stage has none; `objectives` is the full checklist of that stage. Pure
  *  derivation over the registry and flags; the row count is what update_journal() wraps its
@@ -81,13 +81,13 @@ struct JournalState {
  *  @param flags   Active FlagStore (`quest.<id>` stage keys plus objective conditions).
  *  @param tab     Lifecycle section to list.
  *  @param zone_id Current zone; `local.<key>` objective conditions resolve against it.
- *  @return One entry per started quest in @p tab, empty when none qualify.
+ *  @return One entry per started quest in `tab`, empty when none qualify.
  */
 [[nodiscard]] std::vector<JournalEntry> build_journal_entries(const gameplay::quest::Registry &quests,
                                                               const world::FlagStore &flags, JournalTab tab,
                                                               std::string_view zone_id = {});
 
-/** @brief Screen-space geometry of the journal panel, shared by render and mouse hit-testing. */
+/** Screen-space geometry of the journal panel, shared by render and mouse hit-testing. */
 struct JournalLayout {
   core::math::Vec2 panel_pos{};
 
@@ -97,21 +97,21 @@ struct JournalLayout {
 
   std::vector<ui::RowRect> rows{}; ///< One hit rect per visible entry, in draw order.
 
-  int first_row{}; ///< Absolute index of @c rows.front(); add it to a hovered index.
+  int first_row{}; ///< Absolute index of `rows.front()`; add it to a hovered index.
 
   int visible_rows{}; ///< Number of entries actually drawn.
 };
 
-/** @brief Compute the journal panel's geometry for @p viewport. */
+/** Compute the journal panel's geometry for `viewport`. */
 [[nodiscard]] JournalLayout journal_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
                                                  const std::vector<JournalEntry> &entries, const JournalState &state,
                                                  core::math::Vec2 viewport, input::InputDevice last_device);
 
-/** @brief Draw a centered journal panel listing one lifecycle tab's rows.
+/** Draw a centered journal panel listing one lifecycle tab's rows.
  *
  *  Pure render — like inventory_panel_render. The Active/Completed/Failed sub-tab strip is
- *  drawn under the title with @p state.tab highlighted; every quest is a draw_option row (so
- *  @p state.cursor, clamped into range, picks the highlighted one) showing its current objective.
+ *  drawn under the title with `state.tab` highlighted; every quest is a draw_option row (so
+ *  `state.cursor`, clamped into range, picks the highlighted one) showing its current objective.
  *  The highlighted quest additionally expands to its full objective checklist, each line marked
  *  `[x]` or `[ ]` from JournalObjective::done, and a tracked quest carries a `*` mark. An empty
  *  tab renders a single "(no quests)" line. The caller only invokes this while GameMode::Journal
@@ -121,7 +121,7 @@ struct JournalLayout {
  *  @param style       Dialog text style (font, size, colour); reused so the journal matches dialogue.
  *  @param border      Pre-loaded nine-patch border texture/tile dims; same one used by the dialogue box.
  *  @param entries     Journal rows to display, as build_journal_entries() produces.
- *  @param state       Active sub-tab and highlighted row index into @p entries (clamped locally).
+ *  @param state       Active sub-tab and highlighted row index into `entries` (clamped locally).
  *  @param viewport    Screen size in pixels; the panel is centered within this.
  *  @param last_device Device of the player's most recent press; picks the footer glyphs.
  */

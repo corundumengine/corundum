@@ -7,18 +7,17 @@
 
 namespace tools::tilesmith {
 
-/**
- * @brief Set a tile in a layer at (col, row). No-op if out of bounds.
+/** Set a tile in a layer at (col, row). No-op if out of bounds.
  *
- * When @p gid is k_empty_tile or @p flip is 0 the flip entry for the cell is removed.
- * When @p flip is non-zero it is stored in the layer's flip_flags map.
+ *  When `gid` is k_empty_tile or `flip` is 0 the flip entry for the cell is removed.
+ *  When `flip` is non-zero it is stored in the layer's flip_flags map.
  *
- * @param state     Editor state to modify.
- * @param layer_idx Target layer index.
- * @param col       Tile column.
- * @param row       Tile row.
- * @param gid       Tile ID to write.
- * @param flip      k_flip_h | FLIP_V bitmask (0 = no flip).
+ *  @param state     Editor state to modify.
+ *  @param layer_idx Target layer index.
+ *  @param col       Tile column.
+ *  @param row       Tile row.
+ *  @param gid       Tile ID to write.
+ *  @param flip      k_flip_h | FLIP_V bitmask (0 = no flip).
  */
 inline void set_tile(EditorState &state, int layer_idx, int col, int row, corundum::world::tilemap::TileId gid,
                      uint8_t flip = 0) noexcept {
@@ -37,26 +36,24 @@ inline void set_tile(EditorState &state, int layer_idx, int col, int row, corund
     layer.flip_flags[idx] = flip;
 }
 
-/**
- * @brief Paint or erase a tile at the given window-space coordinates.
+/** Paint or erase a tile at the given window-space coordinates.
  *
- * No-op if the position is outside the canvas or map bounds.
+ *  No-op if the position is outside the canvas or map bounds.
  *
- * @param state  Editor state to modify.
- * @param win_x  Window-space X coordinate.
- * @param win_y  Window-space Y coordinate.
- * @param erase  True to clear the tile; false to paint the selected GID.
+ *  @param state  Editor state to modify.
+ *  @param win_x  Window-space X coordinate.
+ *  @param win_y  Window-space Y coordinate.
+ *  @param erase  True to clear the tile; false to paint the selected GID.
  */
 void paint_or_erase(EditorState &state, int win_x, int win_y, bool erase);
 
-/**
- * @brief Erase all tiles on the active layer within a tile-coordinate bounding box.
+/** Erase all tiles on the active layer within a tile-coordinate bounding box.
  *
- * @param state    Editor state to modify.
- * @param col_min  Left tile column (inclusive).
- * @param row_min  Top tile row (inclusive).
- * @param col_max  Right tile column (inclusive).
- * @param row_max  Bottom tile row (inclusive).
+ *  @param state    Editor state to modify.
+ *  @param col_min  Left tile column (inclusive).
+ *  @param row_min  Top tile row (inclusive).
+ *  @param col_max  Right tile column (inclusive).
+ *  @param row_max  Bottom tile row (inclusive).
  */
 void erase_rect(EditorState &state, int col_min, int row_min, int col_max, int row_max);
 

@@ -29,22 +29,22 @@ struct Engine;
 // named them, from k_hostile.
 namespace corundum::gameplay::combat {
 
-/** @brief The standing attack's label on the command bar. */
+/** The standing attack's label on the command bar. */
 inline constexpr std::string_view k_attack_label = "Attack";
 
-/** @brief One hostile in a fight: its actor and the creature id its rules use. */
+/** One hostile in a fight: its actor and the creature id its rules use. */
 struct EncounterHostile {
   std::string actor_id{};
 
   std::string creature_id{};
 };
 
-/** @brief The fight start_encounter asked for: its hostiles, in the order named. */
+/** The fight start_encounter asked for: its hostiles, in the order named. */
 struct EncounterRequest {
   std::vector<EncounterHostile> hostiles{};
 };
 
-/** @brief The clips one combatant's sheets offer; a sheet it doesn't have leaves its clip empty. */
+/** The clips one combatant's sheets offer; a sheet it doesn't have leaves its clip empty. */
 struct CombatantClips {
   std::optional<entities::Clip> attack{};
 
@@ -58,24 +58,25 @@ enum class Clock : std::uint8_t {
   Paused,  ///< CombatPaused is on top: commands, the next-target key and clicks on a hostile give orders.
 };
 
-/** @brief What one Battle step produced. */
+/** What one Battle step produced. */
 struct BattleStep {
   std::optional<rules::Outcome> outcome{}; ///< A lost fight reports this only once the protagonist's death clip ends.
 
   std::vector<std::string> reports{}; ///< Toasts: each resolved command and each refusal.
 };
 
-/** @brief One encounter played out in the scene.
+/** One encounter played out in the scene.
  *
  *  Screen-tier: Gameplay drops it on reset_session_state() and when the Combat layer leaves the
- *  UI stack. It holds entity ids, which name nothing once the scene it started in is replaced. */
+ *  UI stack. It holds entity ids, which name nothing once the scene it started in is replaced.
+ */
 class Battle {
 public:
   static constexpr std::size_t k_protagonist = 0;
 
   static constexpr std::size_t k_hostile = 1; ///< The first hostile named.
 
-  /** @brief Start a fight between the protagonist and the actors @p request names. The fight
+  /** Start a fight between the protagonist and the actors `request` names. The fight
    *  arrives with the creatures' orders set; the protagonist is given a standing attack on the
    *  nearest hostile (ties to the first named), so it fights without a click, and a move order
    *  drops that attack. The command bar is Attack, then the protagonist's commands, on
@@ -93,11 +94,12 @@ public:
    *          reach ("[gameplay] start_encounter: the ruleset's fight needs a positive
    *          reach_tiles"), or more slots than the bar holds ("[gameplay] the command bar holds 9
    *          slots; the rules list <n>").
-   *  @pre @p start_fight is set. */
+   *  @pre `start_fight` is set.
+   */
   [[nodiscard]] static std::expected<Battle, std::string> start(Engine &engine, const rules::StartFight &start_fight,
                                                                 const EncounterRequest &request);
 
-  /** @brief Run one fixed step:
+  /** Run one fixed step:
    *  - this step's input becomes orders: a click, the slot keys (on a gamepad, A/Y/B press the
    *    shown page's slots, and L1/R1 change the page), the next-target key, and while Running
    *    held movement keys;
@@ -112,37 +114,42 @@ public:
    *  While Paused nobody walks: no path is planned, and the protagonist's is cleared, so a paused
    *  fight freezes every combatant.
    *  Every combatant with a ready sheet stands on it from start until stand_down.
-   *  @pre has_live_combatants(engine). */
+   *  @pre has_live_combatants(engine).
+   */
   [[nodiscard]] BattleStep update(Engine &engine, Clock clock);
 
-  /** @brief True while every combatant still in the fight has a live entity with a transform. */
+  /** True while every combatant still in the fight has a live entity with a transform. */
   [[nodiscard]] bool has_live_combatants(const Engine &engine) const;
 
-  /** @brief Stop every combatant: clear the player's path and zero the hostiles' velocity.
-   *  @pre has_live_combatants(engine). */
+  /** Stop every combatant: clear the player's path and zero the hostiles' velocity.
+   *  @pre has_live_combatants(engine).
+   */
   void halt(Engine &engine) const;
 
-  /** @brief Take every combatant out of its combat stance.
+  /** Take every combatant out of its combat stance.
    *  @pre The fight's scene is still loaded: an area change replaces it, and the ids name nothing.
-   *  @note A combatant that has left the scene is skipped, so this needs no has_live_combatants(). */
+   *  @note A combatant that has left the scene is skipped, so this needs no has_live_combatants().
+   */
   void stand_down(Engine &engine) const;
 
   [[nodiscard]] std::string_view first_actor() const noexcept { return first_actor_; }
 
-  /** @brief The fight's chosen hostile, by combatant index. It outlives an attack order, so a
+  /** The fight's chosen hostile, by combatant index. It outlives an attack order, so a
    *  protagonist who walks off keeps it; when it falls, it moves to the nearest hostile still
-   *  fighting. */
+   *  fighting.
+   */
   [[nodiscard]] std::size_t target() const noexcept { return target_; }
 
-  /** @brief The tile target() stands on, as of the last update; nullopt once it has fallen, which
-   *  only outlasts the step it fell on when the protagonist fell too and its death clip plays. */
+  /** The tile target() stands on, as of the last update; nullopt once it has fallen, which
+   *  only outlasts the step it fell on when the protagonist fell too and its death clip plays.
+   */
   [[nodiscard]] std::optional<world::TileCoord> target_tile() const {
     if (!entities_[target_])
       return std::nullopt;
     return tiles_[target_];
   }
 
-  /** @brief The HUD's rows and command bar, refreshed by start() and update(). */
+  /** The HUD's rows and command bar, refreshed by start() and update(). */
   [[nodiscard]] const screens::CombatHud &hud() const noexcept { return hud_; }
 
 private:
@@ -173,8 +180,8 @@ private:
   /// Read every combatant still in the scene's tile into tiles_.
   void refresh_tiles(const Engine &engine);
 
-  /// Give the protagonist its standing attack on @p target, point the fight at it and refresh the
-  /// HUD. @pre refresh_tiles() has run, and @p target is a hostile that start() found able to act.
+  /// Give the protagonist its standing attack on `target`, point the fight at it and refresh the
+  /// HUD. @pre refresh_tiles() has run, and `target` is a hostile that start() found able to act.
   void open_fight(Engine &engine, std::size_t target);
 
   /// Press the slot each pressed key names on the current page, appending the refusals to toast.
@@ -186,7 +193,7 @@ private:
   /// Give the protagonist a standing attack on target(), re-planning its approach.
   void engage(const rules::CombatContext &context);
 
-  /// Target @p hostile and attack it.
+  /// Target `hostile` and attack it.
   void engage(const rules::CombatContext &context, std::size_t hostile);
 
   /// On CombatTargetNext, attack the next hostile still fighting after target(), wrapping.
@@ -196,19 +203,19 @@ private:
   /// when none is.
   [[nodiscard]] std::optional<std::size_t> nearest_hostile(const rules::CombatContext &context) const;
 
-  /// The hostile still fighting that a click on @p clicked means: one standing there, else the
+  /// The hostile still fighting that a click on `clicked` means: one standing there, else the
   /// first whose sprite covers it; nullopt for none.
   [[nodiscard]] std::optional<std::size_t> hostile_at(world::TileCoord clicked,
                                                       const rules::CombatContext &context) const;
 
   /// When target() has fallen, move it to the nearest hostile, attacking that one when
-  /// @p before is AttackOrder::Standing.
+  /// `before` is AttackOrder::Standing.
   void follow_fallen_target(const rules::CombatContext &context, AttackOrder before);
 
-  /// The combatant @p index has a standing attack on, checked to be one of this fight's.
+  /// The combatant `index` has a standing attack on, checked to be one of this fight's.
   [[nodiscard]] std::optional<std::size_t> target_of(std::size_t index) const;
 
-  /// Press bar slot @p slot: 0 is Attack, then the commands. The bar's layout and the rules' list
+  /// Press bar slot `slot`: 0 is Attack, then the commands. The bar's layout and the rules' list
   /// keep one length for the fight, so a slot names one command. Attack renews the attack and drops
   /// a queued command; a command unqueues when queued, is refused when unavailable (returning
   /// why), and otherwise queues.
@@ -217,28 +224,28 @@ private:
   /// Plan each ordered combatant's movement: stand when in reach or winding up, else approach.
   void plan_movement(Engine &engine, const world::MapView &map, const rules::CombatContext &context);
 
-  /// Plan combatant @p index's movement: stand when in reach or winding up, else approach.
+  /// Plan combatant `index`'s movement: stand when in reach or winding up, else approach.
   void plan_combatant(Engine &engine, const world::MapView &map, const rules::CombatContext &context,
                       std::size_t index);
 
-  /// Combatant @p index's entity while it is still in the fight: in the scene, and able to act.
+  /// Combatant `index`'s entity while it is still in the fight: in the scene, and able to act.
   [[nodiscard]] std::optional<entities::EntityId> fighting_entity(const rules::CombatContext &context,
                                                                   std::size_t index) const;
 
-  /// Whether combatant @p index is still in the fight: in the scene, and able to act.
+  /// Whether combatant `index` is still in the fight: in the scene, and able to act.
   [[nodiscard]] bool is_fighting(const rules::CombatContext &context, std::size_t index) const;
 
-  /// Whether a combatant other than @p mover stands on @p tile or is walking to it.
+  /// Whether a combatant other than `mover` stands on `tile` or is walking to it.
   [[nodiscard]] bool is_claimed(const Engine &engine, world::TileCoord tile, std::size_t mover) const;
 
   /// Remove every hostile that can no longer act from the scene.
   void remove_fallen(Engine &engine, const rules::CombatContext &context);
 
-  /// Play each clip this step calls for: attacks for the wind-ups in @p windups_started, then hurts.
+  /// Play each clip this step calls for: attacks for the wind-ups in `windups_started`, then hurts.
   void play_step_clips(Engine &engine, const rules::CombatContext &context,
                        std::span<const std::size_t> windups_started);
 
-  /// Turn combatant @p index toward its target and play its attack clip, timed so the clip's middle
+  /// Turn combatant `index` toward its target and play its attack clip, timed so the clip's middle
   /// meets the landing. Does nothing for a Self command or a character with no attack sheet.
   void play_attack_clip(entities::World &world, std::size_t index);
 
@@ -255,10 +262,10 @@ private:
   /// Stop everyone and keep the protagonist from moving: the fight is lost.
   void hold_for_defeat(Engine &engine) const;
 
-  /// Stop combatant @p index: clear its path and forget what it was planned for.
+  /// Stop combatant `index`: clear its path and forget what it was planned for.
   void stand_still(Engine &engine, std::size_t index);
 
-  /// Path combatant @p mover to the nearest tile within reach of combatant @p target_index that
+  /// Path combatant `mover` to the nearest tile within reach of combatant `target_index` that
   /// nobody else has claimed.
   [[nodiscard]] ApproachOutcome approach(Engine &engine, const world::MapView &map, std::size_t mover,
                                          entities::EntityId mover_entity, std::size_t target_index);

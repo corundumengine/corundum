@@ -17,13 +17,13 @@ class ContentSource;
 
 namespace corundum::platform::miniaudio {
 
-/** @brief Where a MiniaudioBackend sends its mix. */
+/** Where a MiniaudioBackend sends its mix. */
 enum class MiniaudioOutput : std::uint8_t {
   Device,   ///< The default OS output device; miniaudio's audio thread pulls the mix.
   Headless, ///< No device: the mix advances only through render_frames(), for deterministic tests.
 };
 
-/** @brief AudioBackend over miniaudio's high-level engine (ma_engine).
+/** AudioBackend over miniaudio's high-level engine (ma_engine).
  *
  *  Sound effects decode fully at load_sound() and play as copies of that data in an effects
  *  group. miniaudio decodes WAV, MP3 and FLAC natively and OGG Vorbis through stb_vorbis, and
@@ -62,8 +62,9 @@ public:
 
   void set_paused(bool paused) override;
 
-  /** @brief Stream @p path in the music group, fading any current track out over
-   *  @p playback.fade_in_seconds. The loop gap is scheduled on the engine clock by update(). */
+  /** Stream `path` in the music group, fading any current track out over
+   *  `playback.fade_in_seconds`. The loop gap is scheduled on the engine clock by update().
+   */
   [[nodiscard]] std::expected<void, std::string> play_music(std::string_view path,
                                                             const audio::MusicPlayback &playback) override;
 
@@ -71,7 +72,7 @@ public:
 
   void update() override;
 
-  /** @brief Mix frames_out.size() / 2 interleaved stereo f32 frames into @p frames_out.
+  /** Mix frames_out.size() / 2 interleaved stereo f32 frames into `frames_out`.
    *
    *  Fills silence when the engine failed to start.
    *  @pre Constructed with MiniaudioOutput::Headless.
@@ -84,7 +85,7 @@ private:
   std::unique_ptr<State> state_;
 };
 
-/** @brief The production backend: a MiniaudioBackend on the default output device. */
+/** The production backend: a MiniaudioBackend on the default output device. */
 [[nodiscard]] std::unique_ptr<audio::AudioBackend> make_miniaudio_backend(const corundum::core::ContentSource &content);
 
 } // namespace corundum::platform::miniaudio

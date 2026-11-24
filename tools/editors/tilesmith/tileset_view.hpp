@@ -7,14 +7,13 @@
 
 namespace tools::tilesmith {
 
-/**
- * @brief Tool-local view of a single tileset, with the GLFW texture pre-resolved.
+/** Tool-local view of a single tileset, with the GLFW texture pre-resolved.
  *
- * Constructed once in main.cpp (which owns TilemapTextureStore) and passed to
- * render functions so they do not need to include engine/platform/sfml/ headers.
+ *  Constructed once in main.cpp (which owns TilemapTextureStore) and passed to
+ *  render functions so they do not need to include engine/platform/sfml/ headers.
  *
- * Lifetime: all pointers must remain valid for the duration of the frame in
- * which the view is used.
+ *  Lifetime: all pointers must remain valid for the duration of the frame in
+ *  which the view is used.
  */
 struct TilesetView {
   const corundum::world::tilemap::TilemapTileset *tileset; ///< Pointer into map.tilesets.

@@ -8,11 +8,11 @@
 
 namespace corundum::toolkit::host {
 
-/** @brief Configuration for editor tools, loaded via load_tool_config().
+/** Configuration for editor tools, loaded via load_tool_config().
  *
- * Replaces direct use of GameConfig for tools. All relative paths are resolved
- * against the config file's parent directory, so tools can find data regardless
- * of CWD.
+ *  Replaces direct use of GameConfig for tools. All relative paths are resolved
+ *  against the config file's parent directory, so tools can find data regardless
+ *  of CWD.
  */
 struct ToolConfig {
   std::filesystem::path data_root;
@@ -30,20 +30,20 @@ struct ToolConfig {
   int tile_diamond_h = 64;
 };
 
-/** @brief Load ToolConfig from a JSON file.
+/** Load ToolConfig from a JSON file.
  *
- * Resolution chain:
- *   1. --config <path> from command line
- *   2. CORUNDUM_TOOLS_CONFIG environment variable
- *   3. tools/tools.json (CWD-relative)
+ *  Resolution chain:
+ *    1. --config <path> from command line
+ *    2. CORUNDUM_TOOLS_CONFIG environment variable
+ *    3. tools/tools.json (CWD-relative)
  *
- * All relative paths in the JSON are resolved against the config file's parent
- * directory. If font_path, icons_font_path or theme_path point to a non-existent
- * file, the helper falls back to tools/toolkit/assets/{default} relative to the CWD.
+ *  All relative paths in the JSON are resolved against the config file's parent
+ *  directory. If font_path, icons_font_path or theme_path point to a non-existent
+ *  file, the helper falls back to tools/toolkit/assets/{default} relative to the CWD.
  *
- * @param argc  Argument count from main().
- * @param argv  Argument vector from main().
- * @return ToolConfig on success, or an error message string on failure.
+ *  @param argc  Argument count from main().
+ *  @param argv  Argument vector from main().
+ *  @return ToolConfig on success, or an error message string on failure.
  */
 [[nodiscard]] std::expected<ToolConfig, std::string> load_tool_config(int argc, char *argv[]);
 

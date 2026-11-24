@@ -71,7 +71,7 @@ quest::Quest make_quest_with_objectives() {
   return q;
 }
 
-/// A single-stage quest whose sole objective is auto-checked by @p condition.
+/// A single-stage quest whose sole objective is auto-checked by `condition`.
 quest::Quest make_quest_with_condition(std::string_view condition) {
   quest::Quest q;
   q.quest_id = "cond_quest";

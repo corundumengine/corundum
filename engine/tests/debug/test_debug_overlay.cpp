@@ -34,7 +34,7 @@ namespace fs = std::filesystem;
 namespace {
 
 /// Bundle the lifecycle setup used by every case here so each TEST_CASE reads
-/// as a single focused scenario. With @p load_world the configured initial scene is built, as a
+/// as a single focused scenario. With `load_world` the configured initial scene is built, as a
 /// no-title boot does; pass false to exercise the no-world Title state.
 corundum::Engine make_initialised_engine(const fs::path &fixtures, bool load_world = true) {
   corundum::Engine engine{};

@@ -13,13 +13,14 @@
 
 namespace corundum::gameplay::screens {
 
-/** @brief Credits-screen state: the loaded title, sections, optional background and the
+/** Credits-screen state: the loaded title, sections, optional background and the
  *  current scroll offset.
  *
  *  The title is drawn large above the first section. Sections are loaded once when the Title
  *  opens (so the Title can hide the Credits row when there is nothing to show) and drawn
  *  top-to-bottom; after an initial hold the offset advances each fixed step. When a background
- *  image is loaded, it is drawn behind the roll and the text uses dark ink so it stays readable. */
+ *  image is loaded, it is drawn behind the roll and the text uses dark ink so it stays readable.
+ */
 struct CreditsState {
   std::string title{};
 
@@ -36,7 +37,7 @@ struct CreditsState {
   float scroll{};
 };
 
-/** @brief Total drawn height of the credits content, in logical pixels.
+/** Total drawn height of the credits content, in logical pixels.
  *
  *  Independent of the viewport, so a caller can clamp the scroll and the render can advance
  *  without measuring the same text twice.
@@ -44,7 +45,7 @@ struct CreditsState {
 [[nodiscard]] float credits_content_height(const platform::Renderer &r, const ui::PanelStyle &style,
                                            const CreditsState &state);
 
-/** @brief Draw the credits over an opaque backdrop or background image.
+/** Draw the credits over an opaque backdrop or background image.
  *
  *  Pure render; invoked only while Credits is on top of the UI stack. The whole viewport is
  *  filled so the loaded world does not show through, then the sections are drawn centered,

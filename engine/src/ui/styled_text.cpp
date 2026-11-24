@@ -26,7 +26,7 @@ struct Token {
   int stars{0};
 };
 
-/// Splits @p text into literal-text and asterisk-delimiter tokens, resolving `\*` and `\\`.
+/// Splits `text` into literal-text and asterisk-delimiter tokens, resolving `\*` and `\\`.
 /// Asterisk runs longer than three are literal text.
 std::vector<Token> tokenize(std::string_view text) {
   std::vector<Token> tokens;
@@ -78,7 +78,7 @@ FontStyle style_of(bool bold, bool italic) {
   return italic ? FontStyle::Italic : FontStyle::Regular;
 }
 
-/// Appends @p text with @p style, merging into the previous run when the style matches.
+/// Appends `text` with `style`, merging into the previous run when the style matches.
 void append_run(std::vector<StyledRun> &runs, std::string_view text, FontStyle style) {
   if (!runs.empty() && runs.back().style == style) {
     runs.back().text.append(text);

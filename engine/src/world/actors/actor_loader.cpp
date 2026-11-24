@@ -50,7 +50,7 @@ std::expected<std::optional<T>, std::string> read_optional(const json &entry, st
   }
 }
 
-/// Error when @p value would not fit an entity id table's buffer of @p max_length characters.
+/// Error when `value` would not fit an entity id table's buffer of `max_length` characters.
 std::expected<void, std::string> check_id_length(const std::optional<std::string> &value, std::string_view key,
                                                  std::size_t max_length, const std::string &path, std::size_t index) {
   if (value && value->size() > max_length)

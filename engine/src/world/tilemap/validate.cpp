@@ -16,7 +16,7 @@ namespace corundum::world::tilemap {
 
 namespace {
 
-/// Appends an error for @p gid unless it is empty or owned by a tileset. Passing @p animation_name
+/// Appends an error for `gid` unless it is empty or owned by a tileset. Passing `animation_name`
 /// selects the animation-frame message; otherwise the placed-tile message is emitted.
 void append_orphaned_gid_error(const Tilemap &tilemap, const TilemapLayer &layer, int cell_index, TileId gid,
                                const std::string *animation_name, std::vector<std::string> &errors) {
@@ -77,7 +77,7 @@ bool rect_out_of_bounds(float col, float row, float col_span, float row_span, co
          row + row_span > static_cast<float>(tilemap.height);
 }
 
-/// Reports every shape whose SoA fields fall outside the map; @p noun names the shape in the message.
+/// Reports every shape whose SoA fields fall outside the map; `noun` names the shape in the message.
 /// Iterates the shortest parallel span so a mis-sized container cannot index out of bounds.
 template <typename CollisionShapes>
 void check_shape_bounds(const CollisionShapes &shapes, std::string_view noun, const Tilemap &tilemap,

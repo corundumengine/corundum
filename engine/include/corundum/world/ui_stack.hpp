@@ -8,7 +8,7 @@
 
 namespace corundum::world {
 
-/** @brief First GameMode value reserved for extensions.
+/** First GameMode value reserved for extensions.
  *
  *  The engine runtime owns the enumerators below; the gameplay framework defines its own
  *  modes (Dialogue, Inventory, Journal, ...) as constexpr GameMode values from this base,
@@ -16,7 +16,7 @@ namespace corundum::world {
  */
 inline constexpr std::uint8_t k_first_extension_mode = 16;
 
-/** @brief Which screen owns the current fixed step.
+/** Which screen owns the current fixed step.
  *
  *  Exploring is the base state — it is represented by an empty UIStack, not a pushed
  *  layer — so top() returns it whenever no screen is open. Values from
@@ -33,13 +33,13 @@ enum class GameMode : std::uint8_t {
   Settings,  ///< In-game settings screen.
 };
 
-/** @brief What world::update runs beneath a mode other than Exploring and Prompt. */
+/** What world::update runs beneath a mode other than Exploring and Prompt. */
 enum class WorldStep : std::uint8_t {
   Frozen, ///< Nothing moves; only the hovered tile updates (dialogue, a paused fight).
   Runs,   ///< Movement, animation, zoom and camera follow as in Exploring, without interaction targeting (a fight).
 };
 
-/** @brief The ordered stack of open UI screens, top last.
+/** The ordered stack of open UI screens, top last.
  *
  *  A value type: public state, per-call methods, no stored collaborators. Opening a screen
  *  pushes it; Cancel/close pops one layer, so a journal opened over a dialogue returns to
@@ -49,13 +49,13 @@ enum class WorldStep : std::uint8_t {
  */
 class UIStack {
 public:
-  /** @brief Upper bound on stacked screens; push() is a no-op past it. */
+  /** Upper bound on stacked screens; push() is a no-op past it. */
   static constexpr std::size_t k_max_depth = 8;
 
-  /** @brief The screen on top of the stack, or GameMode::Exploring when it is empty. */
+  /** The screen on top of the stack, or GameMode::Exploring when it is empty. */
   [[nodiscard]] GameMode top() const noexcept { return count_ == 0 ? GameMode::Exploring : layers_[count_ - 1]; }
 
-  /** @brief True when @p mode is anywhere in the stack, not just on top. */
+  /** True when `mode` is anywhere in the stack, not just on top. */
   [[nodiscard]] bool contains(GameMode mode) const noexcept {
     for (std::size_t i = 0; i < count_; ++i) {
       if (layers_[i] == mode)
@@ -64,13 +64,13 @@ public:
     return false;
   }
 
-  /** @brief True when no screen is open (the stack is in the Exploring base state). */
+  /** True when no screen is open (the stack is in the Exploring base state). */
   [[nodiscard]] bool empty() const noexcept { return count_ == 0; }
 
-  /** @brief Number of open screens. */
+  /** Number of open screens. */
   [[nodiscard]] std::size_t size() const noexcept { return count_; }
 
-  /** @brief Push @p mode as the new top screen.
+  /** Push `mode` as the new top screen.
    *  @note Ignored for GameMode::Exploring (the empty-stack base) and when already at k_max_depth.
    */
   void push(GameMode mode) noexcept {
@@ -79,13 +79,13 @@ public:
     layers_[count_++] = mode;
   }
 
-  /** @brief Remove the top screen; no-op when the stack is empty. */
+  /** Remove the top screen; no-op when the stack is empty. */
   void pop() noexcept {
     if (count_ > 0)
       --count_;
   }
 
-  /** @brief Remove every screen, returning to the Exploring base. */
+  /** Remove every screen, returning to the Exploring base. */
   void clear() noexcept { count_ = 0; }
 
 private:

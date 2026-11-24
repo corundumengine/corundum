@@ -15,7 +15,7 @@ class ContentSource;
 
 namespace corundum::gameplay::credits {
 
-/** @brief Load a credits file.
+/** Load a credits file.
  *
  *  The document is `{ "title": "...", "background": "...", "sections": [ { "heading": "...",
  *  "lines": ["..."] } ] }`.

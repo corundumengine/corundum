@@ -60,13 +60,13 @@ corundum::core::GameConfig make_fixture_config(const fs::path &fixtures_root) {
   return cfg;
 }
 
-/// Adopt the NullPlatform into @p engine and reset engine state between tests.
+/// Adopt the NullPlatform into `engine` and reset engine state between tests.
 void adopt_platform(corundum::Engine &engine, unsigned w, unsigned h) {
   corundum::platform::null::NullPlatform platform{corundum::platform::null::make_null_platform(w, h)};
   corundum::platform::null::adopt_null_platform(engine, platform);
 }
 
-/// The concrete null window behind @p engine, so a test can script platform events.
+/// The concrete null window behind `engine`, so a test can script platform events.
 [[nodiscard]] corundum::platform::null::NullWindow *null_window(corundum::Engine &engine) {
   return dynamic_cast<corundum::platform::null::NullWindow *>(&engine.window());
 }
@@ -116,7 +116,7 @@ public:
   bool last_paused{false};
 };
 
-/// Adopt a RecordingAudioBackend into @p engine's audio system; returns the
+/// Adopt a RecordingAudioBackend into `engine`'s audio system; returns the
 /// raw pointer for assertions (owned by the system).
 [[nodiscard]] RecordingAudioBackend *adopt_recording_audio(corundum::Engine &engine) {
   auto backend = std::make_unique<RecordingAudioBackend>();

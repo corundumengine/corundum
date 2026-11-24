@@ -10,10 +10,10 @@
 
 namespace corundum::world::tilemap {
 
-/** @brief JSON spellings for the tilemap cell-encoding enums.
+/** JSON spellings for the tilemap cell-encoding enums.
  *
- * Single source of truth shared by the loader and serializer so the on-disk
- * spelling of a cell attribute is defined in exactly one place.
+ *  Single source of truth shared by the loader and serializer so the on-disk
+ *  spelling of a cell attribute is defined in exactly one place.
  */
 [[nodiscard]] constexpr std::string_view to_string(TriangleCut cut) noexcept {
   switch (cut) {
@@ -25,7 +25,7 @@ namespace corundum::world::tilemap {
   return {};
 }
 
-/** @brief Parse a collision-triangle `cut` value; nullopt when unrecognized. */
+/** Parse a collision-triangle `cut` value; nullopt when unrecognized. */
 [[nodiscard]] constexpr std::optional<TriangleCut> triangle_cut_from_string(std::string_view text) noexcept {
   if (text == "NW")
     return TriangleCut::NorthWest;
@@ -38,12 +38,12 @@ namespace corundum::world::tilemap {
   return std::nullopt;
 }
 
-/** @brief JSON spelling for a ramp axis. */
+/** JSON spelling for a ramp axis. */
 [[nodiscard]] constexpr std::string_view to_string(RampAxis axis) noexcept {
   return axis == RampAxis::NorthSouth ? "ns" : "ew";
 }
 
-/** @brief Parse a ramp `axis` value; nullopt when unrecognized. */
+/** Parse a ramp `axis` value; nullopt when unrecognized. */
 [[nodiscard]] constexpr std::optional<RampAxis> ramp_axis_from_string(std::string_view text) noexcept {
   if (text == "ns")
     return RampAxis::NorthSouth;
@@ -52,7 +52,7 @@ namespace corundum::world::tilemap {
   return std::nullopt;
 }
 
-/** @brief JSON spelling for a flip-flag byte; empty when no flip is set. */
+/** JSON spelling for a flip-flag byte; empty when no flip is set. */
 [[nodiscard]] constexpr std::string_view to_string(uint8_t flip_flags) noexcept {
   if (flip_flags == (k_flip_h | k_flip_v))
     return "HV";
@@ -63,7 +63,7 @@ namespace corundum::world::tilemap {
   return {};
 }
 
-/** @brief Parse a `flip` value; nullopt when unrecognized. */
+/** Parse a `flip` value; nullopt when unrecognized. */
 [[nodiscard]] constexpr std::optional<uint8_t> flip_flags_from_string(std::string_view text) noexcept {
   if (text == "H")
     return k_flip_h;

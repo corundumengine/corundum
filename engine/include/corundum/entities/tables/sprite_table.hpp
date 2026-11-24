@@ -14,10 +14,10 @@
 
 namespace corundum::entities {
 
-/** @brief SoA table for the Sprite rendering component.
+/** SoA table for the Sprite rendering component.
  *
- * Every entity that appears on screen has an entry here. Absence from this table
- * means the entity is invisible. All fields are read every frame by the renderer.
+ *  Every entity that appears on screen has an entry here. Absence from this table
+ *  means the entity is invisible. All fields are read every frame by the renderer.
  */
 struct SpriteTable {
   static constexpr auto k_max = k_max_entities;
@@ -32,33 +32,33 @@ struct SpriteTable {
 
   std::uint32_t count = 0;
 
-  /** @brief Contiguous span of sprite IDs for all live entities. */
+  /** Contiguous span of sprite IDs for all live entities. */
   [[nodiscard]] auto active_sprite_id(this auto &self) noexcept { return std::span(self.sprite_id).first(self.count); }
 
-  /** @brief Contiguous span of animation IDs for all live entities. */
+  /** Contiguous span of animation IDs for all live entities. */
   [[nodiscard]] auto active_anim_id(this auto &self) noexcept { return std::span(self.anim_id).first(self.count); }
 
-  /** @brief Contiguous span of frame indices for all live entities. */
+  /** Contiguous span of frame indices for all live entities. */
   [[nodiscard]] auto active_frame_index(this auto &self) noexcept {
     return std::span(self.frame_index).first(self.count);
   }
 
-  /** @brief Span over sprite_id (alias for GameTable concept compliance). */
+  /** Span over sprite_id (alias for GameTable concept compliance). */
   [[nodiscard]] auto active_span(this auto &self) noexcept { return std::span(self.sprite_id).first(self.count); }
 
-  /** @brief Contiguous span of EntityIds in dense order. */
+  /** Contiguous span of EntityIds in dense order. */
   [[nodiscard]] auto active_entities(this auto &self) noexcept { return self.index.active_entities(self.count); }
 
-  /** @brief True if @p e has a sprite row.
-   *  @param[in] e Entity to query.
+  /** True if `e` has a sprite row.
+   *  @param e Entity to query.
    */
   [[nodiscard]] bool has(EntityId e) const noexcept { return index.has(e); }
 
-  /** @brief Add a sprite row for @p e.
-   *  @param[in] e       Entity (must not already be present).
-   *  @param[in] sprite  Sprite sheet index.
-   *  @param[in] animation Initial animation clip.
-   *  @param[in] frame   Initial frame index within the clip.
+  /** Add a sprite row for `e`.
+   *  @param e       Entity (must not already be present).
+   *  @param sprite  Sprite sheet index.
+   *  @param animation Initial animation clip.
+   *  @param frame   Initial frame index within the clip.
    *  @pre has(e) must be false.
    */
   void insert(EntityId e, corundum::sprites::SpriteId sprite, corundum::sprites::AnimId animation,
@@ -70,8 +70,8 @@ struct SpriteTable {
     });
   }
 
-  /** @brief Remove @p e's sprite row via swap-and-pop.
-   *  @param[in] e Entity to remove.
+  /** Remove `e`'s sprite row via swap-and-pop.
+   *  @param e Entity to remove.
    *  @pre has(e) must be true.
    */
   void remove(EntityId e) noexcept {
@@ -82,29 +82,29 @@ struct SpriteTable {
     });
   }
 
-  /** @brief Dense row index for @p e; use to subscript SoA arrays directly.
+  /** Dense row index for `e`; use to subscript SoA arrays directly.
    *  @pre has(e) must be true.
    */
   [[nodiscard]] std::uint32_t dense_index(EntityId e) const noexcept { return index.dense_index(e); }
 
-  /** @brief Dense row index for @p e, or nullopt when @p e is stale, foreign or absent. Never aborts. */
+  /** Dense row index for `e`, or nullopt when `e` is stale, foreign or absent. Never aborts. */
   [[nodiscard]] std::optional<std::uint32_t> try_dense_index(EntityId e) const noexcept {
     return index.try_dense_index(e);
   }
 
-  /** @brief Mutable reference to the sprite ID for @p e. @pre has(e). */
+  /** Mutable reference to the sprite ID for `e`. @pre has(e). */
   [[nodiscard]] corundum::sprites::SpriteId &sprite_id_ref(EntityId e) noexcept {
     assert(has(e));
     return sprite_id[index.dense_index(e)];
   }
 
-  /** @brief Mutable reference to the animation ID for @p e. @pre has(e). */
+  /** Mutable reference to the animation ID for `e`. @pre has(e). */
   [[nodiscard]] corundum::sprites::AnimId &anim_id_ref(EntityId e) noexcept {
     assert(has(e));
     return anim_id[index.dense_index(e)];
   }
 
-  /** @brief Mutable reference to the frame index for @p e. @pre has(e). */
+  /** Mutable reference to the frame index for `e`. @pre has(e). */
   [[nodiscard]] uint8_t &frame_index_ref(EntityId e) noexcept {
     assert(has(e));
     return frame_index[index.dense_index(e)];

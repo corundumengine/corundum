@@ -13,10 +13,10 @@
 
 namespace corundum::entities {
 
-/** @brief SoA table for the Facing component.
+/** SoA table for the Facing component.
  *
- * Only entities with directional behaviour (player, some NPCs) have an entry.
- * Facing is updated by the animation system when the entity moves.
+ *  Only entities with directional behaviour (player, some NPCs) have an entry.
+ *  Facing is updated by the animation system when the entity moves.
  */
 struct FacingTable {
   static constexpr auto k_max = k_max_entities;
@@ -27,41 +27,41 @@ struct FacingTable {
 
   std::uint32_t count = 0;
 
-  /** @brief Contiguous span over facing directions for all live entities. */
+  /** Contiguous span over facing directions for all live entities. */
   [[nodiscard]] auto active_dir(this auto &self) noexcept { return std::span(self.dir).first(self.count); }
 
-  /** @brief Span over dir (alias for GameTable concept compliance). */
+  /** Span over dir (alias for GameTable concept compliance). */
   [[nodiscard]] auto active_span(this auto &self) noexcept { return std::span(self.dir).first(self.count); }
 
-  /** @brief Contiguous span of EntityIds in dense order. */
+  /** Contiguous span of EntityIds in dense order. */
   [[nodiscard]] auto active_entities(this auto &self) noexcept { return self.index.active_entities(self.count); }
 
-  /** @brief True if @p e has a facing entry. @param[in] e Entity to query. */
+  /** True if `e` has a facing entry. @param e Entity to query. */
   [[nodiscard]] bool has(EntityId e) const noexcept { return index.has(e); }
 
-  /** @brief Add a facing row for @p e.
-   *  @param[in] e Entity (must not already be present).
-   *  @param[in] d Initial facing direction.
+  /** Add a facing row for `e`.
+   *  @param e Entity (must not already be present).
+   *  @param d Initial facing direction.
    *  @pre has(e) must be false.
    */
   void insert(EntityId e, core::Direction d) noexcept {
     index.insert(e, count, [&](auto slot) { dir[slot] = d; });
   }
 
-  /** @brief Remove @p e's facing row via swap-and-pop.
-   *  @param[in] e Entity to remove. @pre has(e) must be true.
+  /** Remove `e`'s facing row via swap-and-pop.
+   *  @param e Entity to remove. @pre has(e) must be true.
    */
   void remove(EntityId e) noexcept {
     index.remove(e, count, [&](auto slot, auto last) { dir[slot] = dir[last]; });
   }
 
-  /** @brief Mutable facing direction reference for @p e. @pre has(e). */
+  /** Mutable facing direction reference for `e`. @pre has(e). */
   [[nodiscard]] core::Direction &dir_ref(EntityId e) noexcept {
     assert(has(e));
     return dir[index.dense_index(e)];
   }
 
-  /** @brief Facing direction of @p e. @pre has(e). */
+  /** Facing direction of `e`. @pre has(e). */
   [[nodiscard]] core::Direction dir_of(EntityId e) const noexcept {
     assert(has(e));
     return dir[index.dense_index(e)];

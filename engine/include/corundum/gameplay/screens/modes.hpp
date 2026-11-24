@@ -6,13 +6,14 @@
 
 namespace corundum::gameplay::screens {
 
-/** @brief Gameplay screens, defined from world::k_first_extension_mode so the engine
+/** Gameplay screens, defined from world::k_first_extension_mode so the engine
  *  runtime never has to name them.
  *
  *  Named like enum constants (not engine constexpr constants) because that is what they
  *  stand in for: each is a GameMode value.
  *
- *  @note Each must push its layer when it opens; see the UIStack invariant. */
+ *  @note Each must push its layer when it opens; see the UIStack invariant.
+ */
 // NOLINTBEGIN(readability-identifier-naming): these are GameMode values, not engine constants.
 inline constexpr world::GameMode Dialogue{static_cast<world::GameMode>(world::k_first_extension_mode + 0)};
 
@@ -28,39 +29,40 @@ inline constexpr world::GameMode Loot{static_cast<world::GameMode>(world::k_firs
 
 inline constexpr world::GameMode Barter{static_cast<world::GameMode>(world::k_first_extension_mode + 6)};
 
-/** @brief Framing title screen, shown with no world loaded. */
+/** Framing title screen, shown with no world loaded. */
 inline constexpr world::GameMode Title{static_cast<world::GameMode>(world::k_first_extension_mode + 7)};
 
-/** @brief Save/Load slot browser, opened in save or load mode. */
+/** Save/Load slot browser, opened in save or load mode. */
 inline constexpr world::GameMode SaveLoad{static_cast<world::GameMode>(world::k_first_extension_mode + 8)};
 
-/** @brief Game-over screen, opened by the game (never the framework). */
+/** Game-over screen, opened by the game (never the framework). */
 inline constexpr world::GameMode GameOver{static_cast<world::GameMode>(world::k_first_extension_mode + 9)};
 
-/** @brief Scrolling credits, opened from the Title when a credits file is configured. */
+/** Scrolling credits, opened from the Title when a credits file is configured. */
 inline constexpr world::GameMode Credits{static_cast<world::GameMode>(world::k_first_extension_mode + 10)};
 
-/** @brief Two-phase loading overlay; see Gameplay::begin_load() (implemented with the screen). */
+/** Two-phase loading overlay; see Gameplay::begin_load() (implemented with the screen). */
 inline constexpr world::GameMode Loading{static_cast<world::GameMode>(world::k_first_extension_mode + 11)};
 
-/** @brief Modal yes/no confirmation, carrying no state of its own beyond Gameplay::confirm. */
+/** Modal yes/no confirmation, carrying no state of its own beyond Gameplay::confirm. */
 inline constexpr world::GameMode Confirm{static_cast<world::GameMode>(world::k_first_extension_mode + 12)};
 
-/** @brief Character sheet: level, experience, equipment and inventory summary. */
+/** Character sheet: level, experience, equipment and inventory summary. */
 inline constexpr world::GameMode Character{static_cast<world::GameMode>(world::k_first_extension_mode + 13)};
 
-/** @brief Boot splash: the game.json splash_images shown in order before the first screen. */
+/** Boot splash: the game.json splash_images shown in order before the first screen. */
 inline constexpr world::GameMode Splash{static_cast<world::GameMode>(world::k_first_extension_mode + 14)};
 
-/** @brief A fight on the timeline. Doesn't own the step, and the world keeps running beneath it
- *  (WorldStep::Runs), so combatants walk; the combat HUD is its render hook. */
+/** A fight on the timeline. Doesn't own the step, and the world keeps running beneath it
+ *  (WorldStep::Runs), so combatants walk; the combat HUD is its render hook.
+ */
 inline constexpr world::GameMode Combat{static_cast<world::GameMode>(world::k_first_extension_mode + 15)};
 
-/** @brief A paused fight, pushed over Combat: the world is frozen, but clicks still give orders. */
+/** A paused fight, pushed over Combat: the world is frozen, but clicks still give orders. */
 inline constexpr world::GameMode CombatPaused{static_cast<world::GameMode>(world::k_first_extension_mode + 16)};
 // NOLINTEND(readability-identifier-naming)
 
-/** @brief True when @p mode is one of the four screens reachable from the menu hub.
+/** True when `mode` is one of the four screens reachable from the menu hub.
  *
  *  The hub has no GameMode of its own: it is the convention that `UIStack::top()` is one of
  *  these four, which a single gamepad Hub button (or the I/J/C/M keyboard hotkeys) opens and

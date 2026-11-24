@@ -93,7 +93,7 @@ struct ParseCursor {
   }
 };
 
-/// Parse a function call's argument list; the cursor is on the opening '('. @p name is the
+/// Parse a function call's argument list; the cursor is on the opening '('. `name` is the
 /// identifier that preceded it.
 EventAction parse_call(ParseCursor &ctx, std::string name) {
   ctx.consume(); // '('

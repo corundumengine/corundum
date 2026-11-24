@@ -76,65 +76,71 @@ enum class Phase : std::uint8_t {
   WindUp, ///< Past the command point; the command lands when its wind-up ends.
 };
 
-/** @brief One combatant joining an encounter. */
+/** One combatant joining an encounter. */
 struct Joining {
   Combatant combatant{};
 
   Side side{Side::Party};
 };
 
-/** @brief What one Encounter step produced. */
+/** What one Encounter step produced. */
 struct EncounterStep {
   std::vector<std::string> reports{}; ///< One line per command that resolved, in order.
 
   std::vector<std::size_t> windups_started{}; ///< Combatants whose wind-up started this step, by index.
 };
 
-/** @brief One fight's timeline: markers, attack orders, queued commands and the outcome. */
+/** One fight's timeline: markers, attack orders, queued commands and the outcome. */
 class Encounter {
 public:
-  /** @brief Join every combatant through @p rules, list its commands, and put each marker at its
+  /** Join every combatant through `rules`, list its commands, and put each marker at its
    *  start beats.
    *  @param steps_per_tick Fixed steps per timeline tick; at least 1.
-   *  @return The encounter, or an error: a callback in @p rules is empty, its command point,
-   *          tempo or reach isn't positive, or a combatant's join failed (the message names it). */
+   *  @return The encounter, or an error: a callback in `rules` is empty, its command point,
+   *          tempo or reach isn't positive, or a combatant's join failed (the message names it).
+   */
   [[nodiscard]] static std::expected<Encounter, std::string>
   start(CombatRules rules, const rules::CombatContext &context, std::vector<Joining> joining, int steps_per_tick);
 
-  /** @brief Give @p attacker a standing attack on @p target, replacing any order. The order
+  /** Give `attacker` a standing attack on `target`, replacing any order. The order
    *  holds until the target can't act or a new order replaces it; a wind-up in progress goes
    *  on against the new target.
-   *  @pre Both indices are below size() and on different sides. */
+   *  @pre Both indices are below size() and on different sides.
+   */
   void order_attack(std::size_t attacker, std::size_t target);
 
-  /** @brief @p mover walks on its own: drop its attack order and cancel a wind-up, losing the
+  /** `mover` walks on its own: drop its attack order and cancel a wind-up, losing the
    *  command winding up; the marker drops to 0, as a fizzle's does. A queued command that hasn't
    *  started stays queued.
-   *  @pre mover < size(). */
+   *  @pre mover < size().
+   */
   void order_move(std::size_t mover);
 
-  /** @brief Queue commands(actor)[@p option] as @p actor's next command, replacing any queued one.
+  /** Queue commands(actor)[`option`] as `actor`'s next command, replacing any queued one.
    *  It starts at the next command point instead of the standing attack, which then resumes; it
    *  needs no target and no reach. A wind-up in progress is unaffected.
-   *  @pre actor < size(), option < commands(actor).size(), and that option is available. */
+   *  @pre actor < size(), option < commands(actor).size(), and that option is available.
+   */
   void queue_command(std::size_t actor, std::size_t option);
 
-  /** @brief Drop @p actor's queued command, so the standing attack comes next.
-   *  @pre actor < size(). */
+  /** Drop `actor`'s queued command, so the standing attack comes next.
+   *  @pre actor < size().
+   */
   void clear_queued(std::size_t actor);
 
-  /** @brief Advance one fixed step; every steps_per_tick-th step is a tick. Does nothing once
+  /** Advance one fixed step; every steps_per_tick-th step is a tick. Does nothing once
    *  outcome() is set.
    *  @param tiles Each combatant's tile, by index.
-   *  @pre tiles.size() == size(). */
+   *  @pre tiles.size() == size().
+   */
   [[nodiscard]] EncounterStep update(const rules::CombatContext &context, std::span<const rules::Tile> tiles);
 
-  /** @brief How the fight ended, once one side has nobody who can act; nullopt until then. */
+  /** How the fight ended, once one side has nobody who can act; nullopt until then. */
   [[nodiscard]] std::optional<Outcome> outcome() const noexcept { return outcome_; }
 
   [[nodiscard]] std::size_t size() const noexcept { return specs_.size(); }
 
-  /** @brief The tiles a standing attack reaches; a diagonal step counts as one. */
+  /** The tiles a standing attack reaches; a diagonal step counts as one. */
   [[nodiscard]] int reach_tiles() const noexcept { return rules_.reach_tiles; }
 
   /** @pre index < size() for every per-combatant query below. */
@@ -148,20 +154,22 @@ public:
 
   [[nodiscard]] std::optional<std::size_t> target_of(std::size_t index) const { return markers_[index].target; }
 
-  /** @brief @p index's commands, as CombatRules::commands last listed them; refreshed every tick. */
+  /** `index`'s commands, as CombatRules::commands last listed them; refreshed every tick. */
   [[nodiscard]] std::span<const rules::CommandOption> commands(std::size_t index) const { return commands_[index]; }
 
-  /** @brief @p index's queued command, as an index into commands(index); nullopt for none. */
+  /** `index`'s queued command, as an index into commands(index); nullopt for none. */
   [[nodiscard]] std::optional<std::size_t> queued(std::size_t index) const { return markers_[index].queued; }
 
-  /** @brief The seconds until @p index's command lands, as of now. A wind-up ends on the first tick
+  /** The seconds until `index`'s command lands, as of now. A wind-up ends on the first tick
    *  its beats are reached, so this is a whole number of ticks. Battle calls it on the step a
    *  wind-up starts, when the marker may already be past the command point.
-   *  @pre phase(index) == Phase::WindUp. */
+   *  @pre phase(index) == Phase::WindUp.
+   */
   [[nodiscard]] float windup_seconds(std::size_t index) const;
 
-  /** @brief Whether @p index is winding up its standing attack; false for a queued command or no
-   *  wind-up. */
+  /** Whether `index` is winding up its standing attack; false for a queued command or no
+   *  wind-up.
+   */
   [[nodiscard]] bool is_winding_up_at_enemy(std::size_t index) const;
 
   [[nodiscard]] rules::Health health(const rules::CombatContext &context, std::size_t index) const;
@@ -212,7 +220,7 @@ struct FlatCombat {
   CombatRules rules{};
 };
 
-/// A Ruleset::start_fight that runs each fight on an Encounter over @p combat's rules: the
+/// A Ruleset::start_fight that runs each fight on an Encounter over `combat`'s rules: the
 /// protagonist on Side::Party, then one Side::Hostile combatant per creature, each with a
 /// standing attack on the protagonist.
 [[nodiscard]] rules::StartFight make_flat_start_fight(std::shared_ptr<FlatCombat> combat);

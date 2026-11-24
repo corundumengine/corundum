@@ -57,7 +57,7 @@ struct FreeTypeLibrary {
   FreeTypeLibrary &operator=(FreeTypeLibrary &&other) = delete;
 };
 
-/// Bake @p char_size, aborting the case if FreeType rejects the request.
+/// Bake `char_size`, aborting the case if FreeType rejects the request.
 pg::BakedSize require_bake(const pg::FontAtlas &atlas, uint32_t char_size) {
   std::expected<pg::BakedSize, std::string> baked = atlas.bake(char_size);
   REQUIRE(baked.has_value());
@@ -72,7 +72,7 @@ const pg::GlyphInfo *find_extended(const pg::BakedSize &baked, uint32_t codepoin
   return nullptr;
 }
 
-/// Assert @p glyph's rectangle sits inside the atlas, leaving a uniform
+/// Assert `glyph`'s rectangle sits inside the atlas, leaving a uniform
 /// one-pixel border on all four sides.
 // A flat list of four bound assertions; splitting it would hide the shared rectangle rule.
 // NOLINTNEXTLINE(readability-function-size)
@@ -93,14 +93,14 @@ void check_glyph_bounds(const pg::BakedSize &baked) {
     check_glyph_rect(baked, extended.info);
 }
 
-/// Assert the pixel at @p offset is opaque white in RGB (alpha carries coverage).
+/// Assert the pixel at `offset` is opaque white in RGB (alpha carries coverage).
 void check_pixel_is_white(const pg::BakedSize &baked, std::size_t offset) {
   CHECK(baked.pixels[offset + 0] == 255);
   CHECK(baked.pixels[offset + 1] == 255);
   CHECK(baked.pixels[offset + 2] == 255);
 }
 
-/// Assert @p glyph's rectangle is opaque white in RGB (alpha carries coverage)
+/// Assert `glyph`'s rectangle is opaque white in RGB (alpha carries coverage)
 /// and return how many of its cells actually contain ink.
 int count_inked_pixels(const pg::BakedSize &baked, const pg::GlyphInfo &glyph) {
   int inked = 0;

@@ -59,7 +59,7 @@ inline void adopt_platform(Engine &engine, unsigned w, unsigned h) {
   platform::null::adopt_null_platform(engine, platform);
 }
 
-/// Initialise @p engine and build the configured initial scene, as a game that skips the Title
+/// Initialise `engine` and build the configured initial scene, as a game that skips the Title
 /// does. Engine::initialize() itself loads no world.
 [[nodiscard]] inline std::expected<void, std::string> initialize_with_world(Engine &engine, core::GameConfig cfg) {
   if (std::expected<void, std::string> result = engine.initialize(std::move(cfg)); !result)

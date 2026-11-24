@@ -28,8 +28,8 @@ namespace corundum::save {
 
 namespace {
 
-/// Copy `j[key]` into @p out when present, rejecting a present value whose JSON
-/// type doesn't match @p T. Absent keys leave @p out at its existing default.
+/// Copy `j[key]` into `out` when present, rejecting a present value whose JSON
+/// type doesn't match `T`. Absent keys leave `out` at its existing default.
 template <typename T>
 [[nodiscard]] std::expected<void, std::string> read_field(const nlohmann::json &j, std::string_view key, T &out) {
   const auto it = j.find(key);
@@ -72,7 +72,7 @@ template <typename T>
   };
 }
 
-/// Parse the optional `meta` object. Absent leaves @p out at its defaults; present must be an
+/// Parse the optional `meta` object. Absent leaves `out` at its defaults; present must be an
 /// object with correctly-typed fields.
 [[nodiscard]] std::expected<void, std::string> parse_meta(const nlohmann::json &j, SaveMeta &out) {
   const auto it = j.find("meta");

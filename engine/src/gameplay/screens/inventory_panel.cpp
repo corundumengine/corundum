@@ -71,7 +71,7 @@ std::vector<std::string> wrap_description(std::string_view description, const pl
   return ui::wrap_text(description, k_max_description_width, measure);
 }
 
-/// Draw the wrapped tooltip starting at (@p x, @p y).
+/// Draw the wrapped tooltip starting at (`x`, `y`).
 void draw_description(platform::Renderer &r, const ui::PanelStyle &style,
                       const std::vector<std::string> &description_lines, float x, float y, float line_height) {
   for (const std::string &line : description_lines) {
@@ -97,9 +97,9 @@ constexpr float k_column_gap = 32.f;
 struct InventoryDrawRow {
   bool header{false};
 
-  std::string_view header_text{}; ///< Category name, valid only when @c header.
+  std::string_view header_text{}; ///< Category name, valid only when `header`.
 
-  std::size_t line_index{}; ///< Index into @c labels, valid only when not @c header.
+  std::size_t line_index{}; ///< Index into `labels`, valid only when not `header`.
 
   float y{};
 };
@@ -128,7 +128,7 @@ struct InventoryGeometry {
   std::vector<InventoryDrawRow> draw_rows;
 };
 
-/// Row height of entry @p index: an item line, plus a header line when it starts a group.
+/// Row height of entry `index`: an item line, plus a header line when it starts a group.
 float entry_row_height(std::size_t index, const std::vector<InventoryLine> &lines, float body_h, float header_h,
                        bool has_non_misc) {
   float height = body_h;
@@ -145,7 +145,7 @@ struct RowWindow {
   int visible_rows{};
 };
 
-/// First visible entry: keeps @p cursor inside the window and fits row/header heights.
+/// First visible entry: keeps `cursor` inside the window and fits row/header heights.
 RowWindow compute_row_window(int scroll, int cursor, const std::vector<InventoryLine> &lines, float available,
                              float body_h, float header_h, bool has_non_misc) {
   const int entry_count = static_cast<int>(lines.size());

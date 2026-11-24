@@ -17,12 +17,12 @@ class ContentSource;
 
 namespace corundum::gameplay::codex {
 
-/** @brief Loads codex batch files, validating each against the codex schema compiled once at construction. */
+/** Loads codex batch files, validating each against the codex schema compiled once at construction. */
 class Loader {
 public:
   Loader();
 
-  /** @brief Load one codex batch file (`data/codex/<file>.json`).
+  /** Load one codex batch file (`data/codex/<file>.json`).
    *
    *  Expects an object with a `schema_version` and an `entries` array. The whole document
    *  is validated against the codex schema, so one malformed entry fails the file.

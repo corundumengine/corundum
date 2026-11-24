@@ -21,7 +21,7 @@ using corundum::entities::Velocity;
 
 namespace {
 
-/// A one-frame sprite using the default animation, pointing at @p sprite_id. Cases that need a
+/// A one-frame sprite using the default animation, pointing at `sprite_id`. Cases that need a
 /// Sprite but don't care which art it names use this instead of repeating its three fields.
 Sprite default_sprite(corundum::sprites::SpriteId sprite_id) {
   return Sprite{.sprite_id = sprite_id, .anim_id = corundum::sprites::AnimId::Default, .frame_index = 0};

@@ -9,14 +9,14 @@
 
 namespace corundum::entities {
 
-/** @brief A valid game table is trivially copyable, exposes an integer count,
- *         a generation-aware has()/remove() pair, and a contiguous
- *         active-element span.
+/** A valid game table is trivially copyable, exposes an integer count,
+ *   a generation-aware has()/remove() pair, and a contiguous
+ *   active-element span.
  *
- * Tables store component data in SoA layout. The active_span() method returns
- * a contiguous range over the live (dense) elements — callers iterate this
- * span rather than the full fixed-size array. has()/remove() are the generic
- * despawn contract: World::despawn() calls them on every table in all_tables().
+ *  Tables store component data in SoA layout. The active_span() method returns
+ *  a contiguous range over the live (dense) elements — callers iterate this
+ *  span rather than the full fixed-size array. has()/remove() are the generic
+ *  despawn contract: World::despawn() calls them on every table in all_tables().
  */
 template <typename T>
 concept GameTable = requires(T &t, const T &ct, EntityId e) {

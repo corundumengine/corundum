@@ -17,17 +17,16 @@ namespace corundum::world {
 /// Current schema version for portals JSON. Absent field is treated as version 1.
 constexpr int k_portals_schema_version = 1;
 
-/**
- * @brief A one-way map transition trigger in tile-grid space.
+/** A one-way map transition trigger in tile-grid space.
  *
- * Defines a rectangular region on the current map that, when overlapped by the
- * player, initiates a transition to @p target_map, spawning the player at the
- * tile coordinate (@p spawn_col, @p spawn_row) in that map.
+ *  Defines a rectangular region on the current map that, when overlapped by the
+ *  player, initiates a transition to `target_map`, spawning the player at the
+ *  tile coordinate (`spawn_col`, `spawn_row`) in that map.
  *
- * Stored in the same tile-grid units as collision rects (see
- * corundum::world::tilemap::CollisionRect) rather than world pixels, so
- * the physics system can test the player's AABB against it directly — no
- * per-frame conversion round trip needed.
+ *  Stored in the same tile-grid units as collision rects (see
+ *  corundum::world::tilemap::CollisionRect) rather than world pixels, so
+ *  the physics system can test the player's AABB against it directly — no
+ *  per-frame conversion round trip needed.
  */
 struct Portal {
   float col = 0.f;              ///< Left tile column of the trigger rect.
@@ -46,28 +45,27 @@ struct Portal {
   [[nodiscard]] friend bool operator==(const Portal &, const Portal &) = default;
 };
 
-/** @brief True when a tile-grid AABB overlaps @p portal's trigger rect.
+/** True when a tile-grid AABB overlaps `portal`'s trigger rect.
  *
- * Both spaces are tile-grid and the test is half-open on every edge, so an AABB whose
- * edge merely touches the portal's edge does not overlap. This is the single source of
- * truth for portal-overlap geometry, shared by physics detection and @ref TransitionPrompt.
+ *  Both spaces are tile-grid and the test is half-open on every edge, so an AABB whose
+ *  edge merely touches the portal's edge does not overlap. This is the single source of
+ *  truth for portal-overlap geometry, shared by physics detection and `TransitionPrompt`.
  *
- * @param portal Portal whose trigger rect (@c col, @c row, @c w, @c h) is tested.
- * @param col0   Left edge of the AABB.
- * @param col1   Right edge of the AABB.
- * @param row0   Top edge of the AABB.
- * @param row1   Bottom edge of the AABB.
+ *  @param portal Portal whose trigger rect (`col`, `row`, `w`, `h`) is tested.
+ *  @param col0   Left edge of the AABB.
+ *  @param col1   Right edge of the AABB.
+ *  @param row0   Top edge of the AABB.
+ *  @param row1   Bottom edge of the AABB.
  */
 [[nodiscard]] constexpr bool portal_overlaps(const Portal &portal, float col0, float col1, float row0,
                                              float row1) noexcept {
   return col1 > portal.col && col0 < portal.col + portal.w && row1 > portal.row && row0 < portal.row + portal.h;
 }
 
-/**
- * @brief Pending map transition request produced when the player steps on a portal.
+/** Pending map transition request produced when the player steps on a portal.
  *
- * Written into @c scene.pending_transition by the update system; consumed and
- * cleared by corundum::world::handle_map_transition.
+ *  Written into `scene.pending_transition` by the update system; consumed and
+ *  cleared by corundum::world::handle_map_transition.
  */
 struct MapTransition {
   std::string target_map{};     ///< Path to the target tilemap JSON.
@@ -76,35 +74,34 @@ struct MapTransition {
   bool return_to_world = false; ///< Re-load the configured overworld instead of a named map.
 };
 
-/**
- * @brief Load portals from a portal JSON file.
+/** Load portals from a portal JSON file.
  *
- * Expects an object with a "portals" array, each entry giving a tile-grid rect
- * (col, row, w, h) — the same coordinate space tilesmith authors and saves them
- * in, so no conversion happens at load time. An optional "schema_version" field
- * is checked before the entries are parsed; an absent field is treated
- * as version 1. The legacy "target_chunk_x"/"target_chunk_y" spellings are still
- * accepted and normalised onto target_chunk_col/target_chunk_row.
+ *  Expects an object with a "portals" array, each entry giving a tile-grid rect
+ *  (col, row, w, h) — the same coordinate space tilesmith authors and saves them
+ *  in, so no conversion happens at load time. An optional "schema_version" field
+ *  is checked before the entries are parsed; an absent field is treated
+ *  as version 1. The legacy "target_chunk_x"/"target_chunk_y" spellings are still
+ *  accepted and normalised onto target_chunk_col/target_chunk_row.
  *
- * @param path Path to the portals JSON (e.g. "data/portals/world.json").
- * @return Loaded portals in tile-grid space (empty when @p path is absent or
- *         declares none), or std::unexpected with an error description on open,
- *         schema version, or parse failure.
- * @note A file that exists but cannot be opened is reported as an error rather
- *       than silently treated as absent.
+ *  @param path Path to the portals JSON (e.g. "data/portals/world.json").
+ *  @return Loaded portals in tile-grid space (empty when `path` is absent or
+ *          declares none), or std::unexpected with an error description on open,
+ *          schema version, or parse failure.
+ *  @note A file that exists but cannot be opened is reported as an error rather
+ *        than silently treated as absent.
  */
 [[nodiscard]] std::expected<std::vector<Portal>, std::string> load_portals(const core::ContentSource &content,
                                                                            const std::filesystem::path &path);
 
-/** @brief Serialize a list of portals to JSON matching the portals file format.
+/** Serialize a list of portals to JSON matching the portals file format.
  *
- * Emits the current @ref k_portals_schema_version and only writes the optional
- * target_chunk_* and return_to_world keys when they are actually set.
+ *  Emits the current `k_portals_schema_version` and only writes the optional
+ *  target_chunk_* and return_to_world keys when they are actually set.
  *
- * @param[in] portals  The portals to serialize.
- * @return JSON object with a "portals" array, suitable for write_json().
- * @note The tile-grid rect fields are emitted as integers, so a fractional
- *       col/row/w/h would be truncated.
+ *  @param portals  The portals to serialize.
+ *  @return JSON object with a "portals" array, suitable for write_json().
+ *  @note The tile-grid rect fields are emitted as integers, so a fractional
+ *        col/row/w/h would be truncated.
  */
 [[nodiscard]] nlohmann::json serialize(const std::vector<Portal> &portals);
 

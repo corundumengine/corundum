@@ -27,7 +27,7 @@ namespace corundum::settings {
 
 namespace {
 
-/// Read an optional numeric field into @p out, clamped to [@p min, @p max]. Leaves @p out
+/// Read an optional numeric field into `out`, clamped to [`min`, `max`]. Leaves `out`
 /// unchanged when the field is absent; rejects a present-but-non-numeric value.
 std::expected<void, std::string> read_clamped_float(const nlohmann::json &root, std::string_view key, float min,
                                                     float max, float &out) {
@@ -40,7 +40,7 @@ std::expected<void, std::string> read_clamped_float(const nlohmann::json &root, 
   return {};
 }
 
-/// Read every bus volume present in @p root into @p settings, each clamped to [0, 1].
+/// Read every bus volume present in `root` into `settings`, each clamped to [0, 1].
 std::expected<void, std::string> read_volumes(const nlohmann::json &root, UserSettings &settings) {
   const std::array<std::pair<std::string_view, float *>, 5> volumes{
       {
@@ -77,7 +77,7 @@ nlohmann::json serialize(const UserSettings &settings) {
 
 std::expected<UserSettings, std::string> parse(const nlohmann::json &root, const UserSettings &defaults) {
   // A non-object root still passes the schema-version gate (contains() is false on an array or
-  // scalar, reading as legacy version 1), so reject it here rather than parse it as "all defaults".
+  // scalar, reading as version 1), so reject it here rather than parse it as "all defaults".
   if (!root.is_object())
     return std::unexpected("settings must be a JSON object");
 
@@ -155,7 +155,7 @@ std::expected<void, std::string> load(Engine &engine, const core::UserStorage &s
     return std::unexpected(root.error());
 
   // Reject a non-object before prepare_schema_version(): it treats an absent schema_version as
-  // legacy version 1 and would try to stamp the field, which throws on an array root.
+  // version 1 and would try to stamp the field, which throws on an array root.
   if (!root->is_object())
     return std::unexpected("settings must be a JSON object");
 

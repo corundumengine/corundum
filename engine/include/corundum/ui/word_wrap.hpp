@@ -13,7 +13,7 @@ namespace corundum::ui {
 
 namespace detail {
 /// Rewrites "\r\n" and lone '\r' to '\n' so wrapping only has to split on '\n'.
-/// @return A copy of @p text with every carriage return normalized.
+/// @return A copy of `text` with every carriage return normalized.
 [[nodiscard]] inline std::string normalize_newlines(std::string_view text) {
   std::string normalized;
   normalized.reserve(text.size());
@@ -29,8 +29,8 @@ namespace detail {
   return normalized;
 }
 
-/// Appends @p word to @p line, wrapping first when the candidate line would exceed
-/// @p max_width. A word wider than @p max_width is placed alone on its line.
+/// Appends `word` to `line`, wrapping first when the candidate line would exceed
+/// `max_width`. A word wider than `max_width` is placed alone on its line.
 /// @param measure Callable (std::string_view) -> float returning rendered width.
 template <typename MeasureFn>
 void place_wrapped_word(std::vector<std::string> &lines, std::string &line, std::string_view word, float max_width,
@@ -47,7 +47,7 @@ void place_wrapped_word(std::vector<std::string> &lines, std::string &line, std:
 
 /// Greedy word-wrap of a single segment that contains no hard newline characters.
 /// Splits on single spaces; runs of spaces collapse and leading/trailing spaces are
-/// dropped. A word that alone exceeds @p max_width is placed on its own line rather
+/// dropped. A word that alone exceeds `max_width` is placed on its own line rather
 /// than broken, so the caller must tolerate an over-wide line.
 /// @param measure Callable (std::string_view) -> float returning rendered width.
 /// @return At least one line; an all-space segment yields a single empty line.
@@ -77,9 +77,9 @@ template <typename MeasureFn>
 /// is placed on its own line rather than looping forever.
 /// @param measure Callable (std::string_view) -> float returning rendered width.
 /// @return At least one line; empty input yields a single empty line.
-/// @pre @p max_width <= 0 places every word on its own line (callers pass a
+/// @pre `max_width` <= 0 places every word on its own line (callers pass a
 ///      viewport-derived width, so this only guards degenerate layout).
-/// @pre @p measure is non-decreasing as characters are appended, so an over-wide
+/// @pre `measure` is non-decreasing as characters are appended, so an over-wide
 ///      line never becomes narrow enough for a later word to join it.
 template <typename MeasureFn>
 [[nodiscard]] std::vector<std::string> wrap_text(std::string_view text, float max_width, MeasureFn measure) {

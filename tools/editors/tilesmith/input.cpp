@@ -389,7 +389,7 @@ void handle_palette_click(EditorState &state, int win_x, int win_y) {
     state.selected_gid = *gid;
 }
 
-/// Nudge the camera by (@p dx, @p dy) canvas pixels, then keep it inside the map bounds.
+/// Nudge the camera by (`dx`, `dy`) canvas pixels, then keep it inside the map bounds.
 void nudge_camera(EditorState &state, float dx, float dy) noexcept {
   state.canvas.offset_x += dx;
   state.canvas.offset_y += dy;
@@ -400,7 +400,7 @@ void nudge_camera(EditorState &state, float dx, float dy) noexcept {
   state.canvas.offset_y = cy;
 }
 
-/// Step the collision triangle cut @p delta places around the four orientations, wrapping.
+/// Step the collision triangle cut `delta` places around the four orientations, wrapping.
 void cycle_triangle_cut(EditorState &state, int delta) noexcept {
   using corundum::world::tilemap::TriangleCut;
   constexpr std::array<TriangleCut, 4> k_cuts{

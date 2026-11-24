@@ -17,12 +17,12 @@ class ContentSource;
 
 namespace corundum::gameplay::location {
 
-/** @brief Loads location batch files, validating each against the location schema compiled once at construction. */
+/** Loads location batch files, validating each against the location schema compiled once at construction. */
 class Loader {
 public:
   Loader();
 
-  /** @brief Load one location batch file (`data/locations/<file>.json`).
+  /** Load one location batch file (`data/locations/<file>.json`).
    *
    *  Expects an object with a `schema_version` and a `locations` array. The whole document
    *  is validated against the location schema, so one malformed entry fails the file.

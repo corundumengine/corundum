@@ -15,11 +15,11 @@
 
 namespace corundum::platform::null {
 
-/** @brief No-op Window for headless lifecycle tests.
+/** No-op Window for headless lifecycle tests.
  *
- * `open_` toggles between `is_open()` and `close()`. Stores dimensions so `size()` matches what
- * the test sets. `poll_game_input` feeds the mapper whatever a test has scripted (key transitions
- * once; the gamepad and cursor every poll) and emits the queued `scripted_events`.
+ *  `open_` toggles between `is_open()` and `close()`. Stores dimensions so `size()` matches what
+ *  the test sets. `poll_game_input` feeds the mapper whatever a test has scripted (key transitions
+ *  once; the gamepad and cursor every poll) and emits the queued `scripted_events`.
  */
 class NullWindow final : public corundum::platform::Window {
 public:
@@ -67,22 +67,22 @@ public:
 
   [[nodiscard]] void *native_handle() const override { return nullptr; }
 
-  /** @brief True once show() has been called; lets a test assert the engine revealed the window. */
+  /** True once show() has been called; lets a test assert the engine revealed the window. */
   bool visible{false};
 
-  /** @brief Cursor position in window coordinates, reported on every poll like a real window's. */
+  /** Cursor position in window coordinates, reported on every poll like a real window's. */
   std::pair<float, float> cursor{};
 
-  /** @brief Connected gamepad state reported on every poll; nullopt means no gamepad. */
+  /** Connected gamepad state reported on every poll; nullopt means no gamepad. */
   std::optional<corundum::input::GamepadState> gamepad;
 
-  /** @brief Key transitions fed on the next poll_game_input(), then cleared. */
+  /** Key transitions fed on the next poll_game_input(), then cleared. */
   std::vector<std::pair<corundum::input::Key, bool>> scripted_keys;
 
-  /** @brief Mouse-button transitions fed on the next poll_game_input(), then cleared. */
+  /** Mouse-button transitions fed on the next poll_game_input(), then cleared. */
   std::vector<std::pair<corundum::input::MouseButton, bool>> scripted_mouse;
 
-  /** @brief Events emitted on the next poll_game_input(), then cleared.
+  /** Events emitted on the next poll_game_input(), then cleared.
    *
    *  Tests set these to script focus, quit, display and controller changes the engine would
    *  otherwise receive from a real host OS.

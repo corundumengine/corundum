@@ -12,20 +12,20 @@ struct InputIntent;
 
 namespace corundum::world {
 
-/** @brief A portal transition the player has stepped into but not yet confirmed.
+/** A portal transition the player has stepped into but not yet confirmed.
  *
- * Owns the pending @ref MapTransition, the arming @ref Portal (whose tile-grid rect
- * it tests against), the Yes/No highlight, and the "declined, walk away to clear"
- * state. The physics system arms one when the player overlaps a cross-map / return
- * portal; @ref step advances it against player input each fixed tick.
+ *  Owns the pending `MapTransition`, the arming `Portal` (whose tile-grid rect
+ *  it tests against), the Yes/No highlight, and the "declined, walk away to clear"
+ *  state. The physics system arms one when the player overlaps a cross-map / return
+ *  portal; `step` advances it against player input each fixed tick.
  */
 class TransitionPrompt {
 public:
-  /** @brief Outcome of one @ref step call. */
+  /** Outcome of one `step` call. */
   enum class Step : std::uint8_t { Confirmed, Dismissed, Pending };
 
-  /** @brief Arm a fresh prompt (Yes highlighted) for the portal just entered.
-   *  @pre @p portal is a cross-map or return-to-world portal.
+  /** Arm a fresh prompt (Yes highlighted) for the portal just entered.
+   *  @pre `portal` is a cross-map or return-to-world portal.
    */
   explicit TransitionPrompt(const Portal &portal) noexcept;
 
@@ -35,7 +35,7 @@ public:
 
   [[nodiscard]] const MapTransition &transition() const noexcept { return transition_; }
 
-  /** @brief True while a tile-grid AABB still overlaps the trigger rect.
+  /** True while a tile-grid AABB still overlaps the trigger rect.
    *  @param col0 Left edge of the AABB.
    *  @param col1 Right edge of the AABB.
    *  @param row0 Top edge of the AABB.
@@ -43,16 +43,17 @@ public:
    */
   [[nodiscard]] bool overlaps(float col0, float col1, float row0, float row1) const noexcept;
 
-  /** @brief True if @p portal is the exact trigger this prompt guards.
+  /** True if `portal` is the exact trigger this prompt guards.
    *
-   * Compares the whole portal, not just its rect, so two triggers authored on the
-   * same cell at different elevations or targets are told apart.
+   *  Compares the whole portal, not just its rect, so two triggers authored on the
+   *  same cell at different elevations or targets are told apart.
    */
   [[nodiscard]] bool guards(const Portal &portal) const noexcept;
 
-  /** @brief Advance one fixed step. Left/Right (Up/Down aliased) move the
+  /** Advance one fixed step. Left/Right (Up/Down aliased) move the
    *  highlight; Select commits it (Confirmed) or backs out (Dismissed);
-   *  Cancel always Dismisses. Dismiss also latches @ref declined. */
+   *  Cancel always Dismisses. Dismiss also latches `declined`.
+   */
   [[nodiscard]] Step step(const corundum::input::InputIntent &intent) noexcept;
 
 private:

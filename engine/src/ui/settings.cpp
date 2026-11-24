@@ -125,7 +125,7 @@ void settings_scroll_to_cursor(SettingsState &state, int row_count, int visible_
 
 namespace {
 
-/// Every binding on @p action, joined with commas; "(unbound)" when it has none.
+/// Every binding on `action`, joined with commas; "(unbound)" when it has none.
 std::string bindings_text(const input::Bindings &bindings, input::Action action) {
   std::string result;
   for (const input::PhysicalInput input : input::inputs_for(bindings, action)) {
@@ -139,7 +139,7 @@ std::string bindings_text(const input::Bindings &bindings, input::Action action)
   return result.empty() ? std::string{"(unbound)"} : result;
 }
 
-/// @p fraction as a whole-number percentage: 0.5 → "50%".
+/// `fraction` as a whole-number percentage: 0.5 → "50%".
 std::string percent_text(float fraction) {
   return std::format("{:.0f}%", fraction * 100.f);
 }
@@ -162,7 +162,7 @@ std::string general_value_text(SettingsGeneralRow row, const SettingsValues &val
 
 constexpr std::string_view k_controls_reset_label = "Reset to Defaults";
 
-/// (label, value) for every row of @p tab, in draw order.
+/// (label, value) for every row of `tab`, in draw order.
 std::vector<std::pair<std::string, std::string>> build_rows(const SettingsState &state, const SettingsValues &values,
                                                             const input::Bindings &bindings) {
   std::vector<std::pair<std::string, std::string>> rows;
@@ -212,8 +212,8 @@ float settings_line_height(const PanelStyle &style) noexcept {
   return std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
 }
 
-/// Place the tab rects and row hit-box for a panel at @p panel_pos/@p panel_size with @p pad_x
-/// and @p pad_y insets and @p tab_gap/@p title_gap spacing.
+/// Place the tab rects and row hit-box for a panel at `panel_pos`/`panel_size` with `pad_x`
+/// and `pad_y` insets and `tab_gap`/`title_gap` spacing.
 void place_tabs_and_rows(SettingsLayout &layout, core::math::Vec2 panel_pos, core::math::Vec2 panel_size, float pad_x,
                          float pad_y, float tab_gap, float title_gap, float line_h, float title_h, float general_w,
                          float controls_w, int first_row, int visible_rows) {

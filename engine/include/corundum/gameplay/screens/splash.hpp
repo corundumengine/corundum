@@ -11,34 +11,38 @@
 
 namespace corundum::gameplay::screens {
 
-/** @brief Seconds each splash image holds at full opacity between its fade-in and fade-out. */
+/** Seconds each splash image holds at full opacity between its fade-in and fade-out. */
 constexpr float k_splash_hold_seconds = 2.f;
 
-/** @brief Seconds each splash image takes to fade in from black, and again to fade out to black —
- *  slower than a scene change's fade so the logo lingers. */
+/** Seconds each splash image takes to fade in from black, and again to fade out to black —
+ *  slower than a scene change's fade so the logo lingers.
+ */
 constexpr float k_splash_fade_seconds = 0.7f;
 
-/** @brief Seconds the splash holds black before the first image fades in, so boot eases in rather
- *  than snapping straight to the logo. */
+/** Seconds the splash holds black before the first image fades in, so boot eases in rather
+ *  than snapping straight to the logo.
+ */
 constexpr float k_splash_initial_delay_seconds = 0.5f;
 
-/** @brief Largest share of the viewport's width and height a splash image may cover. Splash
+/** Largest share of the viewport's width and height a splash image may cover. Splash
  *  logos are usually tightly cropped, so fitting one to the whole viewport would run it edge to
- *  edge; the rest of the screen stays black. */
+ *  edge; the rest of the screen stays black.
+ */
 constexpr float k_splash_max_viewport_fraction = 0.75f;
 
-/** @brief One loaded splash image. */
+/** One loaded splash image. */
 struct SplashImage {
   core::math::Vec2 size{}; ///< Texture size in pixels; {0, 0} when the backend cannot report it (not drawn).
 
   platform::TextureId texture{platform::TextureId::Invalid}; ///< Holds one reference until the splash closes.
 };
 
-/** @brief Splash-screen state: the images loaded from GameConfig's splash_images in play order,
+/** Splash-screen state: the images loaded from GameConfig's splash_images in play order,
  *  the one showing, and how long it has held at full opacity.
  *
  *  Gameplay::open_splash() fills it at boot and Gameplay::advance_splash() empties it when the
- *  last image has faded out. The fades themselves live in Engine::screen_transition. */
+ *  last image has faded out. The fades themselves live in Engine::screen_transition.
+ */
 struct SplashState {
   std::vector<SplashImage> images{};
 
@@ -49,7 +53,7 @@ struct SplashState {
   float shown_seconds{}; ///< Seconds the current image has held since its fade-in finished.
 };
 
-/** @brief Draw the splash: black over the whole viewport, then the current image scaled to fit
+/** Draw the splash: black over the whole viewport, then the current image scaled to fit
  *  within k_splash_max_viewport_fraction of the viewport and centered.
  *
  *  Pure render; invoked only while Splash is on top of the UI stack. The image is contained,

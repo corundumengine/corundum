@@ -94,7 +94,7 @@ Stage parse_stage(const json &j, std::size_t index) {
   return stage;
 }
 
-/// Read @p path, check its schema version, and return its schema-validated root.
+/// Read `path`, check its schema version, and return its schema-validated root.
 json load_validated_root(const core::SchemaValidator &schema, const core::ContentSource &content,
                          const std::string &path) {
   auto root_result = core::read_json(content, path, "quest JSON");

@@ -13,7 +13,7 @@ namespace corundum::physics {
 
 namespace {
 
-/// Step one axis back to @p axis_prev when @p graph disconnects the crossing, and leave
+/// Step one axis back to `axis_prev` when `graph` disconnects the crossing, and leave
 /// it untouched otherwise — the axis-separated slide resolve_collisions uses.
 [[nodiscard]] float resolve_axis(float axis_pos, float axis_prev, int from_col, int from_row, int to_col, int to_row,
                                  const corundum::world::tilemap::WalkabilityGraph &graph) noexcept {

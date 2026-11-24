@@ -65,7 +65,7 @@ struct CodexGeometry {
   std::vector<CodexRow> rows;
 };
 
-/// Flatten entries into header/entry rows and scroll the window to keep @p cursor visible.
+/// Flatten entries into header/entry rows and scroll the window to keep `cursor` visible.
 std::vector<CodexRow> build_codex_rows(const std::vector<gameplay::codex::CodexEntry> &entries) {
   std::vector<CodexRow> rows;
   std::string_view last_category;
@@ -80,12 +80,12 @@ std::vector<CodexRow> build_codex_rows(const std::vector<gameplay::codex::CodexE
   return rows;
 }
 
-/// Whether @p index is a currently-drawn row: inside both the scroll window and the row list.
+/// Whether `index` is a currently-drawn row: inside both the scroll window and the row list.
 bool codex_row_visible(const CodexGeometry &geometry, int index) noexcept {
   return index < geometry.first_row + geometry.visible_rows && std::cmp_less(index, geometry.rows.size());
 }
 
-/// Screen y of drawn row @p index.
+/// Screen y of drawn row `index`.
 float codex_row_y(const CodexGeometry &geometry, int index) noexcept {
   return geometry.content_top + (static_cast<float>(index - geometry.first_row) * geometry.line_h);
 }
@@ -262,7 +262,7 @@ void draw_codex_list(platform::Renderer &r, const ui::PanelStyle &style, const C
   }
 }
 
-/// The selected entry's title and wrapped body, scrolled by @p scroll lines.
+/// The selected entry's title and wrapped body, scrolled by `scroll` lines.
 void draw_codex_body(platform::Renderer &r, const ui::PanelStyle &style, const CodexGeometry &geometry,
                      const gameplay::codex::CodexEntry &selected, float scroll) {
   const ui::FontFamily &quest_fonts = style.family(ui::FontRole::Quest);

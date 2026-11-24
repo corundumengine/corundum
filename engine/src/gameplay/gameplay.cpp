@@ -403,7 +403,7 @@ void dispatch_dialogue_event(Gameplay &gameplay, Engine &engine, quest::Runner &
 }
 
 /// Modulo wrap of a UI list cursor, matching the dialogue choice cursor: Down past the last
-/// row lands on the first, Up past the first lands on the last. @p count must be > 0.
+/// row lands on the first, Up past the first lands on the last. `count` must be > 0.
 int wrap_cursor(int current, int delta, int count) noexcept {
   return (current + delta + count) % count;
 }
@@ -414,7 +414,7 @@ core::math::Vec2 screen_viewport(const Engine &engine) noexcept {
   return {.x = static_cast<float>(width), .y = static_cast<float>(height)};
 }
 
-/// Whether @p cursor lies inside the half-open screen-space @p rect.
+/// Whether `cursor` lies inside the half-open screen-space `rect`.
 bool cursor_in(core::math::Vec2 cursor, const ui::RowRect &rect) noexcept {
   return cursor.x >= rect.pos.x && cursor.x <= rect.pos.x + rect.width && cursor.y >= rect.pos.y &&
          cursor.y <= rect.pos.y + rect.height;
@@ -452,7 +452,7 @@ constexpr std::array<HubTabAction, 4> k_hub_tab_actions{
     },
 };
 
-/// Next hub tab relative to @p mode by @p direction (+1 / -1), wrapping.
+/// Next hub tab relative to `mode` by `direction` (+1 / -1), wrapping.
 world::GameMode cycle_hub_tab(world::GameMode mode, int direction) noexcept {
   std::size_t index = 0;
   for (std::size_t i = 0; i < screens::k_hub_tab_modes.size(); ++i) {
@@ -494,7 +494,7 @@ void open_hub_tab(const Engine &engine, Gameplay &gameplay, world::GameMode mode
   }
 }
 
-/// Replace the top hub layer with @p mode (tab switch), reselecting that tab's state.
+/// Replace the top hub layer with `mode` (tab switch), reselecting that tab's state.
 void switch_hub_tab(Engine &engine, Gameplay &gameplay, world::GameMode mode) {
   engine.scene.ui.pop();
   engine.scene.ui.push(mode);
@@ -660,7 +660,7 @@ void update_inventory(Engine &engine, Gameplay &gameplay, const input::InputInte
   gameplay.inventory_scroll = visible.first_row;
 }
 
-/// Switch the journal to @p tab, resetting the row cursor when it changes.
+/// Switch the journal to `tab`, resetting the row cursor when it changes.
 void select_journal_tab(screens::JournalState &state, screens::JournalTab tab) noexcept {
   if (state.tab == tab)
     return;
@@ -668,7 +668,7 @@ void select_journal_tab(screens::JournalState &state, screens::JournalTab tab) n
   state.cursor = 0;
 }
 
-/// Toggle tracking on @p entry: tracking it clears the flag on every other started quest.
+/// Toggle tracking on `entry`: tracking it clears the flag on every other started quest.
 /// Only an Active quest is trackable.
 void toggle_journal_track(Engine &engine, const Gameplay &gameplay, const screens::JournalEntry &entry) {
   if (entry.lifecycle != quest::Lifecycle::Active)
@@ -880,7 +880,7 @@ void update_map(Engine &engine, Gameplay &gameplay, const input::InputIntent &in
   travel_to(engine, gameplay, selected);
 }
 
-/// Add @p delta to @p key's count, creating it when positive and erasing it once it reaches
+/// Add `delta` to `key`'s count, creating it when positive and erasing it once it reaches
 /// zero. Keeps the FlagStore free of zero-valued rows (matching item grant/take semantics).
 void adjust_flag(world::FlagStore &flags, const std::string &key, int delta) {
   if (delta == 0)
@@ -1073,7 +1073,7 @@ void render_confirm(const Engine &engine, const Gameplay &gameplay, platform::Re
                         gameplay.confirm.yes_selected, viewport);
 }
 
-/// Move the title cursor by @p delta, wrapping and skipping disabled rows (Continue when no
+/// Move the title cursor by `delta`, wrapping and skipping disabled rows (Continue when no
 /// save exists). No-op when every row is disabled, which cannot happen today. The row count
 /// follows the Credits row's visibility, so the cursor never lands on a hidden row.
 void move_title_cursor(Gameplay &gameplay, int delta) noexcept {
@@ -1344,7 +1344,7 @@ void render_game_over(const Engine &engine, const Gameplay &gameplay, platform::
                                   gameplay.game_over_screen, viewport, engine.input_mapper.last_device());
 }
 
-/// Save @p slot_id, raising a success or failure toast, then pop the Save/Load screen.
+/// Save `slot_id`, raising a success or failure toast, then pop the Save/Load screen.
 void commit_slot_save(Engine &engine, Gameplay &gameplay, const std::string &slot_id) {
   if (const std::expected<void, std::string> result = gameplay.save_to_slot(slot_id); !result)
     engine.notify(std::format("Save failed: {}", result.error()), ui::k_toast_failed_colour);
@@ -1574,7 +1574,7 @@ void load_content(Gameplay &gameplay, Engine &engine) {
   }
 }
 
-/// Pop the combat layers off the top of @p ui: CombatPaused, then Combat.
+/// Pop the combat layers off the top of `ui`: CombatPaused, then Combat.
 void close_combat_layers(world::UIStack &ui) noexcept {
   if (ui.top() == screens::CombatPaused)
     ui.pop();
@@ -1592,7 +1592,7 @@ void toggle_combat_pause(world::UIStack &ui, const input::InputState &input) {
     ui.pop();
 }
 
-/// End the fight with @p outcome: stop everyone, close the combat layers, and raise
+/// End the fight with `outcome`: stop everyone, close the combat layers, and raise
 /// encounter_won/encounter_lost for the game's on_event hook.
 void end_battle(Engine &engine, Gameplay &gameplay, const combat::Battle &battle, rules::Outcome outcome) {
   battle.halt(engine);
@@ -1693,7 +1693,7 @@ void draw_target_marker(const Engine &engine, const combat::Battle &battle, plat
   r.reset_screen_view();
 }
 
-/// Draw the target's tile marker, then the combat HUD with @p banner (empty for none).
+/// Draw the target's tile marker, then the combat HUD with `banner` (empty for none).
 void render_combat(const Engine &engine, const combat::Battle &battle, platform::Renderer &r, core::math::Vec2 viewport,
                    std::string_view banner) {
   draw_target_marker(engine, battle, r);
@@ -1883,7 +1883,7 @@ void register_render_layers(Gameplay &gameplay, Engine &engine) {
                            [](Engine &e, platform::Renderer &r, core::math::Vec2 v) { render_hub_strip(e, r, v); });
 }
 
-/// Register the gameplay framework with @p engine: its fixed-step system, hub input hook,
+/// Register the gameplay framework with `engine`: its fixed-step system, hub input hook,
 /// screens and render layers. Every closure captures `gameplay`, which outlives the engine
 /// under the Runtime member-order contract.
 void register_gameplay(Gameplay &gameplay, Engine &engine) {

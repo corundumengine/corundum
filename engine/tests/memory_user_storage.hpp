@@ -16,7 +16,7 @@ namespace corundum::test {
 
 /// In-memory UserStorage for tests.
 ///
-/// @c entries is public so tests can seed and inspect it. @c injected_write_error lets a test
+/// `entries` is public so tests can seed and inspect it. `injected_write_error` lets a test
 /// force every write to fail without touching the filesystem.
 class MemoryUserStorage final : public corundum::core::UserStorage {
 public:

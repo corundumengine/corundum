@@ -13,10 +13,10 @@
 
 namespace corundum::gameplay::screens {
 
-/** @brief FlagStore key holding the player's currency. */
+/** FlagStore key holding the player's currency. */
 inline constexpr std::string_view k_gold_flag = "gold";
 
-/** @brief The persistent one-line HUD's content: gold and the tracked active quest. */
+/** The persistent one-line HUD's content: gold and the tracked active quest. */
 struct HudStripData {
   int gold{};
   std::string quest_name{};
@@ -24,7 +24,7 @@ struct HudStripData {
   bool has_quest{false};
 };
 
-/** @brief Derive the HUD strip from the flag store and quest registry.
+/** Derive the HUD strip from the flag store and quest registry.
  *
  *  Gold is the `gold` flag. The reported quest is the tracked Active quest
  *  (`quest.<id>.tracked`), falling back to the first Active quest by name when nothing is
@@ -38,7 +38,7 @@ struct HudStripData {
 [[nodiscard]] HudStripData build_hud_strip(const world::FlagStore &flags, const gameplay::quest::Registry &quests,
                                            std::string_view zone_id = {});
 
-/** @brief Draw the persistent HUD as a small top-left box: gold plus the active objective.
+/** Draw the persistent HUD as a small top-left box: gold plus the active objective.
  *
  *  Pure render. The box is drawn as an opaque fill (panel_fill()) plus a nine-patch frame
  *  (panel_frame()) — separate calls so the fill can be opaque, unlike the modal panels' shared

@@ -14,8 +14,8 @@ namespace corundum::ui {
 /// their natural cell size; edges are stretched to span the gap between them; the
 /// middle cell is never drawn.
 ///
-/// @note nine_patch_render() is a no-op when @c texture_id is TextureId::Invalid (no texture loaded)
-///       or @c tile_w / @c tile_h are non-positive (malformed asset), so callers need
+/// @note nine_patch_render() is a no-op when `texture_id` is TextureId::Invalid (no texture loaded)
+///       or `tile_w` / `tile_h` are non-positive (malformed asset), so callers need
 ///       not guard those cases.
 struct NinePatchBorder {
   platform::TextureId texture_id{platform::TextureId::Invalid};
@@ -25,7 +25,7 @@ struct NinePatchBorder {
   int tile_h{0}; ///< Height in pixels of one source cell; must be > 0 for the frame to draw.
 };
 
-/// Draw @p border as a frame around the rect at (@p x, @p y) with size (@p w, @p h).
+/// Draw `border` as a frame around the rect at (`x`, `y`) with size (`w`, `h`).
 ///
 /// @param r      Renderer; receives up to eight DrawSprite commands (corners, then edges).
 /// @param border Border texture and cell dimensions.

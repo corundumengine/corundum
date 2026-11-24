@@ -17,13 +17,13 @@
 struct GLFWwindow;
 
 namespace corundum::platform::glfw {
-/// @brief Why GLFWWindow::create() failed.
+/// Why GLFWWindow::create() failed.
 enum class WindowError : std::uint8_t {
   InitializationFailed, ///< glfwInit() could not bring GLFW up.
   CreationFailed,       ///< GLFW could not create the window.
 };
 
-/// @brief Human-readable form of @p error, for diagnostics.
+/// Human-readable form of `error`, for diagnostics.
 [[nodiscard]] std::string_view to_string(WindowError error) noexcept;
 
 class GLFWWindow final : public corundum::platform::Window {

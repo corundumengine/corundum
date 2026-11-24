@@ -55,7 +55,7 @@ void add_started_quest(corundum::Engine &engine, corundum::gameplay::Gameplay &g
   quest::start(*gameplay.quests.find(id), engine.flags);
 }
 
-/// Complete the quest whose id is @p id.
+/// Complete the quest whose id is `id`.
 void complete(corundum::Engine &engine, std::string_view id) {
   engine.flags[quest::quest_flag_key(id)] = 2;
 }

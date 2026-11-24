@@ -8,7 +8,7 @@
 
 namespace corundum::gameplay::screens {
 
-/** @brief Draw the two-phase loading overlay: an opaque backdrop with a centered "Loading…".
+/** Draw the two-phase loading overlay: an opaque backdrop with a centered "Loading…".
  *
  *  Pure render. Its only job is to put something on screen before Gameplay::begin_load()'s
  *  queued work runs, so the player never sees an unpainted frame during a load. See

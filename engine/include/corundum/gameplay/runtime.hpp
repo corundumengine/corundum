@@ -12,7 +12,7 @@ namespace corundum::gameplay {
 
 class Gameplay;
 
-/** @brief The game process's owned pair: the gameplay framework and the engine it drives.
+/** The game process's owned pair: the gameplay framework and the engine it drives.
  *
  *  A passive record — the game drives the loop itself (`runtime->engine->run_loop()` then
  *  `cleanup()`), reads `runtime->engine->cfg` for settings paths, and installs the game's
@@ -37,9 +37,9 @@ struct Runtime {
   Runtime &operator=(Runtime &&) = delete;
 };
 
-/** @brief Create the platform, initialise the engine, then construct gameplay over it.
+/** Create the platform, initialise the engine, then construct gameplay over it.
  *
- *  @param[in] options Resolved command-line options.
+ *  @param options Resolved command-line options.
  *  @return A fully-initialised Runtime, or an error message.
  *  @post On success the engine is initialised and gameplay has loaded its content and
  *        registered its screens, hooks and fixed-step system. On failure nothing leaks.

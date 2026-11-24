@@ -84,15 +84,15 @@ struct FontAtlas {
   FontAtlas(FontAtlas &&other) noexcept;
   FontAtlas &operator=(FontAtlas &&other) noexcept;
 
-  /// Open the FreeType face from @p font_bytes (the whole font file) using the shared library @p lib.
+  /// Open the FreeType face from `font_bytes` (the whole font file) using the shared library `lib`.
   /// @param font_path Names the font in warnings.
   /// @return false if FreeType rejects the data.
   [[nodiscard]] bool load(FT_Library lib, std::vector<uint8_t> font_bytes, std::string_view font_path);
 
-  /// Rasterise Latin-1 Supplement plus the extended punctuation set at @p char_size
+  /// Rasterise Latin-1 Supplement plus the extended punctuation set at `char_size`
   /// pixels and return the atlas pixel data.
   /// @pre load() has been called and returned true.
-  /// @return the baked atlas, or a message if FreeType rejected @p char_size.
+  /// @return the baked atlas, or a message if FreeType rejected `char_size`.
   [[nodiscard]] std::expected<BakedSize, std::string> bake(uint32_t char_size) const;
 };
 

@@ -25,7 +25,7 @@ namespace platform {
 class Renderer;
 } // namespace platform
 
-/** @brief Paint-order buckets for self-gated render hooks.
+/** Paint-order buckets for self-gated render hooks.
  *
  *  The engine draws them in declaration order: Hud (only while no screen is open), Modal
  *  overlays (the dialogue box), then hub paint. Each hook gates on its own state and, for a
@@ -44,26 +44,29 @@ using ScreenUpdateFn = std::function<void(Engine &, const input::InputIntent &)>
 
 using ScreenRenderFn = std::function<void(Engine &, platform::Renderer &, core::math::Vec2 viewport)>;
 
-/** @brief One screen's step and render behaviour, keyed by GameMode.
+/** One screen's step and render behaviour, keyed by GameMode.
  *
  *  Gameplay screens registered by gameplay hooks capture the gameplay owner (see the
  *  Runtime member-order contract); engine-owned screens capture nothing and read the
  *  `Engine &` argument.
  */
 struct ScreenSpec {
-  /** @brief Whether the screen reads Cancel as its own back action. One that doesn't (a fight)
-   *  leaves Esc, which raises both Cancel and Menu, to open the pause menu over it. */
+  /** Whether the screen reads Cancel as its own back action. One that doesn't (a fight)
+   *  leaves Esc, which raises both Cancel and Menu, to open the pause menu over it.
+   */
   bool handles_back{true};
 
-  /** @brief When true, update() replaces the whole simulation step: world::update, the
+  /** When true, update() replaces the whole simulation step: world::update, the
    *  fixed_step_systems and on_fixed_update all skip. When false the world step runs
    *  normally and the screen has no update hook — it does not mean "no per-step work"; a
    *  non-step-owning screen does its per-step work from a fixed_step_systems entry, not
-   *  from this hook. */
+   *  from this hook.
+   */
   bool owns_step{false};
 
-  /** @brief For a non-step-owning screen, whether the world keeps simulating beneath it. Ignored
-   *  when owns_step is true. */
+  /** For a non-step-owning screen, whether the world keeps simulating beneath it. Ignored
+   *  when owns_step is true.
+   */
   world::WorldStep world_step{world::WorldStep::Frozen};
 
   ScreenUpdateFn update{};
@@ -71,7 +74,7 @@ struct ScreenSpec {
   ScreenRenderFn render{};
 };
 
-/** @brief GameMode → ScreenSpec table plus the ordered layer hooks.
+/** GameMode → ScreenSpec table plus the ordered layer hooks.
  *
  *  Registration happens once at initialize time; dispatch is an indirect call per step /
  *  frame. The std::function storage is chosen deliberately (registration-time allocation,
@@ -79,7 +82,7 @@ struct ScreenSpec {
  */
 class ScreenRegistry {
 public:
-  /** @brief Register @p spec for @p mode, replacing any existing entry. */
+  /** Register `spec` for `mode`, replacing any existing entry. */
   void add(world::GameMode mode, ScreenSpec spec) {
     for (Entry &entry : screens_) {
       if (entry.mode == mode) {
@@ -90,7 +93,7 @@ public:
     screens_.push_back(Entry{.mode = mode, .spec = std::move(spec)});
   }
 
-  /** @brief The spec registered for @p mode, or nullptr when none is. */
+  /** The spec registered for `mode`, or nullptr when none is. */
   [[nodiscard]] const ScreenSpec *find(world::GameMode mode) const noexcept {
     for (const Entry &entry : screens_) {
       if (entry.mode == mode)
@@ -99,13 +102,13 @@ public:
     return nullptr;
   }
 
-  /** @brief Append a self-gated hook to @p layer. */
+  /** Append a self-gated hook to `layer`. */
   void add_layer(RenderLayer layer, ScreenRenderFn hook) {
     core::verify(layer != RenderLayer::Count, "add_layer: RenderLayer::Count is not a layer");
     layers_[static_cast<std::size_t>(layer)].push_back(std::move(hook));
   }
 
-  /** @brief Invoke every hook in @p layer, in registration order. */
+  /** Invoke every hook in `layer`, in registration order. */
   void render_layer(RenderLayer layer, Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) const {
     core::verify(layer != RenderLayer::Count, "render_layer: RenderLayer::Count is not a layer");
     for (const ScreenRenderFn &hook : layers_[static_cast<std::size_t>(layer)])

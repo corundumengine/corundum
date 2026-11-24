@@ -150,7 +150,7 @@ void scroll_callback(GLFWwindow *win, double /*xoffset*/, double yoffset) noexce
     data->mapper->scroll(static_cast<float>(yoffset));
 }
 
-/// The bit for @p joystick in a gamepad-presence mask.
+/// The bit for `joystick` in a gamepad-presence mask.
 constexpr std::uint32_t joystick_bit(int joystick) noexcept {
   return 1u << static_cast<unsigned>(joystick);
 }
@@ -165,7 +165,7 @@ std::uint32_t connected_gamepads() noexcept {
   return mask;
 }
 
-/// @p text, or an empty view when GLFW returns null for a joystick that vanished mid-scan.
+/// `text`, or an empty view when GLFW returns null for a joystick that vanished mid-scan.
 std::string_view text_or_empty(const char *text) noexcept {
   return text != nullptr ? std::string_view{text} : std::string_view{};
 }
@@ -190,7 +190,7 @@ void report_unmapped_joysticks(WindowData &data) noexcept {
   data.unmapped_joysticks = unmapped;
 }
 
-/// Report gamepad hot-plug edges and feed the active pad to @p mapper. The active pad stays
+/// Report gamepad hot-plug edges and feed the active pad to `mapper`. The active pad stays
 /// active while connected; when it goes, the lowest-numbered remaining pad takes over. Only
 /// mapped gamepads count: an unmapped joystick has no portable button layout to bind.
 void poll_gamepads(WindowData &data, corundum::input::InputMapper &mapper) noexcept {
@@ -225,7 +225,7 @@ void poll_gamepads(WindowData &data, corundum::input::InputMapper &mapper) noexc
   mapper.gamepad(to_gamepad_state(state));
 }
 
-/// The monitor overlapping most of @p win, falling back to the primary monitor.
+/// The monitor overlapping most of `win`, falling back to the primary monitor.
 GLFWmonitor *monitor_for_window(GLFWwindow *win) noexcept {
   int window_x{};
   int window_y{};

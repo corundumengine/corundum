@@ -40,7 +40,7 @@ namespace {
 }
 
 /// MapView for a streamed world.
-/// @pre @p area has at least one active chunk and its aggregates are rebuilt.
+/// @pre `area` has at least one active chunk and its aggregates are rebuilt.
 [[nodiscard]] MapView build_world_map_view(const render::WorldArea &area, const core::GameConfig &cfg) noexcept {
   const tilemap::WorldManifest &manifest = area.manifest;
   const int total_h{manifest.effective_tiles_tall()};

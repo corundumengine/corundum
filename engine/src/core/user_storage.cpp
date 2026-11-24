@@ -36,7 +36,7 @@ namespace {
   return std::format("invalid storage name '{}' (must be non-empty, relative, with no '..' component)", name);
 }
 
-/// Join a `/`-separated storage name onto @p root using the platform's separator, so
+/// Join a `/`-separated storage name onto `root` using the platform's separator, so
 /// error messages show one consistent path (`saves/slot_01.json` would otherwise keep
 /// its forward slashes next to the root's backslashes).
 [[nodiscard]] std::filesystem::path native_path(const std::filesystem::path &root, std::string_view name) {

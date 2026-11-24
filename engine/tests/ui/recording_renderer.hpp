@@ -96,8 +96,8 @@ inline corundum::ui::NinePatchBorder make_border() {
   return border;
 }
 
-/// A family whose four style ids run from @p first upward, so a case can say which face a run
-/// drew in by number: bold is @p first + 1, italic @p first + 2, bold-italic @p first + 3.
+/// A family whose four style ids run from `first` upward, so a case can say which face a run
+/// drew in by number: bold is `first` + 1, italic `first` + 2, bold-italic `first` + 3.
 [[nodiscard]] inline corundum::ui::FontFamily make_font_family(std::uint32_t first) {
   corundum::ui::FontFamily family{};
   for (std::uint32_t style = 0; style < corundum::ui::k_font_style_count; ++style)

@@ -36,7 +36,7 @@ namespace {
 
 using corundum::detail::warn_log;
 
-/// Common failure path: log @p error under @p context, request quit, and close the window.
+/// Common failure path: log `error` under `context`, request quit, and close the window.
 void fail(corundum::Engine &engine, std::string_view context, std::string_view error) noexcept {
   warn_log("[engine] {} failed: {}", context, error);
   engine.request_quit();
@@ -205,9 +205,8 @@ std::expected<void, std::string> apply_spawn(corundum::Engine &engine, SpawnMode
   if (!zone.empty())
     engine.scene.zone_id = std::string(zone);
 
-  // Match the world's camera framing for the interior: centre on the entry tile, mirroring
-  // the initial single-map boot and enter_world. The historical cross-map path uses the
-  // top-vertex anchor (tile_to_world); preserve that behaviour.
+  // Frame the camera on the entry tile with the top-vertex anchor (tile_to_world), as every
+  // cross-map transition does; only the world-load path centres on the cell.
   const corundum::core::math::IsometricParams iso = corundum::core::math::compute_isometric_params(
       new_tilemap.diamond_w(), new_tilemap.diamond_h(), new_tilemap.height, engine.cfg.tile_scale,
       engine.cfg.elevation_step_px);

@@ -21,10 +21,10 @@ class UserStorage;
 
 namespace corundum::settings {
 
-/** @brief Current schema version of settings.json. */
+/** Current schema version of settings.json. */
 constexpr int k_user_settings_schema_version = 1;
 
-/** @brief The player's own preferences, persisted per user in settings.json. */
+/** The player's own preferences, persisted per user in settings.json. */
 struct UserSettings {
   input::Bindings bindings;
 
@@ -52,57 +52,58 @@ struct UserSettings {
   float ui_scale{1.f};
 };
 
-/** @brief settings.json document: schema_version, window_mode, bindings (see input::serialize), the five bus volumes,
- * text_speed and ui_scale. */
+/** settings.json document: schema_version, window_mode, bindings (see input::serialize), the five bus volumes,
+ *  text_speed and ui_scale.
+ */
 [[nodiscard]] nlohmann::json serialize(const UserSettings &settings);
 
-/** @brief Parse a settings.json document whose schema_version has already been checked.
+/** Parse a settings.json document whose schema_version has already been checked.
  *
- *  An absent field keeps its @p defaults value. Bindings fill gaps from @p defaults.bindings (see
+ *  An absent field keeps its `defaults` value. Bindings fill gaps from `defaults.bindings` (see
  *  input::parse_bindings).
  *
- *  @return The settings, or an error when @p root is not a JSON object or has a malformed
+ *  @return The settings, or an error when `root` is not a JSON object or has a malformed
  *          window_mode or bindings array. A non-object root is rejected rather than read as
  *          "every field absent", so a file corrupted to `[]` or `null` fails to load instead of
  *          loading as defaults and being overwritten on the next save.
  */
 [[nodiscard]] std::expected<UserSettings, std::string> parse(const nlohmann::json &root, const UserSettings &defaults);
 
-/** @brief The engine's live settings: the mapper's bindings and the window's mode.
+/** The engine's live settings: the mapper's bindings and the window's mode.
  *
- *  @pre @c engine.window() is non-null (make_engine(), or an adopted platform).
+ *  @pre `engine.window()` is non-null (make_engine(), or an adopted platform).
  */
 [[nodiscard]] UserSettings capture(const Engine &engine);
 
-/** @brief Apply @p settings to the engine's mapper and window.
+/** Apply `settings` to the engine's mapper and window.
  *
  *  Also updates `cfg.window_mode` so the deferred first-frame window-mode reveal does not
  *  overwrite the applied mode with the boot config's.
  *
- *  @pre @c engine.window() is non-null.
+ *  @pre `engine.window()` is non-null.
  *  @return An error, leaving the engine unchanged, when the bindings are rejected by InputMapper::set_bindings.
  */
 [[nodiscard]] std::expected<void, std::string> apply(Engine &engine, const UserSettings &settings);
 
-/** @brief The UserStorage entry the player's settings live in. */
+/** The UserStorage entry the player's settings live in. */
 constexpr std::string_view k_settings_name{"settings.json"};
 
-/** @brief Load settings from @p storage's k_settings_name entry and apply it, filling gaps from
+/** Load settings from `storage`'s k_settings_name entry and apply it, filling gaps from
  *  capture(engine).
  *
  *  A missing entry is not an error: the engine keeps its current settings. Called after
  *  initialize(), a field the entry sets overrides the matching game.json value (window_mode), and a
  *  field it omits keeps it.
  *
- *  @pre @c engine.window() is non-null.
+ *  @pre `engine.window()` is non-null.
  *  @return An error, leaving the engine unchanged, when the entry is unreadable, malformed, from a
  *          newer schema version, or rejected by apply().
  */
 [[nodiscard]] std::expected<void, std::string> load(Engine &engine, const core::UserStorage &storage);
 
-/** @brief Write capture(engine) to @p storage's k_settings_name entry, replacing it atomically.
+/** Write capture(engine) to `storage`'s k_settings_name entry, replacing it atomically.
  *
- *  @pre @c engine.window() is non-null.
+ *  @pre `engine.window()` is non-null.
  */
 [[nodiscard]] std::expected<void, std::string> save(const Engine &engine, core::UserStorage &storage);
 

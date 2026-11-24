@@ -13,8 +13,7 @@
 
 namespace tools::spritesmith {
 
-/**
- * @brief Canvas-space bounding rectangle for a single frame cell.
+/** Canvas-space bounding rectangle for a single frame cell.
  */
 struct FrameRect {
   float x; ///< Left edge in canvas pixels.
@@ -23,25 +22,24 @@ struct FrameRect {
   float h; ///< Height in canvas pixels.
 };
 
-/**
- * @brief Convert a canvas pixel position to a frame grid coordinate.
+/** Convert a canvas pixel position to a frame grid coordinate.
  *
- * @param px             Canvas-space X pixel position.
- * @param py             Canvas-space Y pixel position.
- * @param canvas_w       Canvas width in pixels.
- * @param canvas_h       Canvas height in pixels.
- * @param camera_x       Horizontal scroll offset.
- * @param camera_y       Vertical scroll offset.
- * @param zoom           Display scale factor.
- * @param frame_w        Frame cell width in image pixels.
- * @param frame_h        Frame cell height in image pixels.
- * @param offset_x       Left-edge pixel offset to the first frame.
- * @param offset_y       Top-edge pixel offset to the first frame.
- * @param spacing_x      Horizontal gap between cells in image pixels.
- * @param spacing_y      Vertical gap between cells in image pixels.
- * @param img_cols       Total number of frame columns in the sheet.
- * @param img_rows       Total number of frame rows in the sheet.
- * @return Frame coordinate on success; nullopt if outside bounds or in spacing.
+ *  @param px             Canvas-space X pixel position.
+ *  @param py             Canvas-space Y pixel position.
+ *  @param canvas_w       Canvas width in pixels.
+ *  @param canvas_h       Canvas height in pixels.
+ *  @param camera_x       Horizontal scroll offset.
+ *  @param camera_y       Vertical scroll offset.
+ *  @param zoom           Display scale factor.
+ *  @param frame_w        Frame cell width in image pixels.
+ *  @param frame_h        Frame cell height in image pixels.
+ *  @param offset_x       Left-edge pixel offset to the first frame.
+ *  @param offset_y       Top-edge pixel offset to the first frame.
+ *  @param spacing_x      Horizontal gap between cells in image pixels.
+ *  @param spacing_y      Vertical gap between cells in image pixels.
+ *  @param img_cols       Total number of frame columns in the sheet.
+ *  @param img_rows       Total number of frame rows in the sheet.
+ *  @return Frame coordinate on success; nullopt if outside bounds or in spacing.
  */
 [[nodiscard]] inline std::optional<corundum::sprites::FrameCoord>
 screen_to_frame(int px, int py, int canvas_w, int canvas_h, float camera_x, float camera_y, float zoom, int frame_w,
@@ -75,21 +73,20 @@ screen_to_frame(int px, int py, int canvas_w, int canvas_h, float camera_x, floa
   return corundum::sprites::FrameCoord{col, row};
 }
 
-/**
- * @brief Compute the canvas-space rectangle occupied by a frame cell.
+/** Compute the canvas-space rectangle occupied by a frame cell.
  *
- * @param col       Frame column index.
- * @param row       Frame row index.
- * @param camera_x  Horizontal scroll offset.
- * @param camera_y  Vertical scroll offset.
- * @param zoom      Display scale factor.
- * @param frame_w   Frame cell width in image pixels.
- * @param frame_h   Frame cell height in image pixels.
- * @param offset_x  Left-edge pixel offset to the first frame.
- * @param offset_y  Top-edge pixel offset to the first frame.
- * @param spacing_x Horizontal gap between cells in image pixels.
- * @param spacing_y Vertical gap between cells in image pixels.
- * @return Canvas-space FrameRect.
+ *  @param col       Frame column index.
+ *  @param row       Frame row index.
+ *  @param camera_x  Horizontal scroll offset.
+ *  @param camera_y  Vertical scroll offset.
+ *  @param zoom      Display scale factor.
+ *  @param frame_w   Frame cell width in image pixels.
+ *  @param frame_h   Frame cell height in image pixels.
+ *  @param offset_x  Left-edge pixel offset to the first frame.
+ *  @param offset_y  Top-edge pixel offset to the first frame.
+ *  @param spacing_x Horizontal gap between cells in image pixels.
+ *  @param spacing_y Vertical gap between cells in image pixels.
+ *  @return Canvas-space FrameRect.
  */
 [[nodiscard]] inline FrameRect frame_to_canvas_rect(int col, int row, float camera_x, float camera_y, float zoom,
                                                     int frame_w, int frame_h, int offset_x, int offset_y, int spacing_x,
@@ -101,20 +98,19 @@ screen_to_frame(int px, int py, int canvas_w, int canvas_h, float camera_x, floa
   return {x, y, static_cast<float>(frame_w) * zoom, static_cast<float>(frame_h) * zoom};
 }
 
-/**
- * @brief Find the atlas sprite under a canvas pixel position, by rect hit-test.
+/** Find the atlas sprite under a canvas pixel position, by rect hit-test.
  *
- * MaxRects-packed sprites never overlap, so the first match is unambiguous.
+ *  MaxRects-packed sprites never overlap, so the first match is unambiguous.
  *
- * @param px          Canvas-space X pixel position.
- * @param py          Canvas-space Y pixel position.
- * @param canvas_w    Canvas width in pixels.
- * @param canvas_h    Canvas height in pixels.
- * @param camera_x    Horizontal scroll offset.
- * @param camera_y    Vertical scroll offset.
- * @param zoom        Display scale factor.
- * @param sprites     Atlas sprites to test, in image pixel space.
- * @return Index into @p sprites, or -1 if none hit.
+ *  @param px          Canvas-space X pixel position.
+ *  @param py          Canvas-space Y pixel position.
+ *  @param canvas_w    Canvas width in pixels.
+ *  @param canvas_h    Canvas height in pixels.
+ *  @param camera_x    Horizontal scroll offset.
+ *  @param camera_y    Vertical scroll offset.
+ *  @param zoom        Display scale factor.
+ *  @param sprites     Atlas sprites to test, in image pixel space.
+ *  @return Index into `sprites`, or -1 if none hit.
  */
 [[nodiscard]] inline int sprite_at_point(int px, int py, int canvas_w, int canvas_h, float camera_x, float camera_y,
                                          float zoom, std::span<const corundum::sprites::AtlasSprite> sprites) noexcept {
@@ -133,17 +129,16 @@ screen_to_frame(int px, int py, int canvas_w, int canvas_h, float camera_x, floa
   return -1;
 }
 
-/**
- * @brief Clamp camera scroll so the sheet image remains visible.
+/** Clamp camera scroll so the sheet image remains visible.
  *
- * @param cx          Current camera X position.
- * @param cy          Current camera Y position.
- * @param zoom        Display scale factor.
- * @param img_w       Image width in pixels.
- * @param img_h       Image height in pixels.
- * @param canvas_w    Canvas width in pixels.
- * @param canvas_h    Canvas height in pixels.
- * @return Clamped {camera_x, camera_y}.
+ *  @param cx          Current camera X position.
+ *  @param cy          Current camera Y position.
+ *  @param zoom        Display scale factor.
+ *  @param img_w       Image width in pixels.
+ *  @param img_h       Image height in pixels.
+ *  @param canvas_w    Canvas width in pixels.
+ *  @param canvas_h    Canvas height in pixels.
+ *  @return Clamped {camera_x, camera_y}.
  */
 [[nodiscard]] inline std::pair<float, float> clamp_camera(float cx, float cy, float zoom, int img_w, int img_h,
                                                           int canvas_w, int canvas_h) noexcept {

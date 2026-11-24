@@ -12,10 +12,10 @@
 // count: the `reputation` event adds to it, and nothing clamps it.
 namespace corundum::gameplay::faction {
 
-/** @brief FlagStore key prefix of a faction's standing. */
+/** FlagStore key prefix of a faction's standing. */
 inline constexpr std::string_view k_standing_flag_prefix = "rep.";
 
-/** @brief FlagStore key holding the player's standing with @p faction: `rep.<faction>`. */
+/** FlagStore key holding the player's standing with `faction`: `rep.<faction>`. */
 [[nodiscard]] inline std::string standing_flag_key(std::string_view faction) {
   return std::format("{}{}", k_standing_flag_prefix, faction);
 }

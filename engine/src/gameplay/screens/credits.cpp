@@ -75,7 +75,7 @@ struct CreditsTextStyle {
   core::math::Colour colour{};
 };
 
-/// Draw @p text centered in @p column at @p y.
+/// Draw `text` centered in `column` at `y`.
 void draw_centered_line(platform::Renderer &r, const CreditsColumn &column, const CreditsTextStyle &text_style,
                         std::string_view text, float y) {
   const float width = r.measure_text(text_style.font, text, text_style.char_size);

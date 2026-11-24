@@ -19,7 +19,7 @@
 
 namespace corundum::gameplay::screens::detail {
 
-/** @brief Screen-space geometry of a framing menu: the centered panel and its row hit rects. */
+/** Screen-space geometry of a framing menu: the centered panel and its row hit rects. */
 struct FramingMenuLayout {
   core::math::Vec2 panel_pos{};
 
@@ -28,19 +28,19 @@ struct FramingMenuLayout {
   ui::ListHit rows{};
 };
 
-/** @brief Compute a framing menu's panel and row geometry for @p viewport.
+/** Compute a framing menu's panel and row geometry for `viewport`.
  *
- *  The panel is centered and wide enough for @p heading, @p footer and the widest @p label.
+ *  The panel is centered and wide enough for `heading`, `footer` and the widest `label`.
  *  Row height is the panel style's line spacing; the row count is `labels.size()`.
  */
 [[nodiscard]] FramingMenuLayout framing_menu_layout(const platform::Renderer &r, const ui::PanelStyle &style,
                                                     core::math::Vec2 viewport, std::span<const std::string_view> labels,
                                                     std::string_view heading, std::string_view footer);
 
-/** @brief Draw a framing menu: opaque backdrop, panel chrome, heading, rows and footer.
+/** Draw a framing menu: opaque backdrop, panel chrome, heading, rows and footer.
  *
  *  @param labels   Row labels, in draw order; must match the layout's row count.
- *  @param enabled  Parallel to @p labels; a disabled row never draws the selection cursor.
+ *  @param enabled  Parallel to `labels`; a disabled row never draws the selection cursor.
  *  @param cursor   Highlighted row index; clamped into range locally.
  *  @param viewport Screen size in logical pixels, filled by the opaque backdrop.
  */

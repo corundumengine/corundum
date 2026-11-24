@@ -15,7 +15,7 @@
 
 namespace tools::tilesmith {
 
-/// @brief One undo/redo checkpoint: the tilemap document (its map and portals sidecar) plus the
+/// One undo/redo checkpoint: the tilemap document (its map and portals sidecar) plus the
 /// editor's per-layer visibility, which stays undoable even though it is never saved.
 /// Deliberately does NOT include active_layer — which layer is selected is
 /// live UI state (like selected_gid or the camera), not document content; bundling it here
@@ -28,11 +28,10 @@ struct TilemapDoc {
   LayerVisibility layer_visible;
 };
 
-/**
- * @brief All mutable state for a tilesmith editing session.
+/** All mutable state for a tilesmith editing session.
  *
- * Pure data — no GLFW, no I/O, no algorithms. Every subsystem receives a
- * reference to this struct and reads/writes only the fields it owns.
+ *  Pure data — no GLFW, no I/O, no algorithms. Every subsystem receives a
+ *  reference to this struct and reads/writes only the fields it owns.
  */
 struct EditorState {
   corundum::world::tilemap::Tilemap map; ///< Loaded tilemap (edited in place).

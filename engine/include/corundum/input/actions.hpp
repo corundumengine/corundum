@@ -10,8 +10,7 @@
 
 namespace corundum::input {
 
-/**
- * @brief Game input actions supported by the engine.
+/** Game input actions supported by the engine.
  */
 enum class Action : uint8_t {
   MoveUp,
@@ -53,15 +52,13 @@ enum class Action : uint8_t {
   Count,
 };
 
-/**
- * @brief Total number of input actions.
+/** Total number of input actions.
  */
 inline constexpr std::size_t k_action_count = static_cast<std::size_t>(Action::Count);
 
-/**
- * @brief Container for actions pressed this frame.
+/** Container for actions pressed this frame.
  *
- * Zero-allocation; supports range-for iteration via begin/end.
+ *  Zero-allocation; supports range-for iteration via begin/end.
  */
 struct PressedActions {
   std::array<Action, k_action_count> actions{};
@@ -76,74 +73,66 @@ struct PressedActions {
   [[nodiscard]] bool empty() const noexcept { return count == 0; }
 };
 
-/**
- * @brief Per-frame snapshot of digital action state.
+/** Per-frame snapshot of digital action state.
  *
- * Updated once per event-poll cycle. Use @c held to poll sustained input
- * and @c pressed for one-frame-only triggers.
+ *  Updated once per event-poll cycle. Use `held` to poll sustained input
+ *  and `pressed` for one-frame-only triggers.
  */
 struct InputState {
-  /**
-   * @brief True while the key bound to an action is held down.
+  /** True while the key bound to an action is held down.
    */
   std::bitset<k_action_count> held{};
-  /**
-   * @brief True only on the frame the key bound to an action was pressed.
+  /** True only on the frame the key bound to an action was pressed.
    */
   std::bitset<k_action_count> pressed{};
-  /**
-   * @brief Cursor position in window pixels, updated once per poll cycle.
+  /** Cursor position in window pixels, updated once per poll cycle.
    *
-   * Analog data, deliberately separate from the discrete Action bitsets above.
+   *  Analog data, deliberately separate from the discrete Action bitsets above.
    */
   float mouse_x{};
   float mouse_y{};
-  /**
-   * @brief Cursor position at the previous poll cycle.
+  /** Cursor position at the previous poll cycle.
    *
-   * make_input_intent() compares these against @c mouse_x/@c mouse_y to raise
-   * InputIntent::mouse_moved, so a screen only shifts focus for a real movement and not
-   * merely because a pointer happens to rest over a row. InputMapper::end_poll() copies
-   * the outgoing position into them before accumulating this poll.
+   *  make_input_intent() compares these against `mouse_x`/`mouse_y` to raise
+   *  InputIntent::mouse_moved, so a screen only shifts focus for a real movement and not
+   *  merely because a pointer happens to rest over a row. InputMapper::end_poll() copies
+   *  the outgoing position into them before accumulating this poll.
    */
   float prev_mouse_x{};
   float prev_mouse_y{};
-  /**
-   * @brief True only on the frame the left mouse button was pressed.
+  /** True only on the frame the left mouse button was pressed.
    *
-   * Deliberately separate from Action::Select (also bound to the mouse button for
-   * click-to-interact) — consumers that mean "the player clicked a screen point"
-   * specifically (e.g. click-to-move) must check this, not Select, since Select is
-   * also raised by keyboard/gamepad confirm presses that carry no click position.
+   *  Deliberately separate from Action::Select (also bound to the mouse button for
+   *  click-to-interact) — consumers that mean "the player clicked a screen point"
+   *  specifically (e.g. click-to-move) must check this, not Select, since Select is
+   *  also raised by keyboard/gamepad confirm presses that carry no click position.
    */
   bool mouse_click_pressed{};
-  /**
-   * @brief Accumulated scroll wheel delta this poll cycle (positive = away from user).
+  /** Accumulated scroll wheel delta this poll cycle (positive = away from user).
    *
-   * Analog and transient like mouse_click_pressed — reset each cycle, not a discrete
-   * Action, since "how much" matters, not just "did it happen".
+   *  Analog and transient like mouse_click_pressed — reset each cycle, not a discrete
+   *  Action, since "how much" matters, not just "did it happen".
    */
   float scroll_delta_y{};
 
-  /// @pre @p action must not be Action::Count; Count is a sentinel, not an action.
+  /// @pre `action` must not be Action::Count; Count is a sentinel, not an action.
   [[nodiscard]] bool is_held(Action action) const noexcept {
     assert(action != Action::Count && "Count is a sentinel, not an action");
     return held[static_cast<std::size_t>(action)];
   }
 
-  /// @pre @p action must not be Action::Count; Count is a sentinel, not an action.
+  /// @pre `action` must not be Action::Count; Count is a sentinel, not an action.
   [[nodiscard]] bool is_pressed(Action action) const noexcept {
     assert(action != Action::Count && "Count is a sentinel, not an action");
     return pressed[static_cast<std::size_t>(action)];
   }
 };
 
-/**
- * @brief Resets all pressed flags to false.
+/** Resets all pressed flags to false.
  *
- * @param state Input state to clear.
- * @pre Call after consuming pressed actions to prevent re-triggering — either before the
- *      next event-poll cycle or after each fixed-step simulation iteration.
+ *  @param state Input state to clear.
+ *  @pre Call after consuming pressed actions to prevent re-triggering — either before the
+ *       next event-poll cycle or after each fixed-step simulation iteration.
  */
 inline void clear_pressed(InputState &state) noexcept {
   state.pressed.reset();
@@ -151,15 +140,14 @@ inline void clear_pressed(InputState &state) noexcept {
   state.scroll_delta_y = 0.f;
 }
 
-/**
- * @brief Accumulates freshly-polled input into destination state.
+/** Accumulates freshly-polled input into destination state.
  *
- * Copies @p source held state directly (always reflects current key state) and
- * ORs @p source pressed bits into @p destination so that presses are preserved
- * across render frames between fixed-step simulation ticks.
+ *  Copies `source` held state directly (always reflects current key state) and
+ *  ORs `source` pressed bits into `destination` so that presses are preserved
+ *  across render frames between fixed-step simulation ticks.
  *
- * @param[in,out] destination Destination state to accumulate into.
- * @param[in]     source      Source state from the current event-poll cycle.
+ *  @param destination Destination state to accumulate into.
+ *  @param source      Source state from the current event-poll cycle.
  */
 inline void accumulate_input(InputState &destination, const InputState &source) noexcept {
   destination.held = source.held;
@@ -170,12 +158,11 @@ inline void accumulate_input(InputState &destination, const InputState &source) 
   destination.scroll_delta_y += source.scroll_delta_y;
 }
 
-/**
- * @brief Collect all actions that were pressed this frame.
+/** Collect all actions that were pressed this frame.
  *
- * @param state Current input state to query.
- * @return Container of every Action whose pressed flag is set.
- * @note Zero-allocation; result is returned by value.
+ *  @param state Current input state to query.
+ *  @return Container of every Action whose pressed flag is set.
+ *  @note Zero-allocation; result is returned by value.
  */
 [[nodiscard]] inline PressedActions pressed_actions(const InputState &state) {
   PressedActions result{};

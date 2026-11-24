@@ -17,7 +17,7 @@
 
 namespace corundum::world {
 
-/** @brief Actor entities spawned for one resident world chunk. */
+/** Actor entities spawned for one resident world chunk. */
 struct ChunkActorSet {
   corundum::world::tilemap::ChunkCoord coord{};
 
@@ -33,15 +33,13 @@ struct ChunkActorSet {
   bool load_failed{};
 };
 
-/** @brief All game-world data for a running session.
+/** All game-world data for a running session, owned by Engine::scene.
  *
- * Groups the entity world with the session's navigation, dialogue, transition, and
- * presentation state. Systems receive Scene& and read or mutate these fields directly.
+ *  Groups the entity world with the session's navigation, dialogue, transition, and
+ *  presentation state. Systems receive Scene& and read or mutate these fields directly.
  *
- * @note Scene does not own the tilemap. Use Engine::active_tilemap() for map
- *       queries. See the render layer (RenderState::area) for tilemap ownership.
- *
- * @see Engine  For the owning engine struct.
+ *  @note Scene does not own the tilemap. Use Engine::active_tilemap() for map
+ *        queries. See the render layer (RenderState::area) for tilemap ownership.
  */
 struct Scene {
   corundum::entities::World world;
@@ -88,10 +86,11 @@ struct Scene {
   [[nodiscard]] GameMode mode() const noexcept { return ui.top(); }
 };
 
-/** @brief True when scene.player names a live entity with a transform.
+/** True when scene.player names a live entity with a transform.
  *
  *  The player may legitimately be absent (death, possession, a party swap), so callers that
- *  read the player's transform must check this first. */
+ *  read the player's transform must check this first.
+ */
 [[nodiscard]] inline bool player_present(const Scene &scene) noexcept {
   return scene.world.transforms.has(scene.player);
 }

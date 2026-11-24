@@ -101,7 +101,7 @@ private:
   return is_alnum(c) || c == '_' || c == '.';
 }
 
-/// Kind of the single-character operator @p c, or nullopt when it is not one.
+/// Kind of the single-character operator `c`, or nullopt when it is not one.
 [[nodiscard]] std::optional<TokKind> single_char_operator(char c) noexcept {
   switch (c) {
     case '<': return TokKind::Lt;
@@ -224,7 +224,7 @@ class Parser {
 public:
   Parser(std::string_view src, std::vector<ExprNode> &arena) : lex_(src), arena_(&arena) { advance(); }
 
-  /** @brief Parse the whole expression; returns the root arena index. */
+  /** Parse the whole expression; returns the root arena index. */
   int parse() {
     const int root = parse_or();
     if (!cur_.is(TokKind::End))

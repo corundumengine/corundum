@@ -35,7 +35,7 @@ constexpr int k_rate = 44100;
 /// 16384 / 32768: the f32 value a constant PCM16 sample of 16384 decodes to.
 constexpr float k_half = 0.5f;
 
-/// Write a 16-bit stereo k_rate WAV of @p frames frames, every sample 16384 (0.5 full scale).
+/// Write a 16-bit stereo k_rate WAV of `frames` frames, every sample 16384 (0.5 full scale).
 void write_wav(const fs::path &path, int frames) {
   const auto data_bytes = static_cast<std::uint32_t>(frames) * 4u;
   std::ofstream out(path, std::ios::binary);
@@ -63,7 +63,7 @@ void write_wav(const fs::path &path, int frames) {
     put16(16384u);
 }
 
-/// Render @p frames frames in 441-frame (10 ms) chunks, calling update() after each chunk the way
+/// Render `frames` frames in 441-frame (10 ms) chunks, calling update() after each chunk the way
 /// the game loop does; returns the left channel.
 std::vector<float> render(MiniaudioBackend &backend, int frames) {
   constexpr int k_chunk = 441;
@@ -78,7 +78,7 @@ std::vector<float> render(MiniaudioBackend &backend, int frames) {
   return left;
 }
 
-/// Start @p handle on the Sound bus at full volume, matching the interface's default.
+/// Start `handle` on the Sound bus at full volume, matching the interface's default.
 corundum::audio::SoundInstanceId play_effect(MiniaudioBackend &backend, corundum::audio::SoundHandle handle) {
   return backend.play(handle, 1.f, /*loop=*/false, corundum::audio::AudioBus::Sound);
 }

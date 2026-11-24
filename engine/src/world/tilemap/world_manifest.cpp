@@ -27,7 +27,7 @@ namespace corundum::world::tilemap {
 
 namespace {
 
-/// Reads required @p key as a positive int, reporting a missing key, wrong type or
+/// Reads required `key` as a positive int, reporting a missing key, wrong type or
 /// non-positive value as an error string rather than letting nlohmann throw out of
 /// the load path.
 std::expected<int, std::string> read_positive_int(const json &object, const fs::path &path, const char *key) {
@@ -44,7 +44,7 @@ std::expected<int, std::string> read_positive_int(const json &object, const fs::
   return value;
 }
 
-/// Reads optional @p key as a positive int, returning @p default_value when absent.
+/// Reads optional `key` as a positive int, returning `default_value` when absent.
 std::expected<int, std::string> read_optional_positive_int(const json &object, const fs::path &path, const char *key,
                                                            int default_value) {
   if (!object.contains(key))

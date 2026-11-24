@@ -10,17 +10,16 @@
 
 namespace corundum::gameplay::item {
 
-/**
- * @brief Serialize a batch of items to the engine's item batch JSON format.
+/** Serialize a batch of items to the engine's item batch JSON format.
  *
- * Mirrors `Loader::load`: emits `{ "schema_version": k_item_schema_version,
- * "items": [ ... ] }`. The category is folder-derived and therefore omitted
- * from each element (the loader injects it), so the element's payload is
- * emitted for @p category exactly as the loader would read it back.
+ *  Mirrors `Loader::load`: emits `{ "schema_version": k_item_schema_version,
+ *  "items": [ ... ] }`. The category is folder-derived and therefore omitted
+ *  from each element (the loader injects it), so the element's payload is
+ *  emitted for `category` exactly as the loader would read it back.
  *
- * @param items    The items to write, typically all sharing @p category.
- * @param category The category of the folder this batch lives in.
- * @return A JSON object suitable for write_json().
+ *  @param items    The items to write, typically all sharing `category`.
+ *  @param category The category of the folder this batch lives in.
+ *  @return A JSON object suitable for write_json().
  */
 [[nodiscard]] nlohmann::json serialize(std::span<const Item> items, ItemCategory category);
 

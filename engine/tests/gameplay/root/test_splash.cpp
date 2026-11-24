@@ -97,7 +97,7 @@ public:
 
   [[nodiscard]] platform::RendererStats stats() const override { return {}; }
 
-  /// The id load_texture() gave @p path, or TextureId::Invalid when it never loaded.
+  /// The id load_texture() gave `path`, or TextureId::Invalid when it never loaded.
   [[nodiscard]] platform::TextureId id_of(std::string_view path) const {
     const auto it = ids_.find(std::string{path});
     return it == ids_.end() ? platform::TextureId::Invalid : it->second;
@@ -133,7 +133,7 @@ corundum::core::GameConfig make_splash_config(bool show_title) {
 }
 
 /// One fixed step as run_fixed_steps() drives a step-owning screen: advance the fade, then
-/// dispatch the top screen with @p action (if any) pressed.
+/// dispatch the top screen with `action` (if any) pressed.
 void step(corundum::Engine &engine, std::optional<corundum::input::Action> action = std::nullopt) {
   engine.screen_transition.update(engine.timer.target_dt);
   corundum::input::InputState state{};

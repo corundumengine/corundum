@@ -12,7 +12,7 @@ namespace corundum::gameplay::item {
 
 namespace {
 
-/** @brief Emit the common element fields (category is folder-derived, omitted). */
+/** Emit the common element fields (category is folder-derived, omitted). */
 [[nodiscard]] nlohmann::json serialize_item_element(const Item &item) {
   nlohmann::json j;
   j["id"] = item.id;

@@ -15,7 +15,7 @@
 
 namespace corundum::input {
 
-/** @brief One physical input driving one Action. */
+/** One physical input driving one Action. */
 struct Binding {
   Action action{};
 
@@ -24,7 +24,7 @@ struct Binding {
   friend bool operator==(const Binding &, const Binding &) = default;
 };
 
-/** @brief Ordered binding table.
+/** Ordered binding table.
  *
  *  Row order is display order among an action's inputs. One input may appear in several rows and
  *  then drives every action it is bound to; bind(), rebind() and bind_swapping() each leave the
@@ -32,53 +32,53 @@ struct Binding {
  */
 using Bindings = std::vector<Binding>;
 
-/** @brief The engine's default desktop bindings. */
+/** The engine's default desktop bindings. */
 [[nodiscard]] Bindings default_bindings();
 
-/** @brief Stable JSON name of @p action: its enumerator spelling ("MoveUp", "ZoomIn"). */
+/** Stable JSON name of `action`: its enumerator spelling ("MoveUp", "ZoomIn"). */
 [[nodiscard]] std::string_view action_name(Action action) noexcept;
 
-/** @brief Inverse of action_name(); nullopt for an unknown name or "Count". */
+/** Inverse of action_name(); nullopt for an unknown name or "Count". */
 [[nodiscard]] std::optional<Action> parse_action(std::string_view name) noexcept;
 
-/** @brief Inputs bound to @p action, in row order. */
+/** Inputs bound to `action`, in row order. */
 [[nodiscard]] std::vector<PhysicalInput> inputs_for(const Bindings &bindings, Action action);
 
-/** @brief Bind @p input to @p action as a new last row.
+/** Bind `input` to `action` as a new last row.
  *
- *  @post @p input drives only @p action: every other row holding it is removed first.
+ *  @post `input` drives only `action`: every other row holding it is removed first.
  */
 void bind(Bindings &bindings, Action action, PhysicalInput input);
 
-/** @brief Replace @p from with @p to in @p action's row, keeping the row's position.
+/** Replace `from` with `to` in `action`'s row, keeping the row's position.
  *
- *  Appends a row instead when @p action has no @p from row.
+ *  Appends a row instead when `action` has no `from` row.
  *
- *  @post @p to drives only @p action.
+ *  @post `to` drives only `action`.
  */
 void rebind(Bindings &bindings, Action action, PhysicalInput from, PhysicalInput to);
 
-/** @brief Remove the row binding @p input to @p action, if any. */
+/** Remove the row binding `input` to `action`, if any. */
 void unbind(Bindings &bindings, Action action, PhysicalInput input);
 
-/** @brief Make @p input @p action's only binding on its device, swapping it out of other actions.
+/** Make `input` `action`'s only binding on its device, swapping it out of other actions.
  *
- *  Removes all of @p action's other rows on @p input's device (a Controls rebind replaces the
+ *  Removes all of `action`'s other rows on `input`'s device (a Controls rebind replaces the
  *  action's binding on that device) and every other action's row holding
- *  @p input. Each action left with no binding on that device then gets @p action's first other
+ *  `input`. Each action left with no binding on that device then gets `action`'s first other
  *  input on that device in row order, so a rebind never strands the action it takes the input
- *  from: rebinding Cancel from gamepad B to A gives Select and Activate B. @p action's further
+ *  from: rebinding Cancel from gamepad B to A gives Select and Activate B. `action`'s further
  *  inputs on that device (MoveUp's Up when it also had W) are dropped, not redistributed. When
- *  @p action had no other input on that device, the losing actions are left without one.
+ *  `action` had no other input on that device, the losing actions are left without one.
  *
- *  @post @p input drives only @p action, and @p action has no other row on @p input's device.
+ *  @post `input` drives only `action`, and `action` has no other row on `input`'s device.
  */
 void bind_swapping(Bindings &bindings, Action action, PhysicalInput input);
 
-/** @brief JSON array of {"action", "device", "input"} objects, in row order. */
+/** JSON array of {"action", "device", "input"} objects, in row order. */
 [[nodiscard]] nlohmann::json serialize(const Bindings &bindings);
 
-/** @brief Parse a serialize() array, filling gaps from @p defaults.
+/** Parse a serialize() array, filling gaps from `defaults`.
  *
  *  A missing default row is restored so a newly added Action works with an older file. A plain
  *  default is only restored for an action with no rows at all, so a deliberate partial unbind
@@ -91,7 +91,7 @@ void bind_swapping(Bindings &bindings, Action action, PhysicalInput input);
  *  fully unbound comes back with its defaults on the next load. A controls menu should therefore
  *  forbid emptying an action, or accept this behaviour. Exact duplicate rows collapse to one.
  *
- *  @return The table, or an error naming the offending entry's index when @p array is not an
+ *  @return The table, or an error naming the offending entry's index when `array` is not an
  *          array, an entry is malformed, or its action, device or input name is unknown. Also an
  *          error when the result exceeds k_max_input_sources rows.
  */

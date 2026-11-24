@@ -86,7 +86,7 @@ struct World {
   return e;
 }
 
-/// @brief Tie all component tables into a tuple for fold-expression iteration.
+/// Tie all component tables into a tuple for fold-expression iteration.
 /// Adding a new table means adding one member to World and one entry in this tie, so
 /// despawn and any future cross-table operation pick it up automatically.
 /// @pre Every tied table must satisfy GameTable; the static_assert enforces it so despawn()
@@ -112,14 +112,14 @@ inline void despawn(World &w, EntityId e) {
   w.entities.destroy(e);
 }
 
-/** @brief Queue @p e for removal at the next flush_deletions() call.
+/** Queue `e` for removal at the next flush_deletions() call.
  *
- * Safe to call mid-iteration — the entity remains live until flush_deletions().
- * Marking an entity that is already queued is ignored, so double-marking is safe.
- * Marking a stale handle asserts in debug and is ignored in release.
- * @param[in,out] w World that owns @p e.
- * @param[in]     e A live entity to queue for removal.
- * @pre @p e must be live (returned by EntityManager::create() and not destroyed).
+ *  Safe to call mid-iteration — the entity remains live until flush_deletions().
+ *  Marking an entity that is already queued is ignored, so double-marking is safe.
+ *  Marking a stale handle asserts in debug and is ignored in release.
+ *  @param w World that owns `e`.
+ *  @param e A live entity to queue for removal.
+ *  @pre `e` must be live (returned by EntityManager::create() and not destroyed).
  */
 inline void mark_for_deletion(World &w, EntityId e) {
   assert(w.entities.is_live(e) && "mark_for_deletion: not a live entity");
@@ -132,12 +132,12 @@ inline void mark_for_deletion(World &w, EntityId e) {
   w.pending_deletions[w.pending_deletion_count++] = e;
 }
 
-/** @brief Despawn all entities queued via mark_for_deletion() and clear the queue.
+/** Despawn all entities queued via mark_for_deletion() and clear the queue.
  *
- * Call once per frame, after all system updates are complete, to safely apply
- * mid-frame deletion requests without invalidating active iterators.
- * Entries despawned directly since they were marked are skipped.
- * @param[in,out] w World whose pending_deletions to drain.
+ *  Call once per frame, after all system updates are complete, to safely apply
+ *  mid-frame deletion requests without invalidating active iterators.
+ *  Entries despawned directly since they were marked are skipped.
+ *  @param w World whose pending_deletions to drain.
  */
 inline void flush_deletions(World &w) {
   for (std::uint32_t i = 0; i < w.pending_deletion_count; ++i)
@@ -146,21 +146,22 @@ inline void flush_deletions(World &w) {
   w.pending_deletion_count = 0;
 }
 
-/** @brief Queue every entity whose ClipEnd::Remove clip has finished for deletion.
- *  @param[in,out] w World whose clips to read. */
+/** Queue every entity whose ClipEnd::Remove clip has finished for deletion.
+ *  @param w World whose clips to read.
+ */
 inline void mark_finished_clips_for_deletion(World &w) {
   for (const EntityId e : w.clips.active_entities())
     if (w.clips.has_finished(e) && w.clips.end_of(e) == ClipEnd::Remove)
       mark_for_deletion(w, e);
 }
 
-/** @brief Find the live entity carrying a stable authoring id.
+/** Find the live entity carrying a stable authoring id.
  *
- * Linear scan over the dense actor-id rows — id lookups happen only on
- * quest/save resolution, never in a per-frame hot loop.
- * @param[in] w  World to search.
- * @param[in] id Stable authoring id (as authored in a spawn-points file).
- * @return The entity handle, or std::nullopt when no live entity has @p id.
+ *  Linear scan over the dense actor-id rows — id lookups happen only on
+ *  quest/save resolution, never in a per-frame hot loop.
+ *  @param w  World to search.
+ *  @param id Stable authoring id (as authored in a spawn-points file).
+ *  @return The entity handle, or std::nullopt when no live entity has `id`.
  */
 [[nodiscard]] inline std::optional<EntityId> find_actor(const World &w, std::string_view id) noexcept {
   for (const EntityId e : w.actor_ids.active_entities())

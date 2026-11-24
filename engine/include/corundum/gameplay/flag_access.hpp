@@ -10,8 +10,9 @@
 
 namespace corundum::gameplay {
 
-/** @brief A ruleset's read view of @p flags; valid only for the duration of the call it is
- *  passed to. */
+/** A ruleset's read view of `flags`; valid only for the duration of the call it is
+ *  passed to.
+ */
 [[nodiscard]] inline rules::FlagReader make_flag_reader(const world::FlagStore &flags) {
   return rules::FlagReader{
       .read = [&flags](std::string_view key) { return world::visit_count(flags, key); },

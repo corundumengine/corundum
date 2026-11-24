@@ -7,11 +7,12 @@
 
 namespace corundum::core {
 
-/** @brief Deterministic PCG32 (pcg_setseq_64_xsh_rr_32) generator. Same seed and stream → same sequence
- *  on every platform. Not thread-safe; one instance per consumer. */
+/** Deterministic PCG32 (pcg_setseq_64_xsh_rr_32) generator. Same seed and stream → same sequence
+ *  on every platform. Not thread-safe; one instance per consumer.
+ */
 class Rng {
 public:
-  /** @brief Full generator state, for save/load and replay. */
+  /** Full generator state, for save/load and replay. */
   struct State {
     std::uint64_t state{};
     std::uint64_t inc{};
@@ -29,7 +30,7 @@ public:
   /// Uniform float in [0, 1), built from the top 24 bits of next_u32().
   [[nodiscard]] float unit() noexcept;
 
-  /// True with probability @p p, clamped to [0, 1]; chance(0) is always false and chance(1) always true.
+  /// True with probability `p`, clamped to [0, 1]; chance(0) is always false and chance(1) always true.
   [[nodiscard]] bool chance(float p) noexcept;
 
   [[nodiscard]] State state() const noexcept;

@@ -91,7 +91,7 @@ void adopt_platform(corundum::Engine &engine, unsigned w, unsigned h) {
   corundum::platform::null::adopt_null_platform(engine, platform);
 }
 
-/// Boot @p engine on the null platform with the fixture world loaded, for the cases that only
+/// Boot `engine` on the null platform with the fixture world loaded, for the cases that only
 /// need a player in a world to save.
 void boot_fixture_world(corundum::Engine &engine) {
   adopt_platform(engine, 320, 240);

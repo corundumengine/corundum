@@ -17,7 +17,7 @@ namespace corundum::gameplay::quest {
 
 namespace {
 
-/// Append the "unknown stage" error for @p target, naming the field it came
+/// Append the "unknown stage" error for `target`, naming the field it came
 /// from ("advances_to" or "auto_advance_to") in the message.
 void check_target(const Quest &quest, std::string_view stage_name, std::string_view field, std::string_view target,
                   std::vector<std::string> &errors) {

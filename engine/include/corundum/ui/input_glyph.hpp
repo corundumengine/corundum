@@ -9,7 +9,7 @@
 
 namespace corundum::ui {
 
-/** @brief The on-screen hint for @p action on @p device.
+/** The on-screen hint for `action` on `device`.
  *
  *  Lets a prompt read the same way whichever device the player last touched — "Esc" on a
  *  keyboard, "B" on a gamepad, "RMB" on a mouse. On a mouse, an action with no mouse

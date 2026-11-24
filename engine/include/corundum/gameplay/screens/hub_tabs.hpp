@@ -15,7 +15,7 @@
 
 namespace corundum::gameplay::screens {
 
-/** @brief The four screens reachable from the menu hub, in tab order. */
+/** The four screens reachable from the menu hub, in tab order. */
 inline constexpr std::array<world::GameMode, 4> k_hub_tab_modes{
     Inventory,
     Journal,
@@ -23,17 +23,17 @@ inline constexpr std::array<world::GameMode, 4> k_hub_tab_modes{
     Map,
 };
 
-/** @brief Display label for hub tab @p mode; empty when @p mode is not a hub tab. */
+/** Display label for hub tab `mode`; empty when `mode` is not a hub tab. */
 [[nodiscard]] std::string_view hub_tab_label(world::GameMode mode) noexcept;
 
-/** @brief One tab's screen-space extent within the hub strip. */
+/** One tab's screen-space extent within the hub strip. */
 struct HubTabRect {
   core::math::Vec2 pos{};
 
   float width{};
 };
 
-/** @brief Screen-space geometry of the hub tab strip, shared by render and hit-testing.
+/** Screen-space geometry of the hub tab strip, shared by render and hit-testing.
  *
  *  The strip is centered horizontally in the top margin; each tab rect spans its label, so a
  *  click anywhere over the label selects that tab. A pure function of font metrics and viewport.
@@ -46,21 +46,21 @@ struct HubTabStrip {
   std::array<HubTabRect, k_hub_tab_modes.size()> tabs{};
 };
 
-/** @brief Compute hub strip geometry for @p viewport. */
+/** Compute hub strip geometry for `viewport`. */
 [[nodiscard]] HubTabStrip hub_tab_strip(const platform::Renderer &r, const ui::PanelStyle &style,
                                         core::math::Vec2 viewport);
 
-/** @brief Height of the top gap a hub panel leaves clear for the tab strip.
+/** Height of the top gap a hub panel leaves clear for the tab strip.
  *
  *  Equals `hub_tab_strip(...).y + line_height`; pass it as the top_inset to
  *  ui::screen_panel_rect so the panel never overlaps the strip.
  */
 [[nodiscard]] float hub_panel_top_inset(const ui::PanelStyle &style) noexcept;
 
-/** @brief Index of the tab under @p cursor in @p strip, or -1 when the cursor is outside every tab. */
+/** Index of the tab under `cursor` in `strip`, or -1 when the cursor is outside every tab. */
 [[nodiscard]] int hub_tab_at(const HubTabStrip &strip, core::math::Vec2 cursor) noexcept;
 
-/** @brief Draw the hub tab strip with @p active highlighted, flanked by the bumper glyphs.
+/** Draw the hub tab strip with `active` highlighted, flanked by the bumper glyphs.
  *
  *  Drawn in the top margin so it never overlaps the centered hub panels.
  *

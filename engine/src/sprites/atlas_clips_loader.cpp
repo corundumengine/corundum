@@ -24,10 +24,10 @@ namespace corundum::sprites {
 
 namespace {
 
-/** @brief Validate and parse one entry of the sidecar's "clips" array.
+/** Validate and parse one entry of the sidecar's "clips" array.
  *
- * @param clip_json  The clip object; all field types are checked before extraction.
- * @param file       Sidecar file name, used only to identify the file in error messages.
+ *  @param clip_json  The clip object; all field types are checked before extraction.
+ *  @param file       Sidecar file name, used only to identify the file in error messages.
  */
 std::expected<AtlasClip, std::string> parse_clip(const json &clip_json, const std::string &file) {
   AtlasClip clip;

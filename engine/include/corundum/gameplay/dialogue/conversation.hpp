@@ -22,59 +22,56 @@ namespace corundum::gameplay::dialogue {
 
 class Registry;
 
-/**
- * @brief One active dialogue conversation.
+/** One active dialogue conversation.
  *
- * Constructed when a conversation starts (bind the graph and the collaborators it
- * needs — FlagStore, quest/dialogue registries, zone), stepped once per fixed step
- * with update(), and destroyed when the conversation ends. Owns its traversal state;
- * the presentation layer observes it through the read-only query methods rather than
- * reaching into a state struct.
+ *  Constructed when a conversation starts (bind the graph and the collaborators it
+ *  needs — FlagStore, quest/dialogue registries, zone), stepped once per fixed step
+ *  with update(), and destroyed when the conversation ends. Owns its traversal state;
+ *  the presentation layer observes it through the read-only query methods rather than
+ *  reaching into a state struct.
  *
- * Conversation holds non-owning pointers to @p flags, @p quests and @p graphs — none may
- * outlive the Conversation. zone_id is copied so the Conversation is independent of the caller's string.
+ *  Conversation holds non-owning pointers to `flags`, `quests` and `graphs`, so each must
+ *  outlive it. `zone_id` is copied, so the caller's string may die first.
  */
 class Conversation {
 public:
-  /**
-   * @brief Start a conversation on @p graph.
+  /** Start a conversation on `graph`.
    *
-   * Copies graph-level variable defaults into flags without overwriting values already
-   * set from a prior conversation, and records the first node's visit.
+   *  Copies graph-level variable defaults into flags without overwriting values already
+   *  set from a prior conversation, and records the first node's visit.
    *
-   * @param graph   The dialogue graph to run. Must outlive the Conversation.
-   * @param flags   FlagStore for condition evaluation and state mutations.
-   * @param quests  Quest registry for quest-helper conditions; may be nullptr.
-   * @param graphs  Dialogue registry resolving goto_graph targets; may be nullptr.
-   * @param zone_id Current zone for `local.<key>` state; empty disables scoping.
+   *  @param graph   The dialogue graph to run. Must outlive the Conversation.
+   *  @param flags   FlagStore for condition evaluation and state mutations.
+   *  @param quests  Quest registry for quest-helper conditions; may be nullptr.
+   *  @param graphs  Dialogue registry resolving goto_graph targets; may be nullptr.
+   *  @param zone_id Current zone for `local.<key>` state; empty disables scoping.
    */
   Conversation(const Graph &graph, corundum::world::FlagStore &flags, const quest::Registry *quests = nullptr,
                const Registry *graphs = nullptr, std::string zone_id = {});
 
-  /**
-   * @brief Advance the conversation by this frame's input actions.
+  /** Advance the conversation by this frame's input actions.
    *
-   * Has no effect if the Conversation is not active.
+   *  Has no effect if the Conversation is not active.
    *
-   * Behaviour per node type:
+   *  Behaviour per node type:
    *
-   *   Talk   — Select advances to next_id. Cancel closes the dialogue.
-   *   Choice — MoveUp/Down moves the cursor within VISIBLE choices (wrapping).
-   *            Select advances to the chosen target and executes the edge's actions.
-   *            Cancel closes the dialogue. If no choices are visible the dialogue
-   *            closes immediately.
-   *   Event  — Actions execute automatically, no input required. Transitions to
-   *            next_id immediately. Chains of Event nodes are flushed in a single call.
-   *   End    — Select or Cancel closes the dialogue.
+   *    Talk   — Select advances to next_id. Cancel closes the dialogue.
+   *    Choice — MoveUp/Down moves the cursor within VISIBLE choices (wrapping).
+   *             Select advances to the chosen target and executes the edge's actions.
+   *             Cancel closes the dialogue. If no choices are visible the dialogue
+   *             closes immediately.
+   *    Event  — Actions execute automatically, no input required. Transitions to
+   *             next_id immediately. Chains of Event nodes are flushed in a single call.
+   *    End    — Select or Cancel closes the dialogue.
    *
-   * Two EventActions are intercepted here instead of reaching the engine queue:
-   * `goto_graph(graph_id, node_id)` pushes the current (graph, resume node) onto the
-   * call stack and jumps to @p node_id in @p graph_id; `return_graph()` pops the stack
-   * and resumes there (or ends the dialogue when the stack is empty). Neither requires
-   * `graphs` to be non-null — a `goto_graph` without the registry warns and is dropped.
+   *  Two EventActions are intercepted here instead of reaching the engine queue:
+   *  `goto_graph(graph_id, node_id)` pushes the current (graph, resume node) onto the
+   *  call stack and jumps to `node_id` in `graph_id`; `return_graph()` pops the stack
+   *  and resumes there (or ends the dialogue when the stack is empty). Neither requires
+   *  `graphs` to be non-null — a `goto_graph` without the registry warns and is dropped.
    *
-   * @param intent Abstract navigational intent for this frame.
-   * @return All EventActions emitted this step, for the platform to dispatch.
+   *  @param intent Abstract navigational intent for this frame.
+   *  @return All EventActions emitted this step, for the platform to dispatch.
    */
   [[nodiscard]] std::vector<EventAction> update(const input::InputIntent &intent);
 
@@ -99,7 +96,7 @@ public:
   /// Body text of the current node (Talk nodes); empty otherwise.
   [[nodiscard]] std::string_view current_text() const noexcept;
 
-  /// Display label of choice @p full_index (index into the node's full choice list);
+  /// Display label of choice `full_index` (index into the node's full choice list);
   /// empty when out of range or the current node is not a Choice.
   [[nodiscard]] std::string_view choice_label(std::size_t full_index) const noexcept;
 
@@ -125,7 +122,7 @@ private:
   /// Node currently being processed; nullptr when inactive or unresolvable.
   [[nodiscard]] const Node *current_node() const noexcept;
 
-  /// Make @p graph current after applying its variable defaults; the caller then
+  /// Make `graph` current after applying its variable defaults; the caller then
   /// advances to the entry node. No-op when the graph has no nodes.
   void start_graph(const Graph &graph);
 
@@ -139,8 +136,8 @@ private:
   /// caller must not advance the current graph or flush its event chain.
   bool divert(const Node *current_node, int choice_index, std::vector<EventAction> &events);
 
-  /// Push a resume point after @p current_node and enter the graph and node named by
-  /// @p event's two arguments. A missing argument, graph or node logs a warning and leaves
+  /// Push a resume point after `current_node` and enter the graph and node named by
+  /// `event`'s two arguments. A missing argument, graph or node logs a warning and leaves
   /// the conversation where it is.
   void goto_graph(const EventAction &event, const Node *current_node, int choice_index);
 

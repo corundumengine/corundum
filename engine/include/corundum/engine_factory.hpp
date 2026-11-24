@@ -11,46 +11,46 @@
 
 namespace corundum {
 
-/** @brief Startup options for the game process.
+/** Startup options for the game process.
  *
- *  Only @c show_debug_hud and @c show_splash are derived from @c argv by @c parse_engine_args();
- *  @c config_path is caller-set, so a game can point @c make_engine() at a
+ *  Only `show_debug_hud` and `show_splash` are derived from `argv` by `parse_engine_args()`;
+ *  `config_path` is caller-set, so a game can point `make_engine()` at a
  *  different project config without a command-line flag. Every field has a
- *  sensible default so @c parse_engine_args() never fails.
+ *  sensible default so `parse_engine_args()` never fails.
  */
 struct EngineOptions {
-  /** @brief Path to the game project's @c game.json; set before @c make_engine(). */
+  /** Path to the game project's `game.json`; set before `make_engine()`. */
   std::string config_path{"data/game.json"};
 
-  /** @brief Enable the debug HUD overlay (set by @c --debug). */
+  /** Enable the debug HUD overlay (set by `--debug`). */
   bool show_debug_hud{false};
 
-  /** @brief Play the game.json splash images at boot; @c --no-splash clears them for quick test runs. */
+  /** Play the game.json splash images at boot; `--no-splash` clears them for quick test runs. */
   bool show_splash{true};
 };
 
-/** @brief Parse command-line arguments into an EngineOptions.
+/** Parse command-line arguments into an EngineOptions.
  *
  *  Supported flags:
  *    --debug        Enable the debug HUD overlay.
  *    --no-splash    Skip the boot splash.
  *
- *  @param[in] args Argument vector from @c main, passed as @c {argv, argc}; the
+ *  @param args Argument vector from `main`, passed as `{argv, argc}`; the
  *        program-name entry is unrecognised and ignored.
  *  @return A fully-populated EngineOptions with defaults applied.
- *  @note @c config_path is not settable from the command line; set it on the
+ *  @note `config_path` is not settable from the command line; set it on the
  *        returned options. Unrecognised flags are silently ignored (null entries
- *        are skipped) and the function is not @c noexcept — constructing the
+ *        are skipped) and the function is not `noexcept` — constructing the
  *        option strings may allocate.
  */
 [[nodiscard]] EngineOptions parse_engine_args(std::span<const char *const> args);
 
-/** @brief Single-call factory: create platform, initialise engine, return a running Engine.
+/** Single-call factory: create platform, initialise engine, return a running Engine.
  *
  *  Combines platform creation and engine initialisation into one operation. On
  *  failure the caller receives an error description and no resources leak.
  *
- *  @param[in] options Resolved command-line options.
+ *  @param options Resolved command-line options.
  *  @return A fully-initialised, heap-allocated Engine on success, or an error message.
  *          Heap-allocated because Engine embeds the ~0.5 MB entity World, which must
  *          never sit on a stack frame (Windows' default main-thread stack is 1 MB).

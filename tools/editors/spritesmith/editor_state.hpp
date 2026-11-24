@@ -15,16 +15,14 @@
 
 namespace tools::spritesmith {
 
-/**
- * @brief Selects between character animation sheet, flat sprite sheet, and read-only atlas.
+/** Selects between character animation sheet, flat sprite sheet, and read-only atlas.
  */
 enum class SheetMode { Character, SpriteSheet, Atlas };
 
-/**
- * @brief A named sprite entry within a character sheet.
+/** A named sprite entry within a character sheet.
  *
- * Stores the grid footprint, anchor offset, and per-animation frame sequences
- * matching the character sprite JSON schema.
+ *  Stores the grid footprint, anchor offset, and per-animation frame sequences
+ *  matching the character sprite JSON schema.
  */
 struct SpriteDefinition {
   std::string name; ///< Unique sprite name (key in "frames" object).
@@ -40,18 +38,16 @@ struct SpriteDefinition {
   std::array<std::vector<corundum::sprites::FrameCoord>, corundum::sprites::k_num_anim_ids> anim_frames;
 };
 
-/**
- * @brief A named animation clip within a sprite sheet sheet.
+/** A named animation clip within a sprite sheet sheet.
  */
 struct AnimClip {
   std::string name;                                  ///< Clip name.
   std::vector<corundum::sprites::FrameCoord> frames; ///< Ordered frame coordinates.
 };
 
-/**
- * @brief A named animation clip within an atlas, referencing frames by atlas sprite name.
+/** A named animation clip within an atlas, referencing frames by atlas sprite name.
  *
- * Names (not rects/indices) survive spritepacker repacks; see atlas_clips.hpp.
+ *  Names (not rects/indices) survive spritepacker repacks; see atlas_clips.hpp.
  */
 struct AtlasAnimClip {
   std::string name;                ///< Clip name.
@@ -59,21 +55,19 @@ struct AtlasAnimClip {
   std::vector<std::string> frames; ///< Ordered atlas sprite names; may contain dangling names.
 };
 
-/**
- * @brief Undo-stack snapshot for atlas mode: the authored clip data only.
+/** Undo-stack snapshot for atlas mode: the authored clip data only.
  *
- * Atlas geometry (atlas_sprites) is read-only and never mutated, so it is excluded.
+ *  Atlas geometry (atlas_sprites) is read-only and never mutated, so it is excluded.
  */
 struct AtlasClipDoc {
   std::vector<AtlasAnimClip> clips;
   int selected_clip = -1;
 };
 
-/**
- * @brief All mutable state for a Spritesmith editing session.
+/** All mutable state for a Spritesmith editing session.
  *
- * Pure data — no GLFW, no I/O, no algorithms. Every subsystem receives a
- * reference to this struct and reads/writes only the fields it owns.
+ *  Pure data — no GLFW, no I/O, no algorithms. Every subsystem receives a
+ *  reference to this struct and reads/writes only the fields it owns.
  */
 struct EditorState {
   // ---- File ----------------------------------------------------------------

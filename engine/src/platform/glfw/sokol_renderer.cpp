@@ -42,18 +42,17 @@ namespace corundum::platform::glfw {
 
 namespace {
 
-/**
- * @brief Orthographic projection mapping the rect (@p l..@p r, @p top..@p bottom) onto the
- *        normalized device cube, in column-major (shader `mat4`) order.
+/** Orthographic projection mapping the rect (`l`..`r`, `top`..`bottom`) onto the
+ *  normalized device cube, in column-major (shader `mat4`) order.
  *
- * Y points down: @p top is the smaller (upper) coordinate and @p bottom the larger, so the
- * Y scale is negative and larger Y values map downward. Z collapses to -1 — the renderer is
- * 2D and orders draws itself, so there is no depth range.
+ *  Y points down: `top` is the smaller (upper) coordinate and `bottom` the larger, so the
+ *  Y scale is negative and larger Y values map downward. Z collapses to -1 — the renderer is
+ *  2D and orders draws itself, so there is no depth range.
  *
- * @param l       Left horizontal bound.
- * @param r       Right horizontal bound.
- * @param bottom  Lower edge (the larger Y in this top-left-origin space).
- * @param top     Upper edge (the smaller Y).
+ *  @param l       Left horizontal bound.
+ *  @param r       Right horizontal bound.
+ *  @param bottom  Lower edge (the larger Y in this top-left-origin space).
+ *  @param top     Upper edge (the smaller Y).
  */
 std::array<float, 16> make_ortho(float l, float r, float bottom, float top) noexcept {
   const float scale_x = 2.f / (r - l);
@@ -243,7 +242,7 @@ private:
   [[nodiscard]] bool has_quad_space();
   [[nodiscard]] bool begin_primitive(sg_view view);
   void add_to_batch(sg_view view);
-  /// Set @p advance to @p g's logical advance and, when it has ink, emit its quad.
+  /// Set `advance` to `g`'s logical advance and, when it has ink, emit its quad.
   /// @return false when the quad budget is exhausted and drawing must stop.
   [[nodiscard]] bool draw_glyph(const GlyphInfo &g, const BakedAtlas &baked, float pen_x, float pen_y, float char_size,
                                 ColourF colour, float &advance);
@@ -488,7 +487,8 @@ void SokolRenderer::flush_batch() {
 
 /** @pre `pass_active_` is true; called once per frame, before `gpu_ctx_.end_frame()`.
  *  @note Issues the frame's single `sg_write_buffer_transient()` upload, then replays every
- *        recorded batch. Write-transient buffers may not be written after they are bound. */
+ *        recorded batch. Write-transient buffers may not be written after they are bound.
+ */
 void SokolRenderer::upload_and_draw_pending_batches() {
   if (pending_batches_.empty())
     return;

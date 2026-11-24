@@ -12,13 +12,12 @@
 
 namespace corundum::core {
 
-/**
- * @brief Per-user writable storage for settings and saves.
+/** Per-user writable storage for settings and saves.
  *
- * Runtime code writes player data only through this port, so a console save-data API can
- * replace the directory adapter.
+ *  Runtime code writes player data only through this port, so a console save-data API can
+ *  replace the directory adapter.
  *
- * Names are relative and `/`-separated: `settings.json`, `saves/slot_01.json`.
+ *  Names are relative and `/`-separated: `settings.json`, `saves/slot_01.json`.
  */
 class UserStorage {
 public:
@@ -28,16 +27,16 @@ public:
   UserStorage &operator=(UserStorage &&) = delete;
   virtual ~UserStorage() = default;
 
-  /// Read the entry at @p name.
-  /// @pre @p name is non-empty, `/`-separated, with no root component and no `..` component.
+  /// Read the entry at `name`.
+  /// @pre `name` is non-empty, `/`-separated, with no root component and no `..` component.
   [[nodiscard]] virtual std::expected<std::string, std::string> read(std::string_view name) const = 0;
 
-  /// True when the entry at @p name exists.
-  /// @pre @p name is non-empty, `/`-separated, with no root component and no `..` component.
+  /// True when the entry at `name` exists.
+  /// @pre `name` is non-empty, `/`-separated, with no root component and no `..` component.
   [[nodiscard]] virtual bool contains(std::string_view name) const = 0;
 
   /// Replace the whole entry atomically and create intermediate folders.
-  /// @pre @p name is non-empty, `/`-separated, with no root component and no `..` component.
+  /// @pre `name` is non-empty, `/`-separated, with no root component and no `..` component.
   [[nodiscard]] virtual std::expected<void, std::string> write(std::string_view name, std::string_view contents) = 0;
 
 protected:
@@ -59,16 +58,16 @@ private:
   std::filesystem::path root_;
 };
 
-/// A DirectoryUserStorage at user_data_dir(@p game_id).
-/// Error when @p game_id is empty or no user-data directory resolves (the message comes from
+/// A DirectoryUserStorage at user_data_dir(`game_id`).
+/// Error when `game_id` is empty or no user-data directory resolves (the message comes from
 /// user_data_dir). Does not create the directory.
 [[nodiscard]] std::expected<std::unique_ptr<UserStorage>, std::string> make_user_storage(std::string_view game_id);
 
-/// Read @p name through @p storage and parse it. Same messages as the content overload, naming @p name.
+/// Read `name` through `storage` and parse it. Same messages as the content overload, naming `name`.
 [[nodiscard]] std::expected<nlohmann::json, std::string> read_json(const UserStorage &storage, std::string_view name,
                                                                    std::string_view label = {});
 
-/// Write @p j to @p name as format_json() does.
+/// Write `j` to `name` as format_json() does.
 [[nodiscard]] std::expected<void, std::string> write_json(UserStorage &storage, std::string_view name,
                                                           const nlohmann::json &j);
 

@@ -23,7 +23,7 @@ namespace corundum::sprites {
 
 namespace {
 
-/// Record @p message in @p error unless an earlier failure already set it, so a parser can read
+/// Record `message` in `error` unless an earlier failure already set it, so a parser can read
 /// every field before reporting the first problem.
 void record_first_error(std::string &error, std::string message) {
   if (error.empty())
@@ -158,7 +158,7 @@ std::expected<std::vector<AtlasSprite>, std::string> parse_sprites(const json &r
   return sprites;
 }
 
-/// Parse the required, non-empty string field @p key from @p root.
+/// Parse the required, non-empty string field `key` from `root`.
 std::expected<std::string, std::string> require_string(const json &root, const std::string &file, const char *key) {
   if (!root.contains(key))
     return std::unexpected(std::format("Sprite atlas '{}' missing '{}'", file, key));
@@ -171,7 +171,7 @@ std::expected<std::string, std::string> require_string(const json &root, const s
   return value;
 }
 
-/// Parse the required, positive integer field @p key from @p root.
+/// Parse the required, positive integer field `key` from `root`.
 std::expected<int, std::string> require_positive_int(const json &root, const std::string &file, const char *key) {
   if (!root.contains(key))
     return std::unexpected(std::format("Sprite atlas '{}' missing '{}'", file, key));
@@ -185,8 +185,8 @@ std::expected<int, std::string> require_positive_int(const json &root, const std
 }
 
 /// Hard-fail on a missing or mismatched schema_version rather than routing through
-/// core::prepare_schema_version: atlases have no legacy absent-version form, so "absent" is an
-/// error here, not an implicit version 1.
+/// core::prepare_schema_version: unlike other formats, an atlas without the field is an error,
+/// not an implicit version 1.
 std::expected<void, std::string> check_schema_version(const json &root, const std::string &file) {
   if (!root.contains("schema_version") || !root["schema_version"].is_number_integer())
     return std::unexpected(std::format("Sprite atlas '{}' has a missing or non-integer 'schema_version'", file));

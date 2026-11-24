@@ -49,7 +49,7 @@ bool press(corundum::Engine &engine, corundum::input::Action action) {
   return engine.update_engine_screens(intent);
 }
 
-/// Drive one fixed UI step with a synthetic cursor. @p prev is the baseline from the previous
+/// Drive one fixed UI step with a synthetic cursor. `prev` is the baseline from the previous
 /// poll; a left click also raises Activate/Select the way the binding table would.
 bool step_mouse(corundum::Engine &engine, corundum::core::math::Vec2 cursor, corundum::core::math::Vec2 prev,
                 bool clicked = false, float scroll = 0.f) {

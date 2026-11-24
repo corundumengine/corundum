@@ -40,7 +40,7 @@ std::expected<int, std::string> require_int(const json &object, const char *key,
   return static_cast<int>(value);
 }
 
-/// Read an optional integer field, returning @p fallback when the field is absent.
+/// Read an optional integer field, returning `fallback` when the field is absent.
 std::expected<int, std::string> optional_int(const json &object, const char *key, int fallback,
                                              const std::string &file) {
   if (!object.contains(key))
@@ -105,7 +105,7 @@ std::expected<void, std::string> read_placement(const json &root, SpriteSheetCli
   return {};
 }
 
-/// Parse and validate the optional "animations" block into @p data.
+/// Parse and validate the optional "animations" block into `data`.
 std::expected<void, std::string> read_animations(const json &root, SpriteSheetClips &data, const std::string &file) {
   if (!root.contains("animations"))
     return {};

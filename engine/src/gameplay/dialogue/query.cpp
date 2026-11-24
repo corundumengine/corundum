@@ -40,7 +40,7 @@ constexpr auto k_fnv_mix = [](std::size_t hash, char c) noexcept -> std::size_t 
   return (hash ^ static_cast<unsigned char>(c)) * 1099511628211ULL;
 };
 
-/// Deterministic per-visit pick among @p total_random Random edges — hashes
+/// Deterministic per-visit pick among `total_random` Random edges — hashes
 /// (graph, node, visit) so a visit always shows the same edge without storing state.
 std::size_t random_slot(std::string_view graph_id, std::string_view node_id, int visit_cnt, std::size_t total_random) {
   std::size_t hash = std::ranges::fold_left(graph_id, 14695981039346656037ULL, k_fnv_mix);
@@ -49,7 +49,7 @@ std::size_t random_slot(std::string_view graph_id, std::string_view node_id, int
   return hash % total_random;
 }
 
-/// Applies @p edge's sequencing mode, advancing the Cycle/Random counters, and
+/// Applies `edge`'s sequencing mode, advancing the Cycle/Random counters, and
 /// reports whether it survives for this visit.
 bool passes_sequence(const ChoiceEdge &edge, const corundum::world::FlagStore &flags, std::string_view graph_id,
                      std::string_view node_id, std::size_t edge_index, std::size_t cycle_slot,

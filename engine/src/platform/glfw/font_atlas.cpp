@@ -33,7 +33,7 @@ using CoverageSet = std::array<std::vector<uint8_t>, k_latin1_count>;
 /// Rasterised coverage for the extended (non-Latin-1) set, parallel to k_extended_codepoints.
 using ExtendedCoverage = std::array<std::vector<uint8_t>, k_extended_count>;
 
-/// Loads and rasterises one codepoint into @p info and @p coverage. On
+/// Loads and rasterises one codepoint into `info` and `coverage`. On
 /// FreeType failure both are left untouched (zeroed metrics, empty coverage),
 /// which the packer then drops.
 void rasterise_one(FT_Face face, unsigned long codepoint, GlyphInfo &info, std::vector<uint8_t> &coverage) {
@@ -61,7 +61,7 @@ void rasterise_one(FT_Face face, unsigned long codepoint, GlyphInfo &info, std::
 }
 
 /// Rasterises printable Latin-1 (ASCII plus the Latin-1 Supplement) into
-/// @p coverage, recording each glyph's metrics in @p glyphs.
+/// `coverage`, recording each glyph's metrics in `glyphs`.
 void rasterise_glyphs(FT_Face face, CoverageSet &coverage, std::array<GlyphInfo, k_latin1_count> &glyphs) {
   for (std::size_t codepoint = k_first_baked_ascii; codepoint < k_latin1_count; ++codepoint) {
     if (codepoint >= 0x80 && codepoint < k_first_baked_latin1)
@@ -71,7 +71,7 @@ void rasterise_glyphs(FT_Face face, CoverageSet &coverage, std::array<GlyphInfo,
 }
 
 /// Rasterises the fixed extended set (smart punctuation outside Latin-1) into
-/// @p coverage, recording each codepoint and its metrics in @p glyphs.
+/// `coverage`, recording each codepoint and its metrics in `glyphs`.
 void rasterise_extended_glyphs(FT_Face face, ExtendedCoverage &coverage,
                                std::array<ExtendedGlyph, k_extended_count> &glyphs) {
   for (std::size_t e = 0; e < k_extended_count; ++e) {
@@ -92,7 +92,7 @@ struct GlyphToPack {
   const std::vector<uint8_t> *coverage{};
 };
 
-/// Shelf-packs @p glyphs (write-back in place, sorted by height) and returns
+/// Shelf-packs `glyphs` (write-back in place, sorted by height) and returns
 /// the atlas extent. Callers pre-filter to non-empty glyphs.
 AtlasExtent pack_glyphs(std::vector<GlyphToPack> &glyphs) {
   std::ranges::sort(glyphs, [](const GlyphToPack &a, const GlyphToPack &b) { return a.info->height > b.info->height; });
@@ -120,7 +120,7 @@ AtlasExtent pack_glyphs(std::vector<GlyphToPack> &glyphs) {
   return {.width = std::max(1, used_width), .height = std::max(1, pen_y + shelf_height + k_padding)};
 }
 
-/// Copies each glyph's coverage into @p result as white RGB + coverage alpha.
+/// Copies each glyph's coverage into `result` as white RGB + coverage alpha.
 /// Order does not matter.
 void blit_glyphs(const std::vector<GlyphToPack> &glyphs, BakedSize &result) {
   result.pixels.assign(static_cast<std::size_t>(result.atlas_w) * result.atlas_h * 4, 0);

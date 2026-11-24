@@ -13,18 +13,17 @@
 
 namespace corundum::core {
 
-/**
- * @brief Read-only port over game content.
+/** Read-only port over game content.
  *
- * Runtime code reads game content only through this port, so a pack file or a console
- * filesystem can replace the directory adapter without touching any loader.
+ *  Runtime code reads game content only through this port, so a pack file or a console
+ *  filesystem can replace the directory adapter without touching any loader.
  *
- * Paths are relative to the source's root. An absolute path is accepted as-is (tests and
- * tools pass temp-dir paths).
+ *  Paths are relative to the source's root. An absolute path is accepted as-is (tests and
+ *  tools pass temp-dir paths).
  *
- * Implementations must keep no unsynchronised mutable state, so the `const` methods are safe
- * to call from any thread. Miniaudio's resource-manager job thread can open audio through
- * them. An adapter that needs a cache must guard it with a mutex.
+ *  Implementations must keep no unsynchronised mutable state, so the `const` methods are safe
+ *  to call from any thread. Miniaudio's resource-manager job thread can open audio through
+ *  them. An adapter that needs a cache must guard it with a mutex.
  */
 class ContentSource {
 public:
@@ -34,7 +33,7 @@ public:
   ContentSource &operator=(ContentSource &&) = delete;
   virtual ~ContentSource() = default;
 
-  /// Read the whole file at @p path. The error names the path.
+  /// Read the whole file at `path`. The error names the path.
   /// @note Every failure is reported through the returned error and must not throw anything
   ///       except std::bad_alloc. Callers in a `noexcept` C callback catch only std::bad_alloc.
   [[nodiscard]] virtual std::expected<std::vector<std::uint8_t>, std::string>
@@ -43,7 +42,7 @@ public:
   /// True only for an existing regular file. A directory is false.
   [[nodiscard]] virtual bool contains(const std::filesystem::path &path) const = 0;
 
-  /// List @p dir with the same ordering, filtering and error cases as list_dir_entries().
+  /// List `dir` with the same ordering, filtering and error cases as list_dir_entries().
   /// Each returned DirEntry::path is a content path that read() accepts.
   ///
   /// A separate pure virtual, not synthesized from read()/contains(), because those two can't

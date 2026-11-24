@@ -51,7 +51,7 @@ namespace {
 
 // Compute a canvas tile_scale that targets ~64px rendered cells so large
 // tiles (e.g. 256px isometric) don't fill the entire viewport. Small tiles
-// are capped at 2x (their historical default).
+// are capped at 2x.
 [[nodiscard]] float compute_tile_scale(int frame_width) noexcept {
   constexpr float k_target_px = 64.f;
   constexpr float k_max_scale = 2.f;
@@ -169,7 +169,7 @@ struct FrameContext {
   float elapsed_time{};
 };
 
-/// Every layer of band @p z_index, in the canvas space of @p ctx.
+/// Every layer of band `z_index`, in the canvas space of `ctx`.
 void render_layer_band(const FrameContext &frame, CanvasContext ctx, int z_index) {
   const EditorState &state = *frame.state;
   tools::tilesmith::render_tilemap(*frame.host, ctx, state.map, state.layer_visible, *frame.texture_store,

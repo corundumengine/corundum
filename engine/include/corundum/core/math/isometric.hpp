@@ -7,38 +7,35 @@
 
 namespace corundum::core::math {
 
-/**
- * @brief Packed isometric projection parameters for a tilemap at a given scale.
+/** Packed isometric projection parameters for a tilemap at a given scale.
  *
- * Pass this to tile_to_world / world_to_tile to avoid computing half_tw, half_th,
- * x_origin, and elev_step separately at every call site.
+ *  Pass this to tile_to_world / world_to_tile to avoid computing half_tw, half_th,
+ *  x_origin, and elev_step separately at every call site.
  */
 struct IsometricParams {
-  /** @brief Half the scaled diamond width (diamond_w * tile_scale * 0.5). */
+  /** Half the scaled diamond width (diamond_w * tile_scale * 0.5). */
   float half_tw{};
-  /** @brief Half the scaled diamond height (diamond_h * tile_scale * 0.5). */
+  /** Half the scaled diamond height (diamond_h * tile_scale * 0.5). */
   float half_th{};
-  /**
-   * @brief Horizontal origin shift so the leftmost tile (0, height-1) lands at x = 0.
+  /** Horizontal origin shift so the leftmost tile (0, height-1) lands at x = 0.
    *   Equals (height - 1) * half_tw.
    */
   float x_origin{};
-  /** @brief Screen pixels lifted per unit of elevation, already scaled by tile_scale. */
+  /** Screen pixels lifted per unit of elevation, already scaled by tile_scale. */
   float elev_step{};
 };
 
-/**
- * @brief Build IsometricParams from raw map/metric values.
+/** Build IsometricParams from raw map/metric values.
  *
- * @param diamond_w  Tilemap::diamond_w() – the isometric grid-step width  in Tiled pixels.
- * @param diamond_h  Tilemap::diamond_h() – the isometric grid-step height in Tiled pixels.
- * @param height     Number of tile rows in the map (Tilemap::height).
- * @param tile_scale Display scale factor (e.g. 1.f, 2.f).
- * @param elev_step  Raw screen pixels lifted per unit of elevation
- *                   (GameConfig::elevation_step_px) — multiplied by tile_scale
- *                   just like half_tw/half_th so elevation lift scales with zoom.
- * @return IsometricParams with half_tw, half_th, x_origin, elev_step pre-computed
- *         (all scaled by tile_scale).
+ *  @param diamond_w  Tilemap::diamond_w() – the isometric grid-step width  in Tiled pixels.
+ *  @param diamond_h  Tilemap::diamond_h() – the isometric grid-step height in Tiled pixels.
+ *  @param height     Number of tile rows in the map (Tilemap::height).
+ *  @param tile_scale Display scale factor (e.g. 1.f, 2.f).
+ *  @param elev_step  Raw screen pixels lifted per unit of elevation
+ *                    (GameConfig::elevation_step_px) — multiplied by tile_scale
+ *                    just like half_tw/half_th so elevation lift scales with zoom.
+ *  @return IsometricParams with half_tw, half_th, x_origin, elev_step pre-computed
+ *          (all scaled by tile_scale).
  */
 // NOLINTBEGIN(bugprone-easily-swappable-parameters)
 [[nodiscard]] constexpr IsometricParams compute_isometric_params(int diamond_w, int diamond_h, int height,
@@ -51,72 +48,69 @@ struct IsometricParams {
 
 // NOLINTEND(bugprone-easily-swappable-parameters)
 
-/**
- * @brief Full diamond cell height in screen pixels (= 2 * half_th).
+/** Full diamond cell height in screen pixels (= 2 * half_th).
  *
- * The vertical distance from the top vertex to the southern (bottom) vertex
- * of one isometric diamond cell — i.e. the corner-to-corner span of the
- * diamond.  Useful for outlines and shape math (e.g. tilesmith's hover
- * diamond outline traces its four corners relative to an internal anchor
- * using this span).
+ *  The vertical distance from the top vertex to the southern (bottom) vertex
+ *  of one isometric diamond cell — i.e. the corner-to-corner span of the
+ *  diamond.  Useful for outlines and shape math (e.g. tilesmith's hover
+ *  diamond outline traces its four corners relative to an internal anchor
+ *  using this span).
  *
- * @note Do not use this as a sprite-anchor offset from tile_to_world():
- * that anchors the sprite at the cell's southern vertex, which renders the
- * sprite shifted one half-diamond below the cell center under this
- * codebase's TOP-vertex projection convention.  For sprite anchors, use
- * `half_th` directly (cell center) — the same convention already relied on
- * by physics and picking (see engine/tests/test_picking.cpp).
+ *  @note Do not use this as a sprite-anchor offset from tile_to_world():
+ *  that anchors the sprite at the cell's southern vertex, which renders the
+ *  sprite shifted one half-diamond below the cell center under this
+ *  codebase's TOP-vertex projection convention.  For sprite anchors, use
+ *  `half_th` directly (cell center) — the same convention already relied on
+ *  by physics and picking (see engine/tests/test_picking.cpp).
  *
- * @param half_th  Half the scaled diamond height (from IsometricParams or equivalent).
- * @return The full cell height in screen pixels.
+ *  @param half_th  Half the scaled diamond height (from IsometricParams or equivalent).
+ *  @return The full cell height in screen pixels.
  */
 [[nodiscard]] constexpr float diamond_cell_height(float half_th) noexcept {
   return half_th * 2.f;
 }
 
-/**
- * @brief Vertical offset from the top of a (full, untrimmed) frame to a
- * bottom-origin pivot, in scaled pixels.
+/** Vertical offset from the top of a (full, untrimmed) frame to a
+ *  bottom-origin pivot, in scaled pixels.
  *
- * Converts a bottom-origin pivot.y (0 = frame bottom, 1 = frame top — see
- * TilePivot in tilemap.hpp) to a top-origin offset suitable for sprite
- * placement: how far down from `position.y` the pivot lands.
+ *  Converts a bottom-origin pivot.y (0 = frame bottom, 1 = frame top — see
+ *  TilePivot in tilemap.hpp) to a top-origin offset suitable for sprite
+ *  placement: how far down from `position.y` the pivot lands.
  *
- * @param pivot_y      Bottom-origin pivot coordinate in [0, 1].
- * @param frame_height Full frame height in scaled pixels.
- * @return Offset in scaled pixels from the top of the frame to the pivot.
+ *  @param pivot_y      Bottom-origin pivot coordinate in [0, 1].
+ *  @param frame_height Full frame height in scaled pixels.
+ *  @return Offset in scaled pixels from the top of the frame to the pivot.
  */
 [[nodiscard]] constexpr float pivot_top_offset(float pivot_y, float frame_height) noexcept {
   return (1.f - pivot_y) * frame_height;
 }
 
-/**
- * @brief Convert a fractional tile grid position and elevation to an isometric
- * world-space position.
+/** Convert a fractional tile grid position and elevation to an isometric
+ *  world-space position.
  *
- * Returns the projection point used by this codebase as the cell's top (north) vertex.
- * Increasing col moves the tile right and down; increasing row moves it left and down.
- * Increasing elevation lifts the tile upward on-screen.
+ *  Returns the projection point used by this codebase as the cell's top (north) vertex.
+ *  Increasing col moves the tile right and down; increasing row moves it left and down.
+ *  Increasing elevation lifts the tile upward on-screen.
  *
- * Under the codebase's TOP-vertex projection convention, the cell extends downward from
- * this point to (this point + (0, 2*half_th)) — i.e. the southern vertex — and the
- * cell's geometric center is at (this point + (0, half_th)). The grid renderer draws
- * lines through top vertices of cells, which in this projection outline the cells
- * themselves (the four top vertices of a 2x2 block form exactly the diamond of the
- * top-left cell).
+ *  Under the codebase's TOP-vertex projection convention, the cell extends downward from
+ *  this point to (this point + (0, 2*half_th)) — i.e. the southern vertex — and the
+ *  cell's geometric center is at (this point + (0, half_th)). The grid renderer draws
+ *  lines through top vertices of cells, which in this projection outline the cells
+ *  themselves (the four top vertices of a 2x2 block form exactly the diamond of the
+ *  top-left cell).
  *
- * The x-origin shift keeps the leftmost tile at x = 0; iso.x_origin should be
- * `(map_height_in_tiles - 1) * half_tw`, matching the editor's x_shift convention and
- * ensuring camera.x is always non-negative.
+ *  The x-origin shift keeps the leftmost tile at x = 0; iso.x_origin should be
+ *  `(map_height_in_tiles - 1) * half_tw`, matching the editor's x_shift convention and
+ *  ensuring camera.x is always non-negative.
  *
- * Fractional col/row lets camera-centering and interpolated entity positions call this
- * directly without re-inlining the projection.
+ *  Fractional col/row lets camera-centering and interpolated entity positions call this
+ *  directly without re-inlining the projection.
  *
- * @param col       Tile column (fractional).
- * @param row       Tile row (fractional).
- * @param elevation Tile height [0–255]; 0 is flat ground level.
- * @param iso       Packed projection parameters from compute_isometric_params().
- * @return Isometric world-space position offset by iso.x_origin.
+ *  @param col       Tile column (fractional).
+ *  @param row       Tile row (fractional).
+ *  @param elevation Tile height [0–255]; 0 is flat ground level.
+ *  @param iso       Packed projection parameters from compute_isometric_params().
+ *  @return Isometric world-space position offset by iso.x_origin.
  */
 [[nodiscard]] constexpr Vec2 tile_to_world(float col, float row, int elevation, const IsometricParams &iso) noexcept {
   return {
@@ -125,15 +119,14 @@ struct IsometricParams {
   };
 }
 
-/**
- * @brief Convert an isometric world-space position back to fractional tile-grid
- * coordinates, given an assumed elevation. The direct inverse of tile_to_world.
+/** Convert an isometric world-space position back to fractional tile-grid
+ *  coordinates, given an assumed elevation. The direct inverse of tile_to_world.
  *
- * @param world_pos Isometric world-space position (already camera-adjusted).
- * @param elevation Assumed tile height — the caller supplies this per-candidate
- *                  when resolving which of several stacked tiles a screen point hits.
- * @param iso       Packed projection parameters from compute_isometric_params().
- * @return Fractional tile position; floor() each field to get the containing cell.
+ *  @param world_pos Isometric world-space position (already camera-adjusted).
+ *  @param elevation Assumed tile height — the caller supplies this per-candidate
+ *                   when resolving which of several stacked tiles a screen point hits.
+ *  @param iso       Packed projection parameters from compute_isometric_params().
+ *  @return Fractional tile position; floor() each field to get the containing cell.
  */
 [[nodiscard]] constexpr TilePos world_to_tile(Vec2 world_pos, int elevation, const IsometricParams &iso) noexcept {
   const float adj_x = world_pos.x - iso.x_origin;
@@ -143,26 +136,25 @@ struct IsometricParams {
   return {.col = (u + v) * 0.5f, .row = (v - u) * 0.5f};
 }
 
-/**
- * @brief Cell-center anchor convention: returns the cell's geometric center in
- * isometric world space, NOT its top vertex.
+/** Cell-center anchor convention: returns the cell's geometric center in
+ *  isometric world space, NOT its top vertex.
  *
- * Under the codebase's TOP-vertex projection convention (tile_to_world returns
- * the cell's top (north) vertex), every consumer that places an entity sprite,
- * camera target, or feet marker needs the cell's center — `top_vertex + (0,
- * half_th)` — to align with where the tile sprite draws. Centralizing this here
- * prevents the anchor drift that left actors floating half_th above the ground
- * or sunk below it.
+ *  Under the codebase's TOP-vertex projection convention (tile_to_world returns
+ *  the cell's top (north) vertex), every consumer that places an entity sprite,
+ *  camera target, or feet marker needs the cell's center — `top_vertex + (0,
+ *  half_th)` — to align with where the tile sprite draws. Centralizing this here
+ *  prevents the anchor drift that left actors floating half_th above the ground
+ *  or sunk below it.
  *
- * Uses @p float elevation (rather than int) to preserve interpolated elevation
- * precision on ramps, matching what `tile_to_world`'s existing callers do
- * inline at entity/camera sites.
+ *  Uses `float` elevation (rather than int) to preserve interpolated elevation
+ *  precision on ramps, matching what `tile_to_world`'s existing callers do
+ *  inline at entity/camera sites.
  *
- * @param col        Tile column (fractional).
- * @param row        Tile row (fractional).
- * @param elevation  Tile height (may be fractional for interpolated ramps).
- * @param iso        Packed projection parameters from compute_isometric_params().
- * @return Isometric world-space position of the cell's geometric center.
+ *  @param col        Tile column (fractional).
+ *  @param row        Tile row (fractional).
+ *  @param elevation  Tile height (may be fractional for interpolated ramps).
+ *  @param iso        Packed projection parameters from compute_isometric_params().
+ *  @return Isometric world-space position of the cell's geometric center.
  */
 [[nodiscard]] constexpr Vec2 tile_to_world_center(float col, float row, float elevation,
                                                   const IsometricParams &iso) noexcept {
@@ -172,61 +164,57 @@ struct IsometricParams {
   };
 }
 
-/**
- * @brief Convert a tile-grid delta (dc, dr) to the equivalent screen-space delta.
+/** Convert a tile-grid delta (dc, dr) to the equivalent screen-space delta.
  *
- * Applies the isometric projection's Jacobian to a delta vector (no x_origin shift —
- * this is for deltas/velocities, not positions), so that normalising in screen space
- * produces equal perceived speed in all directions rather than equal tile-grid
- * distance, which the isometric projection distorts unevenly by direction.
+ *  Applies the isometric projection's Jacobian to a delta vector (no x_origin shift —
+ *  this is for deltas/velocities, not positions), so that normalising in screen space
+ *  produces equal perceived speed in all directions rather than equal tile-grid
+ *  distance, which the isometric projection distorts unevenly by direction.
  *
- * @param dc      Tile-grid column delta (e.g. a velocity in tiles/s, or a displacement).
- * @param dr      Tile-grid row delta (e.g. a velocity in tiles/s, or a displacement).
- * @param iso     Packed projection parameters from compute_isometric_params().
- * @return Screen-space delta {dx, dy}.
+ *  @param dc      Tile-grid column delta (e.g. a velocity in tiles/s, or a displacement).
+ *  @param dr      Tile-grid row delta (e.g. a velocity in tiles/s, or a displacement).
+ *  @param iso     Packed projection parameters from compute_isometric_params().
+ *  @return Screen-space delta {dx, dy}.
  */
 [[nodiscard]] constexpr Vec2 tile_to_screen_delta(float dc, float dr, const IsometricParams &iso) noexcept {
   return {.x = (dc - dr) * iso.half_tw, .y = (dc + dr) * iso.half_th};
 }
 
-/**
- * @brief Draw-order depth key that accounts for elevation, for painter's-algorithm sorting.
+/** Draw-order depth key that accounts for elevation, for painter's-algorithm sorting.
  *
- * Extends the plain grid depth (tx + ty) with an elevation term scaled so that an
- * elevation delta which lifts a tile by exactly one grid-step's worth of screen
- * pixels (half_th) shifts the depth by exactly 1.0 — the same units as a genuine
- * one-cell grid move. This keeps the key consistent with tile_to_world's
- * geometry instead of using an arbitrary weight, so a raised tile correctly sorts
- * after (draws on top of/occludes) a lower neighboring tile once its screen-space
- * lift visually overhangs into that neighbor's footprint.
+ *  Extends the plain grid depth (tx + ty) with an elevation term scaled so that an
+ *  elevation delta which lifts a tile by exactly one grid-step's worth of screen
+ *  pixels (half_th) shifts the depth by exactly 1.0 — the same units as a genuine
+ *  one-cell grid move. This keeps the key consistent with tile_to_world's
+ *  geometry instead of using an arbitrary weight, so a raised tile correctly sorts
+ *  after (draws on top of/occludes) a lower neighboring tile once its screen-space
+ *  lift visually overhangs into that neighbor's footprint.
  *
- * @param tx        Tile column (fractional for interpolated entity positions).
- * @param ty        Tile row (fractional for interpolated entity positions).
- * @param elevation Tile height, same units as tile_to_world's elevation parameter.
- * @param half_th   Half the scaled diamond height in screen pixels.
- * @param elev_step Screen pixels lifted per unit of elevation.
- * @return Depth key; smaller draws first (further back).
+ *  @param tx        Tile column (fractional for interpolated entity positions).
+ *  @param ty        Tile row (fractional for interpolated entity positions).
+ *  @param elevation Tile height, same units as tile_to_world's elevation parameter.
+ *  @param half_th   Half the scaled diamond height in screen pixels.
+ *  @param elev_step Screen pixels lifted per unit of elevation.
+ *  @return Depth key; smaller draws first (further back).
  */
 [[nodiscard]] constexpr float iso_depth_key(float tx, float ty, float elevation, float half_th,
                                             float elev_step) noexcept {
   return (tx + ty) + (elevation * (half_th > 0.f ? elev_step / half_th : 0.f));
 }
 
-/**
- * @brief Draw-order depth key using packed IsometricParams.
+/** Draw-order depth key using packed IsometricParams.
  *
- * Overload for callers that already hold an IsometricParams.
+ *  Overload for callers that already hold an IsometricParams.
  */
 [[nodiscard]] constexpr float iso_depth_key(float tx, float ty, float elevation, const IsometricParams &iso) noexcept {
   return iso_depth_key(tx, ty, elevation, iso.half_th, iso.elev_step);
 }
 
-/**
- * @brief Bounds of the visible isometric tile range for a world-space rectangle.
+/** Bounds of the visible isometric tile range for a world-space rectangle.
  *
- * Computed by compute_isometric_cull_bounds() from the camera's visible area
- * expanded by conservative pads. The depth range (min/max col+row) and u range
- * (min/max col−row) are used to clamp tile iteration loops to only visible bands.
+ *  Computed by compute_isometric_cull_bounds() from the camera's visible area
+ *  expanded by conservative pads. The depth range (min/max col+row) and u range
+ *  (min/max col−row) are used to clamp tile iteration loops to only visible bands.
  */
 struct IsometricCullBounds {
   int depth_min = 0; ///< Smallest visible col+row (top-most band), inclusive.
@@ -235,39 +223,36 @@ struct IsometricCullBounds {
   float u_max = 0.f; ///< Largest visible (col − row), fractional.
 };
 
-/**
- * @brief Compute culling bounds from a world-space rectangle.
+/** Compute culling bounds from a world-space rectangle.
  *
- * Converts a rect (left, top, right, bottom) in isometric world pixels
- * into tile-grid depth/col ranges that bracket every tile whose world
- * position falls inside the rect.
+ *  Converts a rect (left, top, right, bottom) in isometric world pixels
+ *  into tile-grid depth/col ranges that bracket every tile whose world
+ *  position falls inside the rect.
  *
- * @param left   Left edge of the world-space rectangle (typically the camera
- *               viewport expanded by per-side art extent pads).
- * @param top    Top edge of the world-space rectangle.
- * @param right  Right edge of the world-space rectangle.
- * @param bottom Bottom edge of the world-space rectangle.
- * @param iso IsometricParams for the map (half_tw, half_th, x_origin, elev_step).
- * @return Bounds covering every tile cell overlapping the rectangle.
+ *  @param left   Left edge of the world-space rectangle (typically the camera
+ *                viewport expanded by per-side art extent pads).
+ *  @param top    Top edge of the world-space rectangle.
+ *  @param right  Right edge of the world-space rectangle.
+ *  @param bottom Bottom edge of the world-space rectangle.
+ *  @param iso IsometricParams for the map (half_tw, half_th, x_origin, elev_step).
+ *  @return Bounds covering every tile cell overlapping the rectangle.
  */
 [[nodiscard]] constexpr IsometricCullBounds
 compute_isometric_cull_bounds(float left, float top, float right, float bottom, const IsometricParams &iso) noexcept;
 
-/**
- * @brief First visible column in the given depth band for the supplied cull bounds.
+/** First visible column in the given depth band for the supplied cull bounds.
  *
- * @param b Cull bounds from compute_isometric_cull_bounds().
- * @param depth Absolute depth (col + row) of the band.
- * @return Inclusive minimum column index; may be negative for off-screen bands.
+ *  @param b Cull bounds from compute_isometric_cull_bounds().
+ *  @param depth Absolute depth (col + row) of the band.
+ *  @return Inclusive minimum column index; may be negative for off-screen bands.
  */
 [[nodiscard]] constexpr int isometric_cull_first_column(const IsometricCullBounds &b, int depth) noexcept;
 
-/**
- * @brief Last visible column in the given depth band for the supplied cull bounds.
+/** Last visible column in the given depth band for the supplied cull bounds.
  *
- * @param b Cull bounds from compute_isometric_cull_bounds().
- * @param depth Absolute depth (col + row) of the band.
- * @return Inclusive maximum column index.
+ *  @param b Cull bounds from compute_isometric_cull_bounds().
+ *  @param depth Absolute depth (col + row) of the band.
+ *  @return Inclusive maximum column index.
  */
 [[nodiscard]] constexpr int isometric_cull_last_column(const IsometricCullBounds &b, int depth) noexcept;
 

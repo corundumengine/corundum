@@ -13,15 +13,15 @@
 
 namespace corundum::entities {
 
-/** @brief SoA table for Position and Velocity — always spawned together.
+/** SoA table for Position and Velocity — always spawned together.
  *
- * All positions are in tile-grid fractional coordinates (col, row).
- * Velocities are in tiles per second (dc, dr).
- * Hot path (every frame): col, row, dc, dr — read and written by physics, input, and
- * animation systems.
+ *  All positions are in tile-grid fractional coordinates (col, row).
+ *  Velocities are in tiles per second (dc, dr).
+ *  Hot path (every frame): col, row, dc, dr — read and written by physics, input, and
+ *  animation systems.
  *
- * Uses a sparse–dense mapping: `index.sparse[entity_id]` → dense row index. Removal is
- * O(1) via swap-and-pop; the dense arrays are always contiguous.
+ *  Uses a sparse–dense mapping: `index.sparse[entity_id]` → dense row index. Removal is
+ *  O(1) via swap-and-pop; the dense arrays are always contiguous.
  */
 struct TransformTable {
   static constexpr auto k_max = k_max_entities;
@@ -38,35 +38,35 @@ struct TransformTable {
 
   std::uint32_t count = 0;
 
-  /** @brief Contiguous span over the tile columns of all live entities. */
+  /** Contiguous span over the tile columns of all live entities. */
   [[nodiscard]] auto active_cols(this auto &self) noexcept { return std::span(self.col).first(self.count); }
 
-  /** @brief Contiguous span over the tile rows of all live entities. */
+  /** Contiguous span over the tile rows of all live entities. */
   [[nodiscard]] auto active_rows(this auto &self) noexcept { return std::span(self.row).first(self.count); }
 
-  /** @brief Contiguous span over the tile-column velocities of all live entities. */
+  /** Contiguous span over the tile-column velocities of all live entities. */
   [[nodiscard]] auto active_dcs(this auto &self) noexcept { return std::span(self.dc).first(self.count); }
 
-  /** @brief Contiguous span over the tile-row velocities of all live entities. */
+  /** Contiguous span over the tile-row velocities of all live entities. */
   [[nodiscard]] auto active_drs(this auto &self) noexcept { return std::span(self.dr).first(self.count); }
 
-  /** @brief Contiguous span over col (alias for GameTable concept compliance). */
+  /** Contiguous span over col (alias for GameTable concept compliance). */
   [[nodiscard]] auto active_span(this auto &self) noexcept { return std::span(self.col).first(self.count); }
 
-  /** @brief Contiguous span of the EntityIds in dense order. */
+  /** Contiguous span of the EntityIds in dense order. */
   [[nodiscard]] auto active_entities(this auto &self) noexcept { return self.index.active_entities(self.count); }
 
-  /** @brief True if @p e has a row in this table.
-   *  @param[in] e Entity to query.
+  /** True if `e` has a row in this table.
+   *  @param e Entity to query.
    */
   [[nodiscard]] bool has(EntityId e) const noexcept { return index.has(e); }
 
-  /** @brief Add a transform row for @p e.
-   *  @param[in] e       Entity to add (must not already be present).
-   *  @param[in] pos_col Initial tile column (fractional).
-   *  @param[in] pos_row Initial tile row (fractional).
-   *  @param[in] vel_col Initial column velocity in tiles per second.
-   *  @param[in] vel_row Initial row velocity in tiles per second.
+  /** Add a transform row for `e`.
+   *  @param e       Entity to add (must not already be present).
+   *  @param pos_col Initial tile column (fractional).
+   *  @param pos_row Initial tile row (fractional).
+   *  @param vel_col Initial column velocity in tiles per second.
+   *  @param vel_row Initial row velocity in tiles per second.
    *  @pre has(e) must be false.
    */
   // NOLINTBEGIN(bugprone-easily-swappable-parameters)
@@ -84,8 +84,8 @@ struct TransformTable {
 
   // NOLINTEND(bugprone-easily-swappable-parameters)
 
-  /** @brief Remove @p e's transform row via swap-and-pop.
-   *  @param[in] e Entity to remove.
+  /** Remove `e`'s transform row via swap-and-pop.
+   *  @param e Entity to remove.
    *  @pre has(e) must be true.
    */
   void remove(EntityId e) noexcept {
@@ -97,38 +97,39 @@ struct TransformTable {
     });
   }
 
-  /** @brief Tile column of @p e. @pre has(e). */
+  /** Tile column of `e`. @pre has(e). */
   [[nodiscard]] float pos_col(EntityId e) const noexcept {
     assert(has(e));
     return col[index.dense_index(e)];
   }
 
-  /** @brief Tile row of @p e. @pre has(e). */
+  /** Tile row of `e`. @pre has(e). */
   [[nodiscard]] float pos_row(EntityId e) const noexcept {
     assert(has(e));
     return row[index.dense_index(e)];
   }
 
-  /** @brief Mutable tile column reference for @p e. @pre has(e). */
+  /** Mutable tile column reference for `e`. @pre has(e). */
   [[nodiscard]] float &pos_col_ref(EntityId e) noexcept {
     assert(has(e));
     return col[index.dense_index(e)];
   }
 
-  /** @brief Mutable tile row reference for @p e. @pre has(e). */
+  /** Mutable tile row reference for `e`. @pre has(e). */
   [[nodiscard]] float &pos_row_ref(EntityId e) noexcept {
     assert(has(e));
     return row[index.dense_index(e)];
   }
 
-  /** @brief Dense row index for @p e; use for direct SoA array subscript on hot paths.
+  /** Dense row index for `e`; use for direct SoA array subscript on hot paths.
    *  @pre has(e) must be true.
    *  @return Index into col/row/dc/dr arrays.
    */
   [[nodiscard]] std::uint32_t dense_index(EntityId e) const noexcept { return index.dense_index(e); }
 
-  /** @brief Dense row index for @p e, or nullopt when @p e is stale, foreign or absent.
-   *  Never aborts. */
+  /** Dense row index for `e`, or nullopt when `e` is stale, foreign or absent.
+   *  Never aborts.
+   */
   [[nodiscard]] std::optional<std::uint32_t> try_dense_index(EntityId e) const noexcept {
     return index.try_dense_index(e);
   }

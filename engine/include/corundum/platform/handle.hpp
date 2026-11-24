@@ -6,7 +6,7 @@
 
 namespace corundum::platform {
 
-/** @brief Deleter that calls a destruction function supplied by the backend that
+/** Deleter that calls a destruction function supplied by the backend that
  *  created the object.
  *
  *  Stored by value in the handle. A named class (rather than a bare function
@@ -16,7 +16,7 @@ namespace corundum::platform {
  *  @note An empty handle is safe to destroy.
  */
 template <typename T> struct BackendDeleter {
-  /** @brief Destruction function for the handle's object, or null if none was supplied. */
+  /** Destruction function for the handle's object, or null if none was supplied. */
   void (*destroy)(T *) = nullptr;
 
   void operator()(T *pointer) const noexcept {
@@ -25,7 +25,7 @@ template <typename T> struct BackendDeleter {
   }
 };
 
-/** @brief Owning handle to a platform object whose destruction is performed by a
+/** Owning handle to a platform object whose destruction is performed by a
  *  function supplied by the backend that created it.
  *
  *  The object is destroyed on scope exit. Because the function is owned by the

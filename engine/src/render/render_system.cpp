@@ -304,7 +304,7 @@ ResolvedTile make_resolved_tile(const TileRenderParams &ctx, const corundum::wor
   };
 }
 
-/// Resolves the tile at (col, row) in @p layer to draw data, or std::nullopt if the cell is empty/unrenderable.
+/// Resolves the tile at (col, row) in `layer` to draw data, or std::nullopt if the cell is empty/unrenderable.
 std::optional<ResolvedTile>
 resolve_tile_cell(const TileRenderParams &ctx, const corundum::world::tilemap::TilemapLayer &layer,
                   const LayerRenderCache &cache, const corundum::world::tilemap::Tilemap &tilemap, int col, int row,
@@ -357,7 +357,7 @@ core::math::IsometricCullBounds compute_layer_cull_bounds(const TileRenderParams
   return core::math::compute_isometric_cull_bounds(padded_left, padded_top, padded_right, padded_bottom, params.iso);
 }
 
-/// Calls @p visit with each renderable cell of @p layer inside the cull bounds, back to front
+/// Calls `visit` with each renderable cell of `layer` inside the cull bounds, back to front
 /// (ascending col + row, then ascending col).
 /// @pre ctx.tilemap has at least one tileset (collect_tile_sources() guarantees it).
 template <typename Visit>
@@ -384,7 +384,7 @@ void for_each_visible_tile(const TileRenderParams &ctx, const world::tilemap::Ti
 
 /// Flat ground (elevation 0, the vast majority of tiles) draws immediately, unconditionally beneath
 /// entities — exactly the old behavior, so flat maps are visually unaffected. Only elevated tiles
-/// (elevation > 0) are collected into @p sorted to be depth-sorted against entities, since only those
+/// (elevation > 0) are collected into `sorted` to be depth-sorted against entities, since only those
 /// need occlusion interaction (see design checklist §2). A flat tile can never be taller than the
 /// diamond it occupies, so it can never occlude a taller entity sprite standing nearby; an elevated
 /// tile can, which is the whole point of this fix.
@@ -402,11 +402,11 @@ void draw_ground_band(platform::Renderer &r, const TileRenderParams &ctx, const 
   }
 }
 
-/// Collects tiles from every z_index>0, depth_sorted==true layer into @p sorted, unconditionally —
+/// Collects tiles from every z_index>0, depth_sorted==true layer into `sorted`, unconditionally —
 /// unlike draw_ground_band's elevation<=0 fast path, an overlay tile's occlusion potential comes
 /// from its art/pivot (a wall body taller than one cell), not its terrain-elevation value, so there
 /// is no "this tile can't occlude anything" case to skip. Every matching tile always goes into
-/// @p sorted to be depth-sorted against entities and elevated ground tiles.
+/// `sorted` to be depth-sorted against entities and elevated ground tiles.
 void collect_sorted_overlays(const TileRenderParams &ctx, const core::GameConfig &cfg, const world::Scene &scene,
                              std::vector<DepthEntry> &sorted) {
   for (const auto &[layer, cache] : std::views::zip(ctx.tilemap->layers, ctx.layer_caches)) {
@@ -417,7 +417,7 @@ void collect_sorted_overlays(const TileRenderParams &ctx, const core::GameConfig
   }
 }
 
-/// Draws the layers of band @p z_index that are not depth-sorted, immediately, above
+/// Draws the layers of band `z_index` that are not depth-sorted, immediately, above
 /// everything in the ground band.
 void draw_overlay_band(platform::Renderer &r, const TileRenderParams &ctx, int z_index, const core::GameConfig &cfg,
                        const world::Scene &scene) {
@@ -446,7 +446,7 @@ core::math::IsometricParams entity_isometric_params(const RenderState &state, co
   return iso;
 }
 
-/// Appends every on-screen entity sprite to @p sorted.
+/// Appends every on-screen entity sprite to `sorted`.
 void collect_entities(const RenderState &state, const core::GameConfig &cfg, const world::Scene &scene, float alpha,
                       const FrameView &view, std::vector<DepthEntry> &sorted) {
   const float scale = cfg.character_scale;

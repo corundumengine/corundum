@@ -85,7 +85,7 @@ void run_clip_steps(Fixture &f, int steps) {
     corundum::animation::update_clips(f.sprites, f.transforms, f.animations, f.facings, f.clips, k_clip_frame_seconds);
 }
 
-/// Give @p e a velocity, so a Resume clip sees it as moving.
+/// Give `e` a velocity, so a Resume clip sees it as moving.
 void move(Fixture &f, EntityId e) {
   f.transforms.dc[f.transforms.dense_index(e)] = 1.f;
 }
@@ -112,7 +112,7 @@ constexpr float k_stance_idle_frame_seconds = 0.2f;
 
 constexpr float k_stance_ready_frame_seconds = 0.3f;
 
-/// Give @p e a motion row with distinct walk, idle and ready sheets, standing on idle.
+/// Give `e` a motion row with distinct walk, idle and ready sheets, standing on idle.
 void add_stance_row(Fixture &f, EntityId e) {
   std::array<uint8_t, corundum::sprites::k_num_anim_ids> walk_and_idle_counts{};
   walk_and_idle_counts.fill(4);

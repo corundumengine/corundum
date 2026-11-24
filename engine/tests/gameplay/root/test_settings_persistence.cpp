@@ -38,7 +38,7 @@ using corundum::world::GameMode;
 struct ScratchUserData {
   corundum::test::TempDir home{"crpg_test_settings_persist_", "user_data"};
 
-  /// Give @p engine a user storage rooted at this scratch tree; call before init_engine().
+  /// Give `engine` a user storage rooted at this scratch tree; call before init_engine().
   void attach(corundum::Engine &engine) const {
     engine.user_storage = std::make_unique<corundum::core::DirectoryUserStorage>(home.path());
   }

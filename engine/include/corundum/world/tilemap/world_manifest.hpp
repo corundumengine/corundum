@@ -36,35 +36,35 @@ struct WorldManifest {
   int tiles_wide{};
   int tiles_tall{};
 
-  /// Effective tile columns: @ref tiles_wide when positive, else the full chunk grid.
+  /// Effective tile columns: `tiles_wide` when positive, else the full chunk grid.
   [[nodiscard]] int effective_tiles_wide() const noexcept {
     return tiles_wide > 0 ? tiles_wide : chunks_wide * chunk_size;
   }
 
-  /// Effective tile rows: @ref tiles_tall when positive, else the full chunk grid.
+  /// Effective tile rows: `tiles_tall` when positive, else the full chunk grid.
   [[nodiscard]] int effective_tiles_tall() const noexcept {
     return tiles_tall > 0 ? tiles_tall : chunks_tall * chunk_size;
   }
 
   std::filesystem::path base_dir{}; ///< Directory containing manifest.json.
 
-  /// Returns true if @p c is within [0, chunks_wide) × [0, chunks_tall).
+  /// Returns true if `c` is within [0, chunks_wide) × [0, chunks_tall).
   [[nodiscard]] bool in_bounds(ChunkCoord c) const noexcept {
     return c.col >= 0 && c.col < chunks_wide && c.row >= 0 && c.row < chunks_tall;
   }
 
-  /// Path to the JSON file for chunk @p c.
+  /// Path to the JSON file for chunk `c`.
   [[nodiscard]] std::filesystem::path chunk_path(ChunkCoord c) const;
 };
 
-/// Parses a manifest.json at @p path.
+/// Parses a manifest.json at `path`.
 /// @return WorldManifest on success, or an error string describing the failure.
 [[nodiscard]] std::expected<WorldManifest, std::string> load_world_manifest(const core::ContentSource &content,
                                                                             const std::filesystem::path &path);
 
 /// Converts a Cartesian world-pixel position to the chunk that contains it.
 /// Used internally for collision geometry (which stays in Cartesian space).
-/// @pre tile_px > 0, tile_scale > 0, and @p m has positive chunk_size, chunks_wide and chunks_tall.
+/// @pre tile_px > 0, tile_scale > 0, and `m` has positive chunk_size, chunks_wide and chunks_tall.
 [[nodiscard]] ChunkCoord chunk_at_cart(float wx, float wy, const WorldManifest &m, int tile_px,
                                        float tile_scale) noexcept;
 
@@ -74,11 +74,11 @@ struct WorldManifest {
 /// ground (elevation 0); add `elevation * elev_step` to its y before calling if you
 /// have a different elevation in hand (an elevated anchor sits that far above the
 /// ground point being sought).
-/// @pre iso.half_tw > 0, iso.half_th > 0, and @p m has positive chunk_size, chunks_wide and chunks_tall.
+/// @pre iso.half_tw > 0, iso.half_th > 0, and `m` has positive chunk_size, chunks_wide and chunks_tall.
 [[nodiscard]] ChunkCoord chunk_at_iso(float iso_x, float iso_y, const WorldManifest &m,
                                       const corundum::core::math::IsometricParams &iso) noexcept;
 
-/// World-space extent of a @p tiles_wide × @p tiles_tall isometric grid, in display pixels.
+/// World-space extent of a `tiles_wide` × `tiles_tall` isometric grid, in display pixels.
 ///
 /// Shared by single-map and chunked bounds so the extent formula has one home. Each axis
 /// scales by its own half extent, so a non-square diamond yields distinct width and height.
@@ -96,7 +96,7 @@ struct WorldManifest {
 [[nodiscard]] corundum::world::WorldBounds world_bounds_iso(const WorldManifest &m, float half_tw,
                                                             float half_th) noexcept;
 
-/// Returns all valid ChunkCoords within @p radius chunks of @p center,
+/// Returns all valid ChunkCoords within `radius` chunks of `center`,
 /// clamped to the world bounds. radius=1 yields up to a 3×3 neighbourhood.
 [[nodiscard]] std::vector<ChunkCoord> active_chunk_coords(ChunkCoord center, int radius, const WorldManifest &m);
 

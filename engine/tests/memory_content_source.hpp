@@ -75,7 +75,7 @@ public:
   }
 
 private:
-  /// Insert the file at @p remainder and, depending on @p recursive, its directory entries.
+  /// Insert the file at `remainder` and, depending on `recursive`, its directory entries.
   static void insert_entries(std::map<std::string, corundum::core::DirEntry> &by_path, const std::filesystem::path &dir,
                              std::string_view remainder, bool recursive) {
     if (!recursive) {

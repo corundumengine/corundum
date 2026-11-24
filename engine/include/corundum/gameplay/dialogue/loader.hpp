@@ -20,7 +20,7 @@ namespace corundum::gameplay::dialogue {
 /// Sentinel node id that terminates a dialogue without a matching graph node.
 constexpr std::string_view k_ending_node = "end";
 
-/** @brief Loads dialogue graphs, validating each against the dialogue schema compiled once at construction. */
+/** Loads dialogue graphs, validating each against the dialogue schema compiled once at construction. */
 class Loader {
 public:
   Loader();

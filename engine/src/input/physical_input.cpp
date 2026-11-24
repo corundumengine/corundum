@@ -204,7 +204,7 @@ static_assert(names_are_well_formed(k_key_names));
 static_assert(names_are_well_formed(k_mouse_names));
 static_assert(names_are_well_formed(k_gamepad_names));
 
-/// The name registered for @p code, or an empty view when none is.
+/// The name registered for `code`, or an empty view when none is.
 template <std::size_t N>
 std::string_view find_name(const std::array<NamedCode, N> &table, std::uint16_t code) noexcept {
   for (const NamedCode &entry : table) {
@@ -214,7 +214,7 @@ std::string_view find_name(const std::array<NamedCode, N> &table, std::uint16_t 
   return {};
 }
 
-/// The input named @p name in @p table, or nullopt when none is.
+/// The input named `name` in `table`, or nullopt when none is.
 template <typename Enum, std::size_t N>
 std::optional<PhysicalInput> find_input(const std::array<NamedCode, N> &table, std::string_view name) noexcept {
   for (const NamedCode &entry : table) {
@@ -234,7 +234,7 @@ constexpr float k_stick_direction_threshold = 0.3f;
 // half-press and serves as the "engaged" threshold.
 constexpr float k_trigger_threshold = 0.f;
 
-/// True when axis @p value points at least k_stick_direction_threshold in @p positive's
+/// True when axis `value` points at least k_stick_direction_threshold in `positive`'s
 /// direction, and the owning stick's radial magnitude clears the dead zone.
 bool axis_direction_down(float value, bool positive) noexcept {
   return positive ? value >= k_stick_direction_threshold : value <= -k_stick_direction_threshold;

@@ -97,8 +97,8 @@ void open_settings(corundum::Engine &engine) {
   press(engine, corundum::input::Action::Select);
 }
 
-/// Press MoveDown until the Settings cursor reaches General-tab @p row.
-/// @pre The cursor is at or above @p row.
+/// Press MoveDown until the Settings cursor reaches General-tab `row`.
+/// @pre The cursor is at or above `row`.
 void move_to_general_row(corundum::Engine &engine, corundum::ui::SettingsGeneralRow row) {
   while (engine.settings_screen.cursor < static_cast<int>(row))
     press(engine, corundum::input::Action::MoveDown);

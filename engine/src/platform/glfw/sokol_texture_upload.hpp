@@ -12,14 +12,14 @@
 
 namespace corundum::platform::glfw {
 
-/** @brief Create an RGBA8 image from @p pixels, which are copied during the call.
+/** Create an RGBA8 image from `pixels`, which are copied during the call.
  *
- * @pre @p width and @p height are positive; @p pixels covers at least `rgba8_byte_count(width, height)` bytes.
- * @param[in] label Debug label the backend reports for the image; read only during this call.
- * @return The image handle, or an invalid handle when the device rejected the upload. An invalid
- *         return owns no GPU resource — a rejected image has already been released here.
- * @note Sokol reports a rejected upload as a non-zero handle in the `FAILED` state, so the failure is
- *       folded into an invalid handle rather than left for every caller to query.
+ *  @pre `width` and `height` are positive; `pixels` covers at least `rgba8_byte_count(width, height)` bytes.
+ *  @param label Debug label the backend reports for the image; read only during this call.
+ *  @return The image handle, or an invalid handle when the device rejected the upload. An invalid
+ *          return owns no GPU resource — a rejected image has already been released here.
+ *  @note Sokol reports a rejected upload as a non-zero handle in the `FAILED` state, so the failure is
+ *        folded into an invalid handle rather than left for every caller to query.
  */
 [[nodiscard]] inline sg_image make_rgba8_image(std::span<const std::byte> pixels, int width, int height,
                                                const char *label) noexcept {
@@ -44,12 +44,12 @@ namespace corundum::platform::glfw {
   return image;
 }
 
-/** @brief Create the default texture view through which draws sample @p image.
+/** Create the default texture view through which draws sample `image`.
  *
- * @pre @p image is valid; an invalid or failed image yields an invalid view without reaching the
- *      backend, which would otherwise log a validation error for a resource already known to be bad.
- * @param[in] label Debug label the backend reports for the view; read only during this call.
- * @return The view handle, or an invalid handle when the device rejected it; see @ref make_rgba8_image.
+ *  @pre `image` is valid; an invalid or failed image yields an invalid view without reaching the
+ *       backend, which would otherwise log a validation error for a resource already known to be bad.
+ *  @param label Debug label the backend reports for the view; read only during this call.
+ *  @return The view handle, or an invalid handle when the device rejected it; see `make_rgba8_image`.
  */
 [[nodiscard]] inline sg_view make_texture_view(sg_image image, const char *label = nullptr) noexcept {
   if (sg_query_image_state(image) != SG_RESOURCESTATE_VALID)

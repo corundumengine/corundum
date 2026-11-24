@@ -18,11 +18,10 @@ struct WorldArea;
 
 namespace corundum::world {
 
-/**
- * @brief Non-owning view over the map data the update loop needs.
+/** Non-owning view over the map data the update loop needs.
  *
- * Carries pre-built, world-space collision data and total world dimensions
- * so the update loop can work for both single-tilemap and multi-chunk modes.
+ *  Carries pre-built, world-space collision data and total world dimensions
+ *  so the update loop can work for both single-tilemap and multi-chunk modes.
  */
 struct MapView {
   corundum::world::tilemap::CollisionRectsView collisions;
@@ -51,61 +50,59 @@ struct MapView {
   const corundum::render::WorldArea *world_area{nullptr};
 };
 
-/** @brief Elevation of the tile under (col_f, row_f) for any render mode.
+/** Elevation of the tile under (col_f, row_f) for any render mode.
  *
- * Routes through elevation_map (single-map, interpolated) or world_area
- * (world-mode, discrete chunk lookup via render::elevation_under).
- * Returns 0 if no elevation data is available at the queried position.
+ *  Routes through elevation_map (single-map, interpolated) or world_area
+ *  (world-mode, discrete chunk lookup via render::elevation_under).
+ *  Returns 0 if no elevation data is available at the queried position.
  *
- * @param[in] map   MapView built for the current frame.
- * @param[in] col_f Fractional tile column.
- * @param[in] row_f Fractional tile row.
- * @return Tile elevation (≥0) at the queried position; 0 when out of bounds.
+ *  @param map   MapView built for the current frame.
+ *  @param col_f Fractional tile column.
+ *  @param row_f Fractional tile row.
+ *  @return Tile elevation (≥0) at the queried position; 0 when out of bounds.
  */
 [[nodiscard]] float elevation_at_tile(const MapView &map, float col_f, float row_f) noexcept;
 
-/** @brief Discrete (integer) tile elevation at cell (col, row) for any render mode.
+/** Discrete (integer) tile elevation at cell (col, row) for any render mode.
  *
- * Single-map mode reads elevation_map directly; world mode routes through
- * render::elevation_under() via world_area. Returns 0 when neither source is set.
+ *  Single-map mode reads elevation_map directly; world mode routes through
+ *  render::elevation_under() via world_area. Returns 0 when neither source is set.
  *
- * @param[in] map MapView built for the current frame.
- * @param[in] col Integer tile column.
- * @param[in] row Integer tile row.
- * @return Discrete tile elevation (>= 0); 0 when out of bounds or no source.
+ *  @param map MapView built for the current frame.
+ *  @param col Integer tile column.
+ *  @param row Integer tile row.
+ *  @return Discrete tile elevation (>= 0); 0 when out of bounds or no source.
  */
 [[nodiscard]] int discrete_elevation_at(const MapView &map, int col, int row) noexcept;
 
-/**
- * @brief Build a MapView from render state for the current frame's simulation step.
+/** Build a MapView from render state for the current frame's simulation step.
  *
- * Reads tile dimensions, isometric math, and the pre-built collision/portal views from
- * the render pipeline and packages them into the non-owning MapView consumed by update().
- * Handles both single-map and multi-chunk render modes.
+ *  Reads tile dimensions, isometric math, and the pre-built collision/portal views from
+ *  the render pipeline and packages them into the non-owning MapView consumed by update().
+ *  Handles both single-map and multi-chunk render modes.
  *
- * @param[in] render Current render state (collision data, tilemap info).
- * @param[in] cfg    Game configuration (tile scale).
- * @return A fully-populated MapView ready for the simulation step.
- * @pre In World mode with resident chunks, every active chunk shares one diamond size
- *      and the world aggregates have already been rebuilt by rebuild_world_aggregates().
- * @note The returned view borrows @p render (collision spans, walkability graph, portal
- *       span and the world_area pointer); any mutation of @p render, including the next
- *       aggregate rebuild, invalidates it.
- * @note With no area, or a world with no resident chunks, returns the view of an empty
- *       single map.
+ *  @param render Current render state (collision data, tilemap info).
+ *  @param cfg    Game configuration (tile scale).
+ *  @return A fully-populated MapView ready for the simulation step.
+ *  @pre In World mode with resident chunks, every active chunk shares one diamond size
+ *       and the world aggregates have already been rebuilt by rebuild_world_aggregates().
+ *  @note The returned view borrows `render` (collision spans, walkability graph, portal
+ *        span and the world_area pointer); any mutation of `render`, including the next
+ *        aggregate rebuild, invalidates it.
+ *  @note With no area, or a world with no resident chunks, returns the view of an empty
+ *        single map.
  */
 [[nodiscard]] MapView build_map_view(const render::RenderState &render, const core::GameConfig &cfg) noexcept;
 
-/**
- * @brief World bounds of a single (non-chunked) tilemap.
+/** World bounds of a single (non-chunked) tilemap.
  *
- * Thin wrapper over tilemap::world_bounds_for_tiles() using the tilemap's grid
- * dimensions; that helper is the shared source of the extent formula.
+ *  Thin wrapper over tilemap::world_bounds_for_tiles() using the tilemap's grid
+ *  dimensions; that helper is the shared source of the extent formula.
  *
- * @param[in] tm      Tilemap whose grid dimensions define the bounds.
- * @param[in] half_tw Half the scaled diamond width.
- * @param[in] half_th Half the scaled diamond height.
- * @return World width/height in display pixels.
+ *  @param tm      Tilemap whose grid dimensions define the bounds.
+ *  @param half_tw Half the scaled diamond width.
+ *  @param half_th Half the scaled diamond height.
+ *  @return World width/height in display pixels.
  */
 [[nodiscard]] WorldBounds single_map_bounds(const tilemap::Tilemap &tm, float half_tw, float half_th) noexcept;
 

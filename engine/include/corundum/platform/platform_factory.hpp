@@ -19,15 +19,15 @@ class ContentSource;
 
 namespace corundum::platform {
 
-/** @brief Opaque result of create_platform().
+/** Opaque result of create_platform().
  *
- * Holds a platform-specific Window, GpuContext, Renderer and AudioBackend
- * behind the abstract interfaces so callers never need to include platform
- * internals.
+ *  Holds a platform-specific Window, GpuContext, Renderer and AudioBackend
+ *  behind the abstract interfaces so callers never need to include platform
+ *  internals.
  *
- * Fields are declared in destruction order: members are destroyed in reverse,
- * so the renderer is released while the GPU device is still alive, and the GPU
- * device while its window is still alive. Do not reorder.
+ *  Fields are declared in destruction order: members are destroyed in reverse,
+ *  so the renderer is released while the GPU device is still alive, and the GPU
+ *  device while its window is still alive. Do not reorder.
  */
 struct PlatformContext {
   Handle<Window> window;
@@ -39,31 +39,31 @@ struct PlatformContext {
   std::unique_ptr<corundum::audio::AudioBackend> audio_backend;
 };
 
-/** @brief Create a platform-specific Window only (no renderer or audio).
+/** Create a platform-specific Window only (no renderer or audio).
  *
- * The window is fully initialised and ready for GPU context creation, but starts hidden so the
- * OS never composites an unpainted surface while assets load. Call Window::show() once the first
- * frame is ready.
+ *  The window is fully initialised and ready for GPU context creation, but starts hidden so the
+ *  OS never composites an unpainted surface while assets load. Call Window::show() once the first
+ *  frame is ready.
  *
- * @param[in] width   Initial window width in pixels.
- * @param[in] height  Initial window height in pixels.
- * @return Owning handle to the Window, or std::unexpected with an error message.
+ *  @param width   Initial window width in pixels.
+ *  @param height  Initial window height in pixels.
+ *  @return Owning handle to the Window, or std::unexpected with an error message.
  */
 [[nodiscard]] std::expected<Handle<Window>, std::string> create_window(unsigned width, unsigned height,
                                                                        std::string_view title);
 
-/** @brief Create a platform-specific Window, GPU context, Renderer and AudioBackend.
+/** Create a platform-specific Window, GPU context, Renderer and AudioBackend.
  *
- * The window starts hidden; see create_window(). Call Window::show() once the first frame is
- * ready.
+ *  The window starts hidden; see create_window(). Call Window::show() once the first frame is
+ *  ready.
  *
- * @param[in] content Source the renderer and audio backend read textures, fonts and sounds through.
- * @param[in] width   Initial window width in pixels.
- * @param[in] height  Initial window height in pixels.
- * @param[in] title   Initial window title.
- * @return The bundle on success, or std::unexpected with an error message.
- * @pre @p content outlives the returned PlatformContext.
- * @post Window, gpu, renderer, and audio_backend are all valid (non-null) on success.
+ *  @param content Source the renderer and audio backend read textures, fonts and sounds through.
+ *  @param width   Initial window width in pixels.
+ *  @param height  Initial window height in pixels.
+ *  @param title   Initial window title.
+ *  @return The bundle on success, or std::unexpected with an error message.
+ *  @pre `content` outlives the returned PlatformContext.
+ *  @post Window, gpu, renderer, and audio_backend are all valid (non-null) on success.
  */
 [[nodiscard]] std::expected<PlatformContext, std::string>
 create_platform(const corundum::core::ContentSource &content, unsigned width, unsigned height, std::string_view title);

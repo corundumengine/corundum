@@ -44,10 +44,10 @@ struct DialogBoxState {
   bool reveal_active{false};
 };
 
-/// Advance the typewriter reveal of the current Talk body by @p dt seconds.
+/// Advance the typewriter reveal of the current Talk body by `dt` seconds.
 ///
 /// Resets the reveal when the conversation switches node, and is a no-op while the
-/// conversation is inactive or @p text_speed is zero (instant text). Called once per fixed
+/// conversation is inactive or `text_speed` is zero (instant text). Called once per fixed
 /// step so reveal speed is independent of the render rate.
 ///
 /// @param text_speed RenderState::text_speed multiplier on k_base_reveal_chars_per_second;

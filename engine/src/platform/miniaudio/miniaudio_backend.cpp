@@ -86,14 +86,14 @@ struct MiniaudioBackend::State {
     return static_cast<ma_uint64>(std::lround(seconds * 1000.f));
   }
 
-  /// The miniaudio group for @p bus, or nullptr for Master. miniaudio attaches a sound with no
+  /// The miniaudio group for `bus`, or nullptr for Master. miniaudio attaches a sound with no
   /// group straight to the engine endpoint, which is exactly what the Master bus means.
   [[nodiscard]] ma_sound_group *group_for(audio::AudioBus bus) {
     Bus &found = buses[audio::bus_index(bus)];
     return found.active ? &found.group : nullptr;
   }
 
-  /// The live sound behind @p id, or nullptr when the id is stale or out of range.
+  /// The live sound behind `id`, or nullptr when the id is stale or out of range.
   [[nodiscard]] ma_sound *find_voice(audio::SoundInstanceId id) {
     if (!id.is_valid() || id.index > effect_voices.size())
       return nullptr;
@@ -110,7 +110,7 @@ struct MiniaudioBackend::State {
         voice.sound.reset();
   }
 
-  /// Stop @p sound over @p seconds (0 stops at once), leaving it live until it goes silent.
+  /// Stop `sound` over `seconds` (0 stops at once), leaving it live until it goes silent.
   static void stop_sound_over(ma_sound *sound, float seconds) {
     if (seconds > 0.f)
       ma_sound_stop_with_fade_in_milliseconds(sound, seconds_to_milliseconds(seconds));
@@ -118,7 +118,7 @@ struct MiniaudioBackend::State {
       ma_sound_stop(sound);
   }
 
-  /// Move @p sound into the fading set after starting its stop, so it is freed once silent.
+  /// Move `sound` into the fading set after starting its stop, so it is freed once silent.
   void fade_out_and_retire(SoundPtr sound, float seconds) {
     stop_sound_over(sound.get(), seconds);
     fading_tracks.push_back(std::move(sound));

@@ -144,7 +144,7 @@ struct ResolvedCell {
   bool depth_sorted{};
 };
 
-/// The GID to draw for @p cell_index, resolving an animated cell to its current frame.
+/// The GID to draw for `cell_index`, resolving an animated cell to its current frame.
 /// @return std::nullopt for an empty cell or an animation with no frames.
 [[nodiscard]] std::optional<corundum::world::tilemap::TileId>
 cell_gid(const corundum::world::tilemap::TilemapLayer &layer, int cell_index, float elapsed_time) {
@@ -163,7 +163,7 @@ cell_gid(const corundum::world::tilemap::TilemapLayer &layer, int cell_index, fl
   return animation.frame_gids[static_cast<std::size_t>(frame_index)];
 }
 
-/// Screen-space quad, UVs and depth for (@p col, @p row), laid out the way the canvas draws it.
+/// Screen-space quad, UVs and depth for (`col`, `row`), laid out the way the canvas draws it.
 [[nodiscard]] ResolvedCell resolve_cell(const TilePass &pass, const corundum::world::tilemap::TilemapLayer &layer,
                                         int col, int row, int cell_index, corundum::world::tilemap::TileId gid) {
   const auto [img_id, tex_w, tex_h, src] = get_tile_texture(*pass.host, *pass.store, *pass.map, gid);
@@ -221,12 +221,12 @@ cell_gid(const corundum::world::tilemap::TilemapLayer &layer, int cell_index, fl
   return {.draw = draw, .depth_sorted = depth_sorted};
 }
 
-/// Draw @p draw immediately to the canvas.
+/// Draw `draw` immediately to the canvas.
 void draw_now(CanvasContext ctx, const PendingTileDraw &draw) {
   ctx.dl->AddImage(draw.img_id, draw.p0, draw.p1, draw.uv0, draw.uv1);
 }
 
-/// Whether @p draw lands outside the canvas viewport.
+/// Whether `draw` lands outside the canvas viewport.
 [[nodiscard]] bool off_canvas(const CanvasContext &ctx, const PendingTileDraw &draw) noexcept {
   return draw.p1.x < ctx.origin.x || draw.p0.x > ctx.origin.x + CANVAS_W || draw.p1.y < ctx.origin.y ||
          draw.p0.y > ctx.origin.y + CANVAS_H;
@@ -245,7 +245,7 @@ visible_cell(const TilePass &pass, const corundum::world::tilemap::TilemapLayer 
   return cell;
 }
 
-/// Queue every tile of @p layer into @p pending, in depth order, or draw it straight to the canvas.
+/// Queue every tile of `layer` into `pending`, in depth order, or draw it straight to the canvas.
 void draw_layer(const TilePass &pass, const corundum::world::tilemap::TilemapLayer &layer,
                 std::vector<PendingTileDraw> &pending) {
   const int depth_max = pass.map->width + pass.map->height - 2;

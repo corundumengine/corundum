@@ -21,7 +21,7 @@ struct CandidateHit {
   float depth{};
 };
 
-/// The candidate cell the mouse point resolves to at (@p col, @p row), or std::nullopt when
+/// The candidate cell the mouse point resolves to at (`col`, `row`), or std::nullopt when
 /// the point does not fall in that cell at its elevation.
 std::optional<CandidateHit> hit_at(const MapView &map, const core::math::Vec2 &world, int col, int row,
                                    const core::math::IsometricParams &iso) noexcept {

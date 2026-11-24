@@ -8,24 +8,22 @@
 
 namespace tools::spritesmith {
 
-/**
- * @brief Exception thrown when a sprite sheet JSON is malformed.
+/** Exception thrown when a sprite sheet JSON is malformed.
  */
 struct SheetLoadError : std::runtime_error {
   using std::runtime_error::runtime_error;
 };
 
-/**
- * @brief Load a sprite sheet JSON file into @p state.
+/** Load a sprite sheet JSON file into `state`.
  *
- * Detects Character, Sprite Sheet, or Atlas mode automatically from the JSON structure.
- * Character sheets have a "frames" object; atlases have a "sprites" array + "schema_version";
- * everything else is treated as a grid sprite sheet.
+ *  Detects Character, Sprite Sheet, or Atlas mode automatically from the JSON structure.
+ *  Character sheets have a "frames" object; atlases have a "sprites" array + "schema_version";
+ *  everything else is treated as a grid sprite sheet.
  *
- * @param state Output editor state to populate.
- * @param path  Path to the sprite sheet JSON file.
- * @throws SheetLoadError on malformed JSON schema.
- * @throws std::runtime_error if the file cannot be opened.
+ *  @param state Output editor state to populate.
+ *  @param path  Path to the sprite sheet JSON file.
+ *  @throws SheetLoadError on malformed JSON schema.
+ *  @throws std::runtime_error if the file cannot be opened.
  */
 void load_sheet(EditorState &state, const std::filesystem::path &path);
 

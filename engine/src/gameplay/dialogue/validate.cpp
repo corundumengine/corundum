@@ -15,7 +15,7 @@ namespace corundum::gameplay::dialogue {
 
 namespace {
 
-/// Walks the Event chain from @p start and returns the node that closes a cycle,
+/// Walks the Event chain from `start` and returns the node that closes a cycle,
 /// or nullptr when the chain is acyclic (or reaches the end).
 const Node *find_event_cycle(const Graph &graph, const Node &start) {
   std::vector<std::string_view> visited;

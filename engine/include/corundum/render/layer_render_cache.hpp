@@ -10,7 +10,7 @@
 
 namespace corundum::render {
 
-/** @brief Flat per-cell lookups the tile pass reads instead of a TilemapLayer's flat_maps.
+/** Flat per-cell lookups the tile pass reads instead of a TilemapLayer's flat_maps.
  *
  *  Built from a loaded layer when its area loads, and owned beside that tilemap (MapData,
  *  ChunkEntry). Render state never mutates a tilemap after load, so the cache cannot go stale.
@@ -33,7 +33,7 @@ struct LayerRenderCache {
   std::uint8_t max_elevation{0};
 };
 
-/** @brief One cache per layer of @p tilemap, in layer order. */
+/** One cache per layer of `tilemap`, in layer order. */
 [[nodiscard]] std::vector<LayerRenderCache> build_layer_render_caches(const world::tilemap::Tilemap &tilemap);
 
 } // namespace corundum::render

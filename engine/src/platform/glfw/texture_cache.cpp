@@ -25,15 +25,15 @@ namespace corundum::platform {
 
 namespace {
 
-/** @brief Backend handles belonging to one published texture. */
+/** Backend handles belonging to one published texture. */
 struct TextureHandles {
-  /** @brief Image the view was created from; 0 when creation failed. */
+  /** Image the view was created from; 0 when creation failed. */
   sg_image image{};
 
-  /** @brief Sampler owned together with the image. */
+  /** Sampler owned together with the image. */
   sg_sampler sampler{};
 
-  /** @brief View through which draws sample the image. */
+  /** View through which draws sample the image. */
   sg_view view{};
 };
 
@@ -52,14 +52,14 @@ sg_sampler make_sampler(WrapMode wrap) {
   return sg_make_sampler(&desc);
 }
 
-/** @brief False unless every handle in @p handles is usable for drawing. */
+/** False unless every handle in `handles` is usable for drawing. */
 bool handles_valid(const TextureHandles &handles) {
   return sg_query_image_state(handles.image) == SG_RESOURCESTATE_VALID &&
          sg_query_sampler_state(handles.sampler) == SG_RESOURCESTATE_VALID &&
          sg_query_view_state(handles.view) == SG_RESOURCESTATE_VALID;
 }
 
-/** @brief Release every valid handle in @p handles. */
+/** Release every valid handle in `handles`. */
 void destroy_handles(TextureHandles handles) {
   if (handles.view.id != 0)
     sg_destroy_view(handles.view);
@@ -69,13 +69,13 @@ void destroy_handles(TextureHandles handles) {
     sg_destroy_image(handles.image);
 }
 
-/** @brief Largest pixel dimension the sokol upload path accepts. */
+/** Largest pixel dimension the sokol upload path accepts. */
 constexpr unsigned k_max_texture_dimension = static_cast<unsigned>(std::numeric_limits<int>::max());
 
-/** @brief Publish a freshly created handle set, or release it and report @p failure.
+/** Publish a freshly created handle set, or release it and report `failure`.
  *
- * @param[in] failure  Message returned when the backend rejected any handle.
- * @return The published texture's metadata, or std::unexpected with @p failure.
+ *  @param failure  Message returned when the backend rejected any handle.
+ *  @return The published texture's metadata, or std::unexpected with `failure`.
  */
 std::expected<TextureInfo, std::string> publish(SlotTable &slots, sg_image image, unsigned width, unsigned height,
                                                 WrapMode wrap, std::string failure) {

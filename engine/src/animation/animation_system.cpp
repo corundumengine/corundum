@@ -60,21 +60,21 @@ static_assert(k_cardinal_fallback_h.size() == core::k_num_directions,
 static_assert(k_cardinal_fallback_v.size() == core::k_num_directions,
               "k_cardinal_fallback_v must cover every Direction value");
 
-/** @brief Row/vertical dominance of a resolved facing without a velocity to measure.
+/** Row/vertical dominance of a resolved facing without a velocity to measure.
  *
- * The row-dominant diagonals (NE/SW) fall back along the vertical cardinal axis and the
- * col-dominant diagonals (NW/SE) along the horizontal one; cardinals are unaffected
- * because either fallback table maps them to themselves.
+ *  The row-dominant diagonals (NE/SW) fall back along the vertical cardinal axis and the
+ *  col-dominant diagonals (NW/SE) along the horizontal one; cardinals are unaffected
+ *  because either fallback table maps them to themselves.
  */
 constexpr bool row_dominant_facing(Direction facing) noexcept {
   return facing == Direction::NorthEast || facing == Direction::SouthWest;
 }
 
-/** @brief Animation playback speed scale for one frame.
+/** Animation playback speed scale for one frame.
  *
- * Idle (zero velocity) must NOT scale to 0 (would freeze the animation). Only
- * scale while actually moving, and guard reference_speed/iso being degenerate
- * (misconfigured) so this never divides by zero or propagates NaN.
+ *  Idle (zero velocity) must NOT scale to 0 (would freeze the animation). Only
+ *  scale while actually moving, and guard reference_speed/iso being degenerate
+ *  (misconfigured) so this never divides by zero or propagates NaN.
  */
 float compute_speed_scale(bool moving, float vel_dc, float vel_dr, float reference_speed,
                           core::math::IsometricParams iso) noexcept {
@@ -84,11 +84,11 @@ float compute_speed_scale(bool moving, float vel_dc, float vel_dr, float referen
   return std::hypot(screen_vel_x, screen_vel_y) / reference_speed;
 }
 
-/** @brief Playback duration for @p e's active sprite sheet.
+/** Playback duration for `e`'s active sprite sheet.
  *
- * The AnimationTable value is the authored base rate; a non-zero override on the
- * active motion-sprite sheet replaces it. The base is never overwritten, so a sheet
- * with no override reverts to it.
+ *  The AnimationTable value is the authored base rate; a non-zero override on the
+ *  active motion-sprite sheet replaces it. The base is never overwritten, so a sheet
+ *  with no override reverts to it.
  */
 float effective_frame_duration(const AnimationTable &animations, const SpriteTable &sprites,
                                const MotionSpriteTable &motion_sprites, EntityId e,
@@ -101,10 +101,10 @@ float effective_frame_duration(const AnimationTable &animations, const SpriteTab
   return sheet_frame_duration > 0.f ? sheet_frame_duration : base_frame_duration;
 }
 
-/** @brief Drive the walk/idle sprite-sheet transition for one entity.
+/** Drive the walk/idle sprite-sheet transition for one entity.
  *
- * Updates the current sprite, frame counts, frame index, and timer when a transition
- * commits. No-op when @p e is not in @p motion_sprites or no transition is pending.
+ *  Updates the current sprite, frame counts, frame index, and timer when a transition
+ *  commits. No-op when `e` is not in `motion_sprites` or no transition is pending.
  */
 void tick_motion_sprite(SpriteTable &sprites, AnimationTable &animations, MotionSpriteTable &motion_sprites, EntityId e,
                         bool moving, float dt) noexcept {
@@ -133,11 +133,11 @@ void tick_motion_sprite(SpriteTable &sprites, AnimationTable &animations, Motion
   motion_sprites.cancel_transition(e);
 }
 
-/** @brief Pick the animation clip to play this tick.
+/** Pick the animation clip to play this tick.
  *
- * While moving, uses the current velocity-derived facing; when idle, preserves
- * the entity's last recorded facing (or South if unknown). Falls back to a
- * cardinal clip when the directional clip is absent, then to Default.
+ *  While moving, uses the current velocity-derived facing; when idle, preserves
+ *  the entity's last recorded facing (or South if unknown). Falls back to a
+ *  cardinal clip when the directional clip is absent, then to Default.
  */
 AnimId pick_target_anim(const AnimationTable &animations, const FacingTable &facings, EntityId e, bool moving,
                         Direction moving_facing) noexcept {
@@ -161,10 +161,10 @@ AnimId pick_target_anim(const AnimationTable &animations, const FacingTable &fac
   return animations.frame_count(e, fallback) > 0 ? fallback : AnimId::Default;
 }
 
-/** @brief Advance the playback timer and wrap the frame index when it crosses a frame.
+/** Advance the playback timer and wrap the frame index when it crosses a frame.
  *
- * No-op when the clip has 0 or 1 frame (no animation possible) or the frame duration is
- * non-positive.
+ *  No-op when the clip has 0 or 1 frame (no animation possible) or the frame duration is
+ *  non-positive.
  */
 void advance_frame_timer(float &animation_timer, float frame_duration, uint8_t frame_count, uint8_t &sprite_frame_index,
                          float dt, float speed_scale) noexcept {
@@ -182,13 +182,13 @@ void advance_frame_timer(float &animation_timer, float frame_duration, uint8_t f
   sprite_frame_index = static_cast<uint8_t>((sprite_frame_index + frame_advance) % frame_count);
 }
 
-/// Whether the velocity at dense slot @p transform_slot says the entity has moved this step.
+/// Whether the velocity at dense slot `transform_slot` says the entity has moved this step.
 [[nodiscard]] bool is_moving(const TransformTable &transforms, std::uint32_t transform_slot) noexcept {
   return std::abs(transforms.dc[transform_slot]) > k_motion_speed_epsilon ||
          std::abs(transforms.dr[transform_slot]) > k_motion_speed_epsilon;
 }
 
-/// Put @p e back on the sheet its clip interrupted, and drop the clip.
+/// Put `e` back on the sheet its clip interrupted, and drop the clip.
 void resume_after_clip(SpriteTable &sprites, AnimationTable &animations, const FacingTable &facings, ClipTable &clips,
                        EntityId e) noexcept {
   sprites.sprite_id_ref(e) = clips.resume_sprite_of(e);
@@ -199,7 +199,7 @@ void resume_after_clip(SpriteTable &sprites, AnimationTable &animations, const F
   clips.remove(e);
 }
 
-/// Advance @p e's clip by @p dt; returns true on the step it plays past its last frame.
+/// Advance `e`'s clip by `dt`; returns true on the step it plays past its last frame.
 [[nodiscard]] bool advance_clip(AnimationTable &animations, const ClipTable &clips, EntityId e, uint8_t &frame_index,
                                 uint8_t frame_count, float dt) noexcept {
   const float frame_duration = clips.frame_duration_of(e);

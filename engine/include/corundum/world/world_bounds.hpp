@@ -5,11 +5,10 @@
 
 namespace corundum::world {
 
-/**
- * @brief Isometric world dimensions in display pixels.
+/** Isometric world dimensions in display pixels.
  *
- * Passive value: the two axes travel together so a caller cannot pass the width
- * where the height is expected. For non-square diamonds the two axes differ.
+ *  Passive value: the two axes travel together so a caller cannot pass the width
+ *  where the height is expected. For non-square diamonds the two axes differ.
  */
 struct WorldBounds {
   float width_px{0.f}; ///< Total world width in display pixels.

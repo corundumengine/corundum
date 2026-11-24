@@ -10,7 +10,7 @@
 
 namespace corundum::gameplay::dialogue {
 
-/** @brief The NPC bound to the active dialogue, with the facing and animation saved when the
+/** The NPC bound to the active dialogue, with the facing and animation saved when the
  *  conversation began so they can be restored when it ends.
  *
  *  The saved values are set only when the NPC had the corresponding component at bind time.

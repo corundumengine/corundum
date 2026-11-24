@@ -10,24 +10,23 @@
 
 namespace corundum::physics {
 
-/**
- * @brief Gate movement against a WalkabilityGraph, on top of (not instead of)
- * ordinary collision resolution.
+/** Gate movement against a WalkabilityGraph, on top of (not instead of)
+ *  ordinary collision resolution.
  *
- * @details Deliberately separate from resolve_collisions/resolve_triangle_collisions
- * — collision gates against explicit authored geometry, this gates against terrain
- * elevation deltas the walkability graph encodes. Axis-separated like
- * resolve_collisions: reverts pos.col if the column crossed into a disconnected
- * cell, then the same for pos.row, so an axis the graph blocks still slides along
- * the other. A step that crosses both axes is diagonal, and is gated by the graph's
- * diagonal edge rather than the two cardinal edges — both cardinals can be open
- * across a corner whose own elevation step is still too large. Operates on the
- * entity's actual feet position, not a collision AABB.
+ *  Deliberately separate from resolve_collisions/resolve_triangle_collisions
+ *  — collision gates against explicit authored geometry, this gates against terrain
+ *  elevation deltas the walkability graph encodes. Axis-separated like
+ *  resolve_collisions: reverts pos.col if the column crossed into a disconnected
+ *  cell, then the same for pos.row, so an axis the graph blocks still slides along
+ *  the other. A step that crosses both axes is diagonal, and is gated by the graph's
+ *  diagonal edge rather than the two cardinal edges — both cardinals can be open
+ *  across a corner whose own elevation step is still too large. Operates on the
+ *  entity's actual feet position, not a collision AABB.
  *
- * @param pos       Post-integrate (and post-collision-resolution) position. Modified in-place.
- * @param prev_pos  Position before integrate ran this frame.
- * @param graph     Walkability graph to test against, or std::nullopt to disable (no-op).
- *                  Populated in both single-map and world mode (see MapView::walkability).
+ *  @param pos       Post-integrate (and post-collision-resolution) position. Modified in-place.
+ *  @param prev_pos  Position before integrate ran this frame.
+ *  @param graph     Walkability graph to test against, or std::nullopt to disable (no-op).
+ *                   Populated in both single-map and world mode (see MapView::walkability).
  */
 void resolve_walkability(
     corundum::entities::Position &pos, corundum::entities::Position prev_pos,

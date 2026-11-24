@@ -33,7 +33,7 @@ public:
 
   [[nodiscard]] std::size_t size() const noexcept { return graphs_.size(); }
 
-  /** @brief Register a graph directly.
+  /** Register a graph directly.
    *
    *  @param graph The graph to register (moved into the registry, keyed
    *               by graph_id). Useful for tests.

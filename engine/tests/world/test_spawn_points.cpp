@@ -327,7 +327,7 @@ corundum::sprites::CharacterRegistry make_registry(const fs::path &dir) {
   return registry;
 }
 
-/// The entity of actor @p id; fails the case when there is none.
+/// The entity of actor `id`; fails the case when there is none.
 corundum::entities::EntityId require_actor(const corundum::entities::World &world, std::string_view id) {
   const std::optional<corundum::entities::EntityId> actor = corundum::entities::find_actor(world, id);
   if (!actor) {
@@ -337,7 +337,7 @@ corundum::entities::EntityId require_actor(const corundum::entities::World &worl
   return *actor;
 }
 
-/// A World-mode render state with @p coords resident and @p chunk_size tiles per chunk side.
+/// A World-mode render state with `coords` resident and `chunk_size` tiles per chunk side.
 corundum::render::RenderState make_world_render(std::initializer_list<corundum::world::tilemap::ChunkCoord> coords,
                                                 int chunk_size) {
   corundum::render::RenderState render;

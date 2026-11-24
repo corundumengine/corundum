@@ -22,7 +22,7 @@ struct Utf8Lead {
   uint32_t min_codepoint{}; ///< Overlong-encoding floor for this sequence length.
 };
 
-/// Classify @p b0 as a multi-byte lead byte.
+/// Classify `b0` as a multi-byte lead byte.
 /// @return the lead's classification, or nullopt for a continuation byte or a lead that would
 ///         encode an overlong or out-of-range codepoint.
 [[nodiscard]] inline std::optional<Utf8Lead> classify_utf8_lead(unsigned char b0) {

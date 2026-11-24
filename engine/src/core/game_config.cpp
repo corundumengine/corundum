@@ -80,7 +80,7 @@ std::expected<std::string, std::string> get_nonempty_string(const json &j, const
   return v;
 }
 
-/// Assign @p parsed to @p target, or forward the error that stopped it.
+/// Assign `parsed` to `target`, or forward the error that stopped it.
 template <typename T> std::expected<void, std::string> read_into(std::expected<T, std::string> parsed, T &target) {
   if (!parsed)
     return std::unexpected(std::move(parsed).error());
@@ -88,7 +88,7 @@ template <typename T> std::expected<void, std::string> read_into(std::expected<T
   return {};
 }
 
-/// Read @p key from the @p section object as a number, or @p default_val when absent.
+/// Read `key` from the `section` object as a number, or `default_val` when absent.
 template <typename T>
 std::expected<T, std::string> read_section_number(const json &section, std::string_view section_name,
                                                   std::string_view key, T default_val, const fs::path &path) {
@@ -101,7 +101,7 @@ std::expected<T, std::string> read_section_number(const json &section, std::stri
   }
 }
 
-/// Read @p key from the @p section object as a non-empty string, or @p default_val when absent.
+/// Read `key` from the `section` object as a non-empty string, or `default_val` when absent.
 std::expected<std::string, std::string> read_section_string(const json &section, std::string_view section_name,
                                                             std::string_view key, const std::string &default_val,
                                                             const fs::path &path) {
@@ -118,7 +118,7 @@ std::expected<std::string, std::string> read_section_string(const json &section,
   return value;
 }
 
-/// Read @p key from the @p section object as a float >= 0, or @p default_val when absent.
+/// Read `key` from the `section` object as a float >= 0, or `default_val` when absent.
 std::expected<float, std::string> read_section_non_negative_float(const json &section, std::string_view section_name,
                                                                   std::string_view key, float default_val,
                                                                   const fs::path &path) {
@@ -175,7 +175,7 @@ std::expected<WindowMode, std::string> read_window_mode(const json &j, WindowMod
   return *mode;
 }
 
-/// Assign the string at @p key to @p target when present; @p target keeps its default otherwise.
+/// Assign the string at `key` to `target` when present; `target` keeps its default otherwise.
 std::expected<void, std::string> read_optional_string_field(const json &j, std::string_view key, std::string &target,
                                                             const fs::path &path) {
   if (!j.contains(key))
@@ -410,7 +410,7 @@ std::expected<void, std::string> parse_fonts(const json &j, GameConfig &cfg, con
   return {};
 }
 
-/// Read every named resource path in @p j, leaving the field's default when the key is absent.
+/// Read every named resource path in `j`, leaving the field's default when the key is absent.
 std::expected<void, std::string> parse_path_fields(const json &j, ResourcePaths &paths, const fs::path &path) {
   struct Field {
     std::string_view key;

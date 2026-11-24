@@ -15,8 +15,8 @@ class ContentSource;
 namespace corundum::world::tilemap {
 
 /// Current tilemap JSON schema version. A map file with no "schema_version" field is treated as
-/// version 1 (the original, pre-versioning format). Pre-1.0, bump this whenever a schema change
-/// would break old map files; older versions are rejected at load time rather than migrated.
+/// version 1. Pre-1.0 the format changes in place and the version stays 1, so validation refuses
+/// an old map file rather than migrating it.
 constexpr int k_tilemap_schema_version = 1;
 
 /// Load a tileset from its JSON source file — a spritepacker atlas JSON (schema_version 2),
@@ -28,19 +28,18 @@ constexpr int k_tilemap_schema_version = 1;
 [[nodiscard]] std::expected<TilesetInfo, std::string> load_tileset(const core::ContentSource &content,
                                                                    const std::filesystem::path &path);
 
-/**
- * @brief Loads tilemaps from one content source and keeps every tileset it resolves, keyed by
- * path, so maps that share a tileset read and resolve it once.
+/** Loads tilemaps from one content source and keeps every tileset it resolves, keyed by
+ *  path, so maps that share a tileset read and resolve it once.
  *
- * Streamed-world chunks share a handful of tilesets; resolving them again for every chunk was
- * the dominant chunk-streaming cost (~43 ms per 16x16 chunk).
+ *  Streamed-world chunks share a handful of tilesets; resolving them again for every chunk was
+ *  the dominant chunk-streaming cost (~43 ms per 16x16 chunk).
  *
- * A kept tileset is never re-read, so a change to its file reaches only a new loader.
- * @note Not thread-safe. Call only from the main thread.
+ *  A kept tileset is never re-read, so a change to its file reaches only a new loader.
+ *  @note Not thread-safe. Call only from the main thread.
  */
 class TilemapLoader {
 public:
-  /// @pre @p content outlives the loader.
+  /// @pre `content` outlives the loader.
   explicit TilemapLoader(const core::ContentSource &content) : content_(&content) {}
 
   /// Same contract as the free load_tilemap().
@@ -64,7 +63,7 @@ private:
 /// dimensions.
 /// @param path Path to the tilemap JSON (e.g. "data/maps/world.json").
 /// @return Tilemap on success, or an error string on any schema, file-not-found, or consistency violation.
-/// @pre @p path must refer to a readable, valid-JSON file. Tileset `source` paths are resolved
+/// @pre `path` must refer to a readable, valid-JSON file. Tileset `source` paths are resolved
 ///      relative to the current working directory, so they must be reachable from there.
 /// @post The `tilesets` vector is sorted ascending by `first_gid`. `diamond_w()` and
 ///       `diamond_h()` return the effective isometric step dimensions, falling back to the first

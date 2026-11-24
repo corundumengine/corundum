@@ -151,7 +151,7 @@ std::expected<void, std::string> load_font_family(corundum::platform::Renderer &
                                loaded.error());
     return corundum::platform::FontId::Invalid;
   };
-  /// The first of @p ids this family holds; the regular face is always held, so it terminates
+  /// The first of `ids` this family holds; the regular face is always held, so it terminates
   /// every fallback chain.
   const auto first_held = [](std::initializer_list<corundum::platform::FontId> ids) {
     for (const corundum::platform::FontId id : ids)

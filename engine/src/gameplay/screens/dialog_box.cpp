@@ -28,7 +28,7 @@ namespace corundum::gameplay::screens {
 
 namespace {
 
-/// Emits one DrawText in the Dialogue family's @p font_style. Empty text is skipped, so
+/// Emits one DrawText in the Dialogue family's `font_style`. Empty text is skipped, so
 /// callers never special-case an absent speaker or an empty line.
 void draw_dialogue_text(platform::Renderer &r, const ui::PanelStyle &style, ui::FontStyle font_style,
                         std::string_view text, unsigned size, core::math::Colour colour, float x, float y) {

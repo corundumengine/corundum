@@ -54,12 +54,12 @@ constexpr std::array k_slot_actions{
 /// The slots a gamepad's A, Y and B press.
 constexpr std::size_t k_page_size = 3;
 
-/// How many pages @p slots need, at k_page_size slots a page.
+/// How many pages `slots` need, at k_page_size slots a page.
 [[nodiscard]] std::size_t page_count(std::size_t slots) noexcept {
   return (slots + k_page_size - 1) / k_page_size;
 }
 
-/// The button that presses @p slot while @p page shows; nullopt off the page.
+/// The button that presses `slot` while `page` shows; nullopt off the page.
 [[nodiscard]] std::optional<input::Action> gamepad_action_of(std::size_t slot, std::size_t page) noexcept {
   const std::size_t first = page * k_page_size;
   if (slot < first || slot >= first + k_page_size)
@@ -67,7 +67,7 @@ constexpr std::size_t k_page_size = 3;
   return k_slot_actions[slot - first];
 }
 
-/// The slot a gamepad key index presses on @p page; a keyboard key names its slot directly.
+/// The slot a gamepad key index presses on `page`; a keyboard key names its slot directly.
 [[nodiscard]] std::size_t slot_for_key(std::size_t key, std::size_t page, input::InputDevice device) noexcept {
   if (device == input::InputDevice::Gamepad && key < k_page_size)
     return (page * k_page_size) + key;
@@ -84,7 +84,7 @@ constexpr std::string_view k_stray_combatant = "[gameplay] a ruleset's fight nam
 constexpr std::string_view k_changed_command_list =
     "[gameplay] a ruleset's fight changed the length of its command list";
 
-/// @p name when @p callback is empty, and nullopt when it is set.
+/// `name` when `callback` is empty, and nullopt when it is set.
 template <typename Callback>
 [[nodiscard]] std::optional<std::string_view> missing_callback(std::string_view name, const Callback &callback) {
   if (callback)
@@ -92,7 +92,7 @@ template <typename Callback>
   return name;
 }
 
-/// The name of the first empty callback in @p fight, in declaration order; nullopt when all are set.
+/// The name of the first empty callback in `fight`, in declaration order; nullopt when all are set.
 [[nodiscard]] std::optional<std::string_view> first_missing_callback(const rules::Fight &fight) {
   // The binding names every member of Fight, so a callback added there stops this compiling
   // until it is checked here.
@@ -119,7 +119,7 @@ template <typename Callback>
   return std::nullopt;
 }
 
-/// Check what Battle relies on in the fight a ruleset started for @p hostile_count hostiles.
+/// Check what Battle relies on in the fight a ruleset started for `hostile_count` hostiles.
 [[nodiscard]] std::expected<void, std::string> validate_fight(const rules::Fight &fight, std::size_t hostile_count) {
   if (const std::optional<std::string_view> missing = first_missing_callback(fight))
     return std::unexpected(
@@ -153,7 +153,7 @@ rules::CombatContext make_combat_context(Engine &engine) {
   };
 }
 
-/// The entity each hostile in @p request names, in order; an error when one is missing or named twice.
+/// The entity each hostile in `request` names, in order; an error when one is missing or named twice.
 [[nodiscard]] std::expected<std::vector<entities::EntityId>, std::string>
 resolve_hostiles(const Engine &engine, const EncounterRequest &request) {
   std::vector<entities::EntityId> hostiles;
@@ -194,7 +194,7 @@ resolve_hostiles(const Engine &engine, const EncounterRequest &request) {
 /// sheets strike around their middle frames.
 constexpr float k_clip_seconds_per_windup_second = 2.f;
 
-/// Whether @p frame_counts gives every facing frames: a default clip, or all eight directions.
+/// Whether `frame_counts` gives every facing frames: a default clip, or all eight directions.
 [[nodiscard]] bool covers_every_facing(const std::array<std::uint8_t, sprites::k_num_anim_ids> &frame_counts) {
   if (frame_counts[std::to_underlying(sprites::AnimId::Default)] > 0)
     return true;
@@ -202,7 +202,7 @@ constexpr float k_clip_seconds_per_windup_second = 2.f;
                              [](std::uint8_t count) { return count > 0; });
 }
 
-/// The clip @p sprite_id's character has for @p motion; nullopt with no such sheet, or one that
+/// The clip `sprite_id`'s character has for `motion`; nullopt with no such sheet, or one that
 /// leaves a facing with no frames.
 [[nodiscard]] std::optional<entities::Clip> find_clip(const sprites::CharacterRegistry &characters,
                                                       sprites::SpriteId sprite_id, std::string_view motion,
@@ -250,13 +250,13 @@ void play(entities::World &world, entities::EntityId entity, const entities::Cli
   animation::play_clip(world.sprites, world.animations, world.facings, world.clips, entity, clip);
 }
 
-/// Turn @p entity, standing on @p from, toward @p to.
+/// Turn `entity`, standing on `from`, toward `to`.
 void turn_toward(entities::World &world, entities::EntityId entity, world::TileCoord from, world::TileCoord to) {
   world.facings.dir_ref(entity) =
       core::direction_from_tile_delta(static_cast<float>(to.col - from.col), static_cast<float>(to.row - from.row));
 }
 
-/// Leave @p entity as a corpse playing @p die: gone from the fight, the paths and the dialogue,
+/// Leave `entity` as a corpse playing `die`: gone from the fight, the paths and the dialogue,
 /// and from any lookup by actor id. The clip removes it when it ends.
 void become_corpse(entities::World &world, entities::EntityId entity, const entities::Clip &die) {
   if (world.collisions.has(entity))
@@ -277,7 +277,7 @@ void become_corpse(entities::World &world, entities::EntityId entity, const enti
   return world::tile_of(transforms.pos_col(entity), transforms.pos_row(entity));
 }
 
-/// Whether a click on @p clicked is a click on a combatant standing on @p feet: its own tile,
+/// Whether a click on `clicked` is a click on a combatant standing on `feet`: its own tile,
 /// or one of the three tiles its sprite is drawn over, one column back, one row back, or both
 /// (a column or row back sits above it on screen, to the left or right; both, straight above).
 [[nodiscard]] bool is_on_sprite(world::TileCoord clicked, world::TileCoord feet) noexcept {
@@ -286,13 +286,13 @@ void become_corpse(entities::World &world, entities::EntityId entity, const enti
   return (columns_back == 0 || columns_back == 1) && (rows_back == 0 || rows_back == 1);
 }
 
-/// Copy @p text into @p slot only when it changed, so a step with no new text allocates nothing.
+/// Copy `text` into `slot` only when it changed, so a step with no new text allocates nothing.
 void assign_if_changed(std::string &slot, std::string_view text) {
   if (slot != text)
     slot = text;
 }
 
-/// Copy each combatant's Health and side into @p rows; the combatant at @p target is marked as
+/// Copy each combatant's Health and side into `rows`; the combatant at `target` is marked as
 /// the fight's target.
 void refresh_rows(const rules::Fight &fight, const rules::CombatContext &context, std::span<screens::CombatHudRow> rows,
                   std::size_t target) {
@@ -318,13 +318,13 @@ void refresh_slots(const rules::Fight &fight, std::span<screens::CombatHudComman
   }
 }
 
-/// Point each slot at the button that presses it while @p page shows.
+/// Point each slot at the button that presses it while `page` shows.
 void refresh_gamepad_actions(std::span<screens::CombatHudCommand> slots, std::size_t page) {
   for (std::size_t i = 0; i < slots.size(); ++i)
     slots[i].gamepad_action = gamepad_action_of(i, page);
 }
 
-/// Copy the encounter's current numbers into @p hud, in place, for the gamepad page @p page and
+/// Copy the encounter's current numbers into `hud`, in place, for the gamepad page `page` and
 /// the fight's target.
 void refresh_hud(const rules::Fight &fight, const rules::CombatContext &context, screens::CombatHud &hud,
                  std::size_t page, std::size_t target) {
@@ -341,7 +341,7 @@ void refresh_hud(const rules::Fight &fight, const rules::CombatContext &context,
   return (dc * dc) + (dr * dr);
 }
 
-/// Every tile within @p reach of @p target but not on it, nearest to @p from first, then by
+/// Every tile within `reach` of `target` but not on it, nearest to `from` first, then by
 /// column and row.
 [[nodiscard]] std::vector<world::TileCoord> approach_candidates(world::TileCoord target, int reach,
                                                                 world::TileCoord from) {

@@ -23,35 +23,35 @@ struct WorldLoadParams;
 
 namespace corundum::world {
 
-/** @brief Which scene layout apply_spawn() should rebuild. */
+/** Which scene layout apply_spawn() should rebuild. */
 enum class SpawnMode : uint8_t {
   World,     ///< Re-enter the streamed overworld.
   SingleMap, ///< Load a single tilemap by path.
 };
 
-/** @brief Which point of a tile the camera centres on while framing a scene. */
+/** Which point of a tile the camera centres on while framing a scene. */
 enum class CameraAnchor : uint8_t {
   CellCenter, ///< Cell-centre anchor (tile_to_world_center) — the world-load path.
-  TopVertex,  ///< Top-vertex anchor (tile_to_world) — the historical cross-map projection.
+  TopVertex,  ///< Top-vertex anchor (tile_to_world) — cross-map transitions.
 };
 
-/** @brief (Re)initialise the overworld scene, optionally at a specific spawn tile.
+/** (Re)initialise the overworld scene, optionally at a specific spawn tile.
  *
  *  Shared boot entry point used both by the initial world startup and by the
- *  interior→overworld return. When @p params is empty it boots at the manifest
- *  default (geometric centre); otherwise it boots at @p params and re-centres the
+ *  interior→overworld return. When `params` is empty it boots at the manifest
+ *  default (geometric centre); otherwise it boots at `params` and re-centres the
  *  3×3 streaming window on that tile's chunk so the player never spawns into an
  *  unstreamed chunk.
  *
- *  @param[in,out] engine Fully-initialised application state.
- *  @param[in]     params Optional overworld spawn tile (defaults to manifest centre).
+ *  @param engine Fully-initialised application state.
+ *  @param params Optional overworld spawn tile (defaults to manifest centre).
  *  @return ok on success, or std::unexpected with an error message.
  *  @pre cfg.paths.world_manifest_path identifies the overworld manifest.
  */
 [[nodiscard]] std::expected<void, std::string> enter_world(corundum::Engine &engine,
                                                            const corundum::render::WorldLoadParams &params);
 
-/** @brief Build the game's configured initial scene.
+/** Build the game's configured initial scene.
  *
  *  World mode (paths.world_manifest_path non-empty) enters the overworld at its manifest
  *  default spawn; single-map mode loads paths.tilemap_path and spawns the player by the usual
@@ -59,43 +59,43 @@ enum class CameraAnchor : uint8_t {
  *  gameplay framework on New Game and on a no-title boot (and by engine-only games), so a new
  *  game always starts at the configured initial scene.
  *
- *  @param[in,out] engine Fully-initialised application state; its scene is replaced.
+ *  @param engine Fully-initialised application state; its scene is replaced.
  *  @return ok on success, or std::unexpected with an error message.
  */
 [[nodiscard]] std::expected<void, std::string> load_initial_scene(corundum::Engine &engine);
 
-/** @brief Unload the area: release its render world and textures and replace the scene with an
+/** Unload the area: release its render world and textures and replace the scene with an
  *  empty one (no player, empty UI stack). Flags are untouched; they belong to the playthrough.
  *
- *  @param[in,out] engine Initialised application state.
+ *  @param engine Initialised application state.
  *  @pre engine.renderer() is non-null. Call between frames.
  *  @post render::mode(engine.render) is RenderMode::None, world::player_present(engine.scene) is false,
  *        engine.entered_from_world is false.
  */
 void unload_world(corundum::Engine &engine);
 
-/** @brief Spawn the scene for a saved or transitioned location.
+/** Spawn the scene for a saved or transitioned location.
  *
- *  Reusable core of @ref handle_map_transition and @ref corundum::save::load_game:
- *  rebuilds the scene at @p col, @p row in @p mode (World re-enters the overworld
- *  via @ref enter_world; SingleMap loads @p id as a tilemap path and spawns into
- *  it). When @p zone is non-empty it overwrites `scene.zone_id` after the spawn
+ *  Reusable core of `handle_map_transition` and `corundum::save::load_game`:
+ *  rebuilds the scene at `col`, `row` in `mode` (World re-enters the overworld
+ *  via `enter_world`; SingleMap loads `id` as a tilemap path and spawns into
+ *  it). When `zone` is non-empty it overwrites `scene.zone_id` after the spawn
  *  (saves carry it explicitly); otherwise the spawn derives it.
  *
- *  @param[in,out] engine Fully-initialised application state.
- *  @param[in]     mode   Which layout to rebuild.
- *  @param[in]     id     Tilemap path (SingleMap) or world manifest id (World; ignored).
- *  @param[in]     zone   Zone id to force onto the new scene; empty = derive.
- *  @param[in]     col    Player spawn tile column.
- *  @param[in]     row    Player spawn tile row.
+ *  @param engine Fully-initialised application state.
+ *  @param mode   Which layout to rebuild.
+ *  @param id     Tilemap path (SingleMap) or world manifest id (World; ignored).
+ *  @param zone   Zone id to force onto the new scene; empty = derive.
+ *  @param col    Player spawn tile column.
+ *  @param row    Player spawn tile row.
  *  @return ok on success, or std::unexpected with an error message.
  */
 [[nodiscard]] std::expected<void, std::string>
 apply_spawn(corundum::Engine &engine, SpawnMode mode, std::string_view id, std::string_view zone, float col, float row);
 
-/** @brief Handle a pending map transition triggered by portal traversal.
+/** Handle a pending map transition triggered by portal traversal.
  *
- *  When @p engine.scene.pending_transition is set, derives an action from the
+ *  When `engine.scene.pending_transition` is set, derives an action from the
  *  transition and the current render mode:
  *   - World + cross-map  : mark that we are inside an interior reached from the world,
  *                          then load the interior map.
@@ -104,23 +104,23 @@ apply_spawn(corundum::Engine &engine, SpawnMode mode, std::string_view id, std::
  *                          (the exit portal always carries one).
  *  On failure the game is terminated with an error message.
  *
- *  @param[in,out] engine Fully-initialised application state.
+ *  @param engine Fully-initialised application state.
  *  @note Called once per frame by the main loop in both single-map and world render modes.
  */
 void handle_map_transition(corundum::Engine &engine) noexcept;
 
-/** @brief Clamp the configured default zoom and centre the camera on (@p col, @p row).
+/** Clamp the configured default zoom and centre the camera on (`col`, `row`).
  *
- *  Projects the tile through @p iso using @p anchor and clamps the viewport to
- *  @p bounds. Shared by the initial single-map boot, @ref enter_world and
- *  @ref apply_spawn so scene framing has one implementation.
+ *  Projects the tile through `iso` using `anchor` and clamps the viewport to
+ *  `bounds`. Shared by the initial single-map boot, `enter_world` and
+ *  `apply_spawn` so scene framing has one implementation.
  *
- *  @param[in,out] engine Fully-initialised application state.
- *  @param[in]     iso    Isometric projection parameters for the active map/world.
- *  @param[in]     col    Target tile column.
- *  @param[in]     row    Target tile row.
- *  @param[in]     bounds World extent in display pixels.
- *  @param[in]     anchor Which tile point to centre on.
+ *  @param engine Fully-initialised application state.
+ *  @param iso    Isometric projection parameters for the active map/world.
+ *  @param col    Target tile column.
+ *  @param row    Target tile row.
+ *  @param bounds World extent in display pixels.
+ *  @param anchor Which tile point to centre on.
  *  @pre cfg.min_zoom > 0, so the clamped default zoom is positive.
  *  @note Also restarts render interpolation from the framed scene (snapshot_previous_step).
  */

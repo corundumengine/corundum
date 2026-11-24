@@ -7,10 +7,10 @@
 
 namespace corundum::toolkit::editor {
 
-/** @brief Generic undo/redo stack for document-style edits.
+/** Generic undo/redo stack for document-style edits.
  *
- * @tparam Doc A copyable snapshot type representing the full editor state
- *         at a point in time.
+ *  @tparam Doc A copyable snapshot type representing the full editor state
+ *          at a point in time.
  */
 template <std::copyable Doc> class UndoStack {
   static constexpr int k_max_depth = 256;

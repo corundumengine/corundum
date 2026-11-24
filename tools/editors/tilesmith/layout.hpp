@@ -3,7 +3,7 @@
 
 #pragma once
 
-/// @brief Tilesmith window and panel layout constants.
+/// Tilesmith window and panel layout constants.
 
 namespace tools::tilesmith {
 

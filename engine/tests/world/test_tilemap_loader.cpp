@@ -748,7 +748,7 @@ namespace {
 
 constexpr std::string_view k_edited_tileset_path{"edited/tileset.json"};
 
-/// A one-tileset map at @p map_path in @p source, whose 2×1 layer uses the tileset's first tile.
+/// A one-tileset map at `map_path` in `source`, whose 2×1 layer uses the tileset's first tile.
 void add_map_using_edited_tileset(corundum::test::MemoryContentSource &source, std::string_view map_path) {
   source.add(map_path, std::format(R"({{"id":"edited","tilesets":[{{"first_gid":0,"source":"{}"}}],)"
                                    R"("width":2,"height":1,"layers":[{{"name":"ground","tiles":["0,0"]}}]}})",
@@ -794,7 +794,7 @@ TEST_CASE("load_tilemap - reloading a map sees its tileset's edited file") {
 namespace {
 
 /// Builds a 2×1 single-tileset map whose `collisions` / `collision_triangles` entry carries
-/// @p extra_fields (already comma-prefixed, e.g. `,"elevation":7`).
+/// `extra_fields` (already comma-prefixed, e.g. `,"elevation":7`).
 fs::path make_collision_extra_map(const fs::path &dir, std::string_view key, std::string_view extra_fields) {
   const auto ts_path = dir / "tileset_a.json";
   const auto map_path = dir / "map.json";

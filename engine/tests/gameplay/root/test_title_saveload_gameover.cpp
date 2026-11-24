@@ -79,7 +79,7 @@ bool press(corundum::Engine &engine, corundum::input::Action action) {
   return engine.update_engine_screens(intent);
 }
 
-/// True when the recorded frame contains a DrawText whose text equals @p text.
+/// True when the recorded frame contains a DrawText whose text equals `text`.
 bool rendered_text(const RecordingRenderer &r, std::string_view text) {
   for (const RecordingRenderer::DrawCall &call : r.log) {
     if (const auto *draw = std::get_if<corundum::platform::DrawText>(&call); draw != nullptr && draw->text == text)
@@ -88,7 +88,7 @@ bool rendered_text(const RecordingRenderer &r, std::string_view text) {
   return false;
 }
 
-/// True when any recorded DrawText contains @p needle.
+/// True when any recorded DrawText contains `needle`.
 bool rendered_text_contains(const RecordingRenderer &r, std::string_view needle) {
   for (const RecordingRenderer::DrawCall &call : r.log) {
     if (const auto *draw = std::get_if<corundum::platform::DrawText>(&call);
@@ -102,7 +102,7 @@ bool rendered_text_contains(const RecordingRenderer &r, std::string_view needle)
 struct ScratchUserData {
   corundum::test::TempDir home{"crpg_test_framing_", "user_data"};
 
-  /// Give @p engine a user storage rooted at this scratch tree; call before init_engine().
+  /// Give `engine` a user storage rooted at this scratch tree; call before init_engine().
   void attach(corundum::Engine &engine) const {
     engine.user_storage = std::make_unique<corundum::core::DirectoryUserStorage>(home.path());
   }
@@ -113,7 +113,7 @@ void write_corrupt_slot(corundum::core::UserStorage &storage, std::string_view s
   REQUIRE(storage.write(corundum::save::slot_name(slot_id), "not json").has_value());
 }
 
-/// Write @p content to @p path, creating parent directories.
+/// Write `content` to `path`, creating parent directories.
 void write_file(const fs::path &path, std::string_view content) {
   fs::create_directories(path.parent_path());
   std::ofstream file(path);

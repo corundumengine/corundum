@@ -48,7 +48,7 @@ bool press(corundum::Engine &engine, corundum::input::Action action) {
 
 using corundum::gameplay::rules::FlagReader;
 
-/// Give @p gameplay one ruleset row, "Stance", showing the `test.stance` flag.
+/// Give `gameplay` one ruleset row, "Stance", showing the `test.stance` flag.
 void add_stance_row(corundum::gameplay::Gameplay &gameplay) {
   gameplay.ruleset.character_rows = [](const FlagReader &flags) {
     return std::vector<StatRow>{

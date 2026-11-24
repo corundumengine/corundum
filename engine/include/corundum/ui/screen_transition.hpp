@@ -12,14 +12,14 @@ class Renderer;
 
 namespace corundum::ui {
 
-/** @brief Which way a fade is currently moving. */
+/** Which way a fade is currently moving. */
 enum class TransitionPhase : std::uint8_t {
   None,      ///< Not fading; the overlay sits at its current alpha.
   FadingOut, ///< Alpha is rising toward 1 (into black).
   FadingIn,  ///< Alpha is falling toward 0 (out of black).
 };
 
-/** @brief Value type driving a full-screen scene fade.
+/** Value type driving a full-screen scene fade.
  *
  *  A value type: public per-call methods, no stored collaborators. The engine owns one and
  *  steps it from the fixed-timestep loop; the render sequence paints the overlay from alpha().
@@ -32,22 +32,24 @@ public:
   /// Seconds for each direction of the fade — long enough to read as a deliberate transition.
   static constexpr float k_fade_duration_seconds = 0.4f;
 
-  /** @brief Start fading toward black from the current alpha.
-   *  @param seconds Time a full clear-to-black fade takes; defaults to k_fade_duration_seconds. */
+  /** Start fading toward black from the current alpha.
+   *  @param seconds Time a full clear-to-black fade takes; defaults to k_fade_duration_seconds.
+   */
   void begin_fade_out(float seconds = k_fade_duration_seconds) noexcept {
     duration_seconds_ = seconds;
     phase_ = TransitionPhase::FadingOut;
   }
 
-  /** @brief Jump to black and fade to clear — called once the scene swap is applied.
-   *  @param seconds Time a full black-to-clear fade takes; defaults to k_fade_duration_seconds. */
+  /** Jump to black and fade to clear — called once the scene swap is applied.
+   *  @param seconds Time a full black-to-clear fade takes; defaults to k_fade_duration_seconds.
+   */
   void begin_fade_in(float seconds = k_fade_duration_seconds) noexcept {
     duration_seconds_ = seconds;
     alpha_ = 1.f;
     phase_ = TransitionPhase::FadingIn;
   }
 
-  /** @brief Instant, un-faded state: clear and idle.
+  /** Instant, un-faded state: clear and idle.
    *
    *  For tests and for a hard scene reset that must not animate.
    */
@@ -57,8 +59,9 @@ public:
     alpha_ = 0.f;
   }
 
-  /** @brief Advance by @p dt seconds toward the current phase's target, stopping at it.
-   *  @note A no-op while phase() is None. */
+  /** Advance by `dt` seconds toward the current phase's target, stopping at it.
+   *  @note A no-op while phase() is None.
+   */
   void update(float dt) noexcept {
     if (phase_ == TransitionPhase::None)
       return;
@@ -85,16 +88,16 @@ public:
     }
   }
 
-  /** @brief Overlay opacity in [0, 1]; 0 draws nothing. */
+  /** Overlay opacity in [0, 1]; 0 draws nothing. */
   [[nodiscard]] float alpha() const noexcept { return alpha_; }
 
-  /** @brief Current phase. */
+  /** Current phase. */
   [[nodiscard]] TransitionPhase phase() const noexcept { return phase_; }
 
-  /** @brief True while the overlay is fully black; a fade-out has finished. */
+  /** True while the overlay is fully black; a fade-out has finished. */
   [[nodiscard]] bool at_black() const noexcept { return alpha_ >= 1.f; }
 
-  /** @brief True while a fade is in progress. */
+  /** True while a fade is in progress. */
   [[nodiscard]] bool active() const noexcept { return phase_ != TransitionPhase::None; }
 
 private:
@@ -105,7 +108,7 @@ private:
   float duration_seconds_{k_fade_duration_seconds}; ///< Length of the fade in progress.
 };
 
-/** @brief Fill the viewport with black at @p transition's current alpha.
+/** Fill the viewport with black at `transition`'s current alpha.
  *
  *  Emits one DrawRect when alpha() > 0 and nothing otherwise, so the idle cost is a compare.
  *

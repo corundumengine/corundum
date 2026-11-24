@@ -22,12 +22,12 @@ struct MouseState {
   bool right_held{};
 };
 
-/** @brief Shared canvas pan/zoom controller.
+/** Shared canvas pan/zoom controller.
  *
- * Captures the common pattern: middle-mouse pan with anchor, mouse-wheel
- * zoom with clamps, optional zoom-to-cursor, and screen↔canvas coordinate
- * transforms. Replaces the divergent implementations in tilesmith,
- * spritesmith and loom.
+ *  Captures the common pattern: middle-mouse pan with anchor, mouse-wheel
+ *  zoom with clamps, optional zoom-to-cursor, and screen↔canvas coordinate
+ *  transforms. Replaces the divergent implementations in tilesmith,
+ *  spritesmith and loom.
  */
 struct CanvasController {
   /// @param min_scale Lower zoom limit enforced by update() and set_scale().
@@ -41,13 +41,13 @@ struct CanvasController {
 
   float scale{1.f};
 
-  /** @brief Process input once per frame (mid-mouse pan + wheel zoom).
+  /** Process input once per frame (mid-mouse pan + wheel zoom).
    *
-   * @param io             ImGui IO for the frame; injected so the controller keeps no
-   *                       reference to ImGui's ambient global.
-   * @param canvas_origin  Top-left of canvas area in screen coordinates.
-   * @param canvas_size    Width/height of canvas area in screen coordinates.
-   * @param zoom_to_cursor If true, zoom centers on mouse cursor position.
+   *  @param io             ImGui IO for the frame; injected so the controller keeps no
+   *                        reference to ImGui's ambient global.
+   *  @param canvas_origin  Top-left of canvas area in screen coordinates.
+   *  @param canvas_size    Width/height of canvas area in screen coordinates.
+   *  @param zoom_to_cursor If true, zoom centers on mouse cursor position.
    */
   void update(const ImGuiIO &io, ImVec2 canvas_origin, ImVec2 canvas_size, bool zoom_to_cursor = false) {
     apply_pan(io, canvas_origin, canvas_size);
@@ -57,19 +57,19 @@ struct CanvasController {
   /// Set zoom, clamped to the controller's [min_scale, max_scale] range.
   void set_scale(float value) { scale = std::clamp(value, min_scale_, max_scale_); }
 
-  /// Multiply the current zoom by @p factor, clamped to the controller's range.
+  /// Multiply the current zoom by `factor`, clamped to the controller's range.
   void zoom_by(float factor) { set_scale(scale * factor); }
 
-  /** @brief Convert screen space to canvas space.
-   * @pre scale > 0.
+  /** Convert screen space to canvas space.
+   *  @pre scale > 0.
    */
   [[nodiscard]] ImVec2 screen_to_canvas(ImVec2 screen_pos, ImVec2 canvas_origin) const {
     assert(scale > 0.f);
     return {(screen_pos.x - canvas_origin.x + offset_x) / scale, (screen_pos.y - canvas_origin.y + offset_y) / scale};
   }
 
-  /** @brief Convert canvas space to screen space.
-   * @pre scale > 0.
+  /** Convert canvas space to screen space.
+   *  @pre scale > 0.
    */
   [[nodiscard]] ImVec2 canvas_to_screen(ImVec2 canvas_pos, ImVec2 canvas_origin) const {
     assert(scale > 0.f);

@@ -11,7 +11,7 @@
 
 namespace corundum::input {
 
-/** @brief Keyboard key, named by its position on a US layout.
+/** Keyboard key, named by its position on a US layout.
  *
  *  Values equal GLFW's key tokens, so the desktop backend converts with a cast. The
  *  enumerator spelling is the key's stable JSON name (see name_of()); the label printed
@@ -141,14 +141,14 @@ enum class Key : std::uint16_t {
   Menu,
 };
 
-/** @brief Mouse button. Values equal GLFW's button indices. */
+/** Mouse button. Values equal GLFW's button indices. */
 enum class MouseButton : std::uint8_t {
   Left,
   Right,
   Middle,
 };
 
-/** @brief A gamepad control with a digital reading.
+/** A gamepad control with a digital reading.
  *
  *  The first k_gamepad_button_count values are buttons in SDL gamepad-database order (equal to
  *  GLFW_GAMEPAD_BUTTON_*), so they name the same physical control on every mapped pad. The rest
@@ -183,13 +183,13 @@ enum class GamepadControl : std::uint8_t {
   Count,
 };
 
-/** @brief Number of GamepadControl values that are plain buttons. */
+/** Number of GamepadControl values that are plain buttons. */
 constexpr std::size_t k_gamepad_button_count = static_cast<std::size_t>(GamepadControl::LeftStickUp);
 
-/** @brief Number of GamepadControl values. */
+/** Number of GamepadControl values. */
 constexpr std::size_t k_gamepad_control_count = static_cast<std::size_t>(GamepadControl::Count);
 
-/** @brief Gamepad analogue axis. Values equal GLFW_GAMEPAD_AXIS_*. */
+/** Gamepad analogue axis. Values equal GLFW_GAMEPAD_AXIS_*. */
 enum class GamepadAxis : std::uint8_t {
   LeftX,
   LeftY,
@@ -200,19 +200,19 @@ enum class GamepadAxis : std::uint8_t {
   Count,
 };
 
-/** @brief Number of GamepadAxis values. */
+/** Number of GamepadAxis values. */
 constexpr std::size_t k_gamepad_axis_count = static_cast<std::size_t>(GamepadAxis::Count);
 
-/** @brief One poll's snapshot of a mapped gamepad, independent of the backend. */
+/** One poll's snapshot of a mapped gamepad, independent of the backend. */
 struct GamepadState {
-  /** @brief Indexed by GamepadAxis, each in [-1, 1]. Stick +Y points down; triggers rest at -1. */
+  /** Indexed by GamepadAxis, each in [-1, 1]. Stick +Y points down; triggers rest at -1. */
   std::array<float, k_gamepad_axis_count> axes{0.f, 0.f, 0.f, 0.f, -1.f, -1.f};
 
-  /** @brief Indexed by the first k_gamepad_button_count GamepadControl values. */
+  /** Indexed by the first k_gamepad_button_count GamepadControl values. */
   std::array<bool, k_gamepad_button_count> buttons{};
 };
 
-/** @brief Whether @p control reads as pressed in @p state.
+/** Whether `control` reads as pressed in `state`.
  *
  *  Buttons read directly. A stick direction is down when that stick's radial magnitude clears
  *  the dead zone and its component in that direction clears the direction threshold, so a gentle
@@ -220,17 +220,18 @@ struct GamepadState {
  */
 [[nodiscard]] bool is_down(const GamepadState &state, GamepadControl control) noexcept;
 
-/** @brief The device family a physical input belongs to. */
+/** The device family a physical input belongs to. */
 enum class InputDevice : std::uint8_t {
   Keyboard,
   Mouse,
   Gamepad,
 };
 
-/** @brief One physical control: a key, a mouse button, or a gamepad control.
+/** One physical control: a key, a mouse button, or a gamepad control.
  *
  *  The active alternative is the device, so a code that belongs to another device cannot be
- *  stored. Build inputs through the physical() factories or parse_physical_input(). */
+ *  stored. Build inputs through the physical() factories or parse_physical_input().
+ */
 struct PhysicalInput {
   std::variant<Key, MouseButton, GamepadControl> value{};
 
@@ -249,24 +250,24 @@ struct PhysicalInput {
   return {.value = control};
 }
 
-/** @brief The device family of @p input, taken from its active alternative. */
+/** The device family of `input`, taken from its active alternative. */
 [[nodiscard]] InputDevice device_of(PhysicalInput input) noexcept;
 
-/** @brief Stable JSON spelling of @p device: "keyboard", "mouse" or "gamepad". */
+/** Stable JSON spelling of `device`: "keyboard", "mouse" or "gamepad". */
 [[nodiscard]] std::string_view device_name(InputDevice device) noexcept;
 
-/** @brief Inverse of device_name(); nullopt for any other string. */
+/** Inverse of device_name(); nullopt for any other string. */
 [[nodiscard]] std::optional<InputDevice> parse_device(std::string_view name) noexcept;
 
-/** @brief Stable JSON name of @p input: its enumerator spelling ("W", "F5", "Left", "LeftStickUp").
+/** Stable JSON name of `input`: its enumerator spelling ("W", "F5", "Left", "LeftStickUp").
  *
- *  @return An empty view when @p input's code names no enumerator of its device.
+ *  @return An empty view when `input`'s code names no enumerator of its device.
  */
 [[nodiscard]] std::string_view name_of(PhysicalInput input) noexcept;
 
-/** @brief Inverse of name_of(), scoped to @p device ("A" is Key::A on the keyboard, the A button on a gamepad).
+/** Inverse of name_of(), scoped to `device` ("A" is Key::A on the keyboard, the A button on a gamepad).
  *
- *  @return nullopt when @p name is not an enumerator of @p device.
+ *  @return nullopt when `name` is not an enumerator of `device`.
  */
 [[nodiscard]] std::optional<PhysicalInput> parse_physical_input(InputDevice device, std::string_view name) noexcept;
 

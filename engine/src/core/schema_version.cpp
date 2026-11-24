@@ -16,7 +16,7 @@ namespace corundum::core {
 
 namespace {
 
-/// Parse the optional "schema_version" field. Absent -> legacy version 1.
+/// Parse the optional "schema_version" field. Absent -> version 1.
 std::expected<int, std::string> parse_schema_version(const nlohmann::json &root, std::string_view asset_label,
                                                      const std::string &path) {
   if (!root.contains("schema_version"))

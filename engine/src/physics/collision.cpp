@@ -104,7 +104,7 @@ using corundum::world::tilemap::TriangleCut;
 
 // Keep the nearest of two candidate contacts, where "nearest" is the smallest
 // candidate reachable while moving positive, and the largest while moving negative.
-// Reachable means at or beyond @p previous, so a clamp never pushes the entity
+// Reachable means at or beyond `previous`, so a clamp never pushes the entity
 // backwards. Returns the winning candidate, or std::nullopt if it loses.
 [[nodiscard]] std::optional<float> nearest_contact(float candidate, float previous, bool moving_positive, float best,
                                                    bool found) noexcept {

@@ -28,7 +28,7 @@ namespace {
 }
 
 /// First pass: clear the edge from each cell to any neighbour whose elevation differs by more
-/// than @p max_step_height.
+/// than `max_step_height`.
 void clear_steep_edges(const Tilemap &tm, WalkabilityGraph &g, const std::vector<int> &elevations,
                        int max_step_height) {
   for (int row = 0; row < tm.height; ++row) {

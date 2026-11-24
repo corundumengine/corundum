@@ -51,7 +51,7 @@ core::math::Vec2 panel_padding(const ui::NinePatchBorder &border) noexcept {
   };
 }
 
-/// A bar's fill fraction, clamped to [0, 1]; 0 when @p whole isn't positive.
+/// A bar's fill fraction, clamped to [0, 1]; 0 when `whole` isn't positive.
 float fraction(int part, int whole) noexcept {
   if (whole <= 0)
     return 0.f;
@@ -138,7 +138,7 @@ struct BarItem {
   core::math::Colour colour{};
 };
 
-/// The width of @p items' texts and the gaps between them.
+/// The width of `items`' texts and the gaps between them.
 float items_width(const platform::Renderer &r, platform::FontId font, const ui::PanelStyle &style,
                   std::span<const BarItem> items) {
   float width = 0.f;
@@ -149,7 +149,7 @@ float items_width(const platform::Renderer &r, platform::FontId font, const ui::
   return width;
 }
 
-/// Draw @p items in a row from @p left.
+/// Draw `items` in a row from `left`.
 void draw_items(platform::Renderer &r, const ui::PanelStyle &style, platform::FontId font,
                 std::span<const BarItem> items, float left, float y) {
   float x = left;

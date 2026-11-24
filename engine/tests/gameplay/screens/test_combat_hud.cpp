@@ -111,7 +111,7 @@ void render(RecordingRenderer &r, const screens::CombatHud &hud, InputDevice dev
   screens::combat_hud_render(r, style, border, hud, k_viewport, device, banner);
 }
 
-/// Render @p hud in the default style with keyboard glyphs and @p border.
+/// Render `hud` in the default style with keyboard glyphs and `border`.
 void render_hud(RecordingRenderer &r, const screens::CombatHud &hud, const corundum::ui::NinePatchBorder &border = {}) {
   const corundum::ui::PanelStyle style{};
   screens::combat_hud_render(r, style, border, hud, k_viewport, InputDevice::Keyboard, "");

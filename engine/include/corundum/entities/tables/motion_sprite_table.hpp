@@ -13,28 +13,28 @@
 
 namespace corundum::entities {
 
-/** @brief SoA table for entities with motion-driven sprite sheet switching.
+/** SoA table for entities with motion-driven sprite sheet switching.
  *
- * Stores a walk sprite and an idle sprite (plus pre-cached per-direction frame
- * counts for each) for entities whose visible animation depends on whether they
- * are moving. Configurable per-direction transition delays prevent flickering
- * on brief inputs or mid-step stops.
+ *  Stores a walk sprite and an idle sprite (plus pre-cached per-direction frame
+ *  counts for each) for entities whose visible animation depends on whether they
+ *  are moving. Configurable per-direction transition delays prevent flickering
+ *  on brief inputs or mid-step stops.
  *
- * Transition logic (handled by animation::update):
- *   - When desired sprite differs from current, a pending transition starts.
- *   - The transition commits only when the pending timer >= the configured delay.
- *   - If the desired sprite reverts to current before the timer fires, the
- *     pending transition is cancelled and the timer resets.
+ *  Transition logic (handled by animation::update):
+ *    - When desired sprite differs from current, a pending transition starts.
+ *    - The transition commits only when the pending timer >= the configured delay.
+ *    - If the desired sprite reverts to current before the timer fires, the
+ *      pending transition is cancelled and the timer resets.
  *
- * An entry with a ready sheet can take a stance: from enter_stance until leave_stance, the ready
- * sheet stands in for the idle sheet everywhere, so animation::update needs no special case.
+ *  An entry with a ready sheet can take a stance: from enter_stance until leave_stance, the ready
+ *  sheet stands in for the idle sheet everywhere, so animation::update needs no special case.
  *
- * @note Only entities with both a walk sheet and an idle sheet need an entry.
+ *  @note Only entities with both a walk sheet and an idle sheet need an entry.
  */
 struct MotionSpriteTable {
   static constexpr auto k_max = k_max_entities;
 
-  /** @brief Spawn-time configuration for one motion-sprite entry. */
+  /** Spawn-time configuration for one motion-sprite entry. */
   struct Config {
     corundum::sprites::SpriteId walk_id = corundum::sprites::k_null_sprite_id;
 
@@ -93,31 +93,32 @@ struct MotionSpriteTable {
 
   std::uint32_t count = 0;
 
-  /** @brief True if @p e has a motion-sprite entry. */
+  /** True if `e` has a motion-sprite entry. */
   [[nodiscard]] bool has(EntityId e) const noexcept { return index.has(e); }
 
-  /** @brief Walk SpriteId for @p e. @pre has(e). */
+  /** Walk SpriteId for `e`. @pre has(e). */
   [[nodiscard]] corundum::sprites::SpriteId walk_sprite(EntityId e) const noexcept {
     assert(has(e));
     return walk_id[index.dense_index(e)];
   }
 
-  /** @brief The SpriteId @p e stands on: its ready sheet in a stance, else its idle sheet. @pre has(e). */
+  /** The SpriteId `e` stands on: its ready sheet in a stance, else its idle sheet. @pre has(e). */
   [[nodiscard]] corundum::sprites::SpriteId idle_sprite(EntityId e) const noexcept {
     assert(has(e));
     const std::uint32_t slot = index.dense_index(e);
     return in_stance[slot] ? ready_id[slot] : idle_id[slot];
   }
 
-  /** @brief Configured delay (seconds) for the transition to @p target_sid. @pre has(e). */
+  /** Configured delay (seconds) for the transition to `target_sid`. @pre has(e). */
   [[nodiscard]] float delay_for(EntityId e, corundum::sprites::SpriteId target_sid) const noexcept {
     assert(has(e));
     const std::uint32_t slot = index.dense_index(e);
     return (target_sid == walk_id[slot]) ? idle_to_walk_delay[slot] : walk_to_idle_delay[slot];
   }
 
-  /** @brief Frame duration override (seconds/frame) for @p target_sid; 0 means use AnimationTable default. @pre
-   * has(e). */
+  /** Frame duration override (seconds/frame) for `target_sid`; 0 means use AnimationTable default. @pre
+   *  has(e).
+   */
   [[nodiscard]] float frame_duration_for(EntityId e, corundum::sprites::SpriteId target_sid) const noexcept {
     assert(has(e));
     const std::uint32_t slot = index.dense_index(e);
@@ -126,47 +127,48 @@ struct MotionSpriteTable {
     return in_stance[slot] ? ready_frame_duration[slot] : idle_frame_duration[slot];
   }
 
-  /** @brief SpriteId currently pending transition, or k_null_sprite_id if none. @pre has(e). */
+  /** SpriteId currently pending transition, or k_null_sprite_id if none. @pre has(e). */
   [[nodiscard]] corundum::sprites::SpriteId pending_sprite(EntityId e) const noexcept {
     assert(has(e));
     return pending_sid[index.dense_index(e)];
   }
 
-  /** @brief Walk frame counts for @p e, suitable for AnimationTable::set_frame_counts. @pre has(e). */
+  /** Walk frame counts for `e`, suitable for AnimationTable::set_frame_counts. @pre has(e). */
   [[nodiscard]] std::array<uint8_t, corundum::sprites::k_num_anim_ids> walk_frame_counts(EntityId e) const noexcept {
     assert(has(e));
     return walk_counts[index.dense_index(e)];
   }
 
-  /** @brief Frame counts of the sheet @p e stands on, suitable for AnimationTable::set_frame_counts.
-   *  @pre has(e). */
+  /** Frame counts of the sheet `e` stands on, suitable for AnimationTable::set_frame_counts.
+   *  @pre has(e).
+   */
   [[nodiscard]] std::array<uint8_t, corundum::sprites::k_num_anim_ids> idle_frame_counts(EntityId e) const noexcept {
     assert(has(e));
     const std::uint32_t slot = index.dense_index(e);
     return in_stance[slot] ? ready_counts[slot] : idle_counts[slot];
   }
 
-  /** @brief True between enter_stance and leave_stance, for a character with a ready sheet. @pre has(e). */
+  /** True between enter_stance and leave_stance, for a character with a ready sheet. @pre has(e). */
   [[nodiscard]] bool is_in_stance(EntityId e) const noexcept {
     assert(has(e));
     return in_stance[index.dense_index(e)];
   }
 
-  /** @brief Stand on the ready sheet from now on; does nothing with no ready sheet. @pre has(e). */
+  /** Stand on the ready sheet from now on; does nothing with no ready sheet. @pre has(e). */
   void enter_stance(EntityId e) noexcept {
     assert(has(e));
     const std::uint32_t slot = index.dense_index(e);
     in_stance[slot] = ready_id[slot] != corundum::sprites::k_null_sprite_id;
   }
 
-  /** @brief Stand on the idle sheet again. @pre has(e). */
+  /** Stand on the idle sheet again. @pre has(e). */
   void leave_stance(EntityId e) noexcept {
     assert(has(e));
     in_stance[index.dense_index(e)] = false;
   }
 
-  /** @brief Begin tracking a transition to @p target, resetting the timer.
-   *  No-op if @p target is already the pending target.
+  /** Begin tracking a transition to `target`, resetting the timer.
+   *  No-op if `target` is already the pending target.
    *  @pre has(e).
    */
   void set_pending(EntityId e, corundum::sprites::SpriteId target) noexcept {
@@ -178,7 +180,7 @@ struct MotionSpriteTable {
     transition_timer[slot] = 0.f;
   }
 
-  /** @brief Advance the transition timer by @p dt seconds and return the new total.
+  /** Advance the transition timer by `dt` seconds and return the new total.
    *  @pre has(e).
    */
   float tick_transition(EntityId e, float dt) noexcept {
@@ -188,7 +190,7 @@ struct MotionSpriteTable {
     return timer;
   }
 
-  /** @brief Cancel any pending transition, resetting the timer to zero. @pre has(e). */
+  /** Cancel any pending transition, resetting the timer to zero. @pre has(e). */
   void cancel_transition(EntityId e) noexcept {
     assert(has(e));
     const std::uint32_t slot = index.dense_index(e);
@@ -196,9 +198,9 @@ struct MotionSpriteTable {
     transition_timer[slot] = 0.f;
   }
 
-  /** @brief Add a motion-sprite entry for @p e.
-   *  @param[in] e      Entity to add the entry for.
-   *  @param[in] config Spawn-time walk/idle sprite ids, frame counts, and transition timings.
+  /** Add a motion-sprite entry for `e`.
+   *  @param e      Entity to add the entry for.
+   *  @param config Spawn-time walk/idle sprite ids, frame counts, and transition timings.
    *  @pre has(e) must be false.
    */
   void insert(EntityId e, const Config &config) noexcept {
@@ -220,7 +222,7 @@ struct MotionSpriteTable {
     });
   }
 
-  /** @brief Remove @p e's entry via swap-and-pop. @pre has(e). */
+  /** Remove `e`'s entry via swap-and-pop. @pre has(e). */
   void remove(EntityId e) noexcept {
     index.remove(e, count, [this](auto slot, auto last) {
       walk_id[slot] = walk_id[last];

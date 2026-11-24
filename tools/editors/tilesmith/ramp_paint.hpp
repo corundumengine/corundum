@@ -8,14 +8,13 @@
 
 namespace tools::tilesmith {
 
-/**
- * @brief Set or erase a cell's ramp axis on a layer. No-op if out of bounds.
+/** Set or erase a cell's ramp axis on a layer. No-op if out of bounds.
  *
- * @param state     Editor state to modify.
- * @param layer_idx Target layer index.
- * @param col       Tile column.
- * @param row       Tile row.
- * @param axis      Axis to write, or std::nullopt to erase (cell is no longer a ramp).
+ *  @param state     Editor state to modify.
+ *  @param layer_idx Target layer index.
+ *  @param col       Tile column.
+ *  @param row       Tile row.
+ *  @param axis      Axis to write, or std::nullopt to erase (cell is no longer a ramp).
  */
 inline void set_ramp(EditorState &state, int layer_idx, int col, int row,
                      std::optional<corundum::world::tilemap::RampAxis> axis) noexcept {
@@ -33,15 +32,14 @@ inline void set_ramp(EditorState &state, int layer_idx, int col, int row,
     layer.ramps.erase(idx);
 }
 
-/**
- * @brief Paint or erase a ramp at the given window-space coordinates.
+/** Paint or erase a ramp at the given window-space coordinates.
  *
- * No-op if the position is outside the canvas or map bounds.
+ *  No-op if the position is outside the canvas or map bounds.
  *
- * @param state  Editor state to modify.
- * @param win_x  Window-space X coordinate.
- * @param win_y  Window-space Y coordinate.
- * @param erase  True to clear the ramp; false to paint the selected axis.
+ *  @param state  Editor state to modify.
+ *  @param win_x  Window-space X coordinate.
+ *  @param win_y  Window-space Y coordinate.
+ *  @param erase  True to clear the ramp; false to paint the selected axis.
  */
 void paint_or_erase_ramp(EditorState &state, int win_x, int win_y, bool erase);
 

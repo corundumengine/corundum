@@ -44,7 +44,7 @@ void rebuild_collision(WorldArea &area) {
 
 namespace {
 
-/// Rebuild @c area.aggregates.portals from the active chunks, offsetting each chunk-local
+/// Rebuild `area.aggregates.portals` from the active chunks, offsetting each chunk-local
 /// portal (and its chunk-target spawn) into global world tile coordinates.
 void rebuild_world_portals(WorldArea &area) {
   area.aggregates.portals.clear();
@@ -85,7 +85,7 @@ int chunk_tile_elevation_at(const ChunkWindow &chunks, int gc, int gr, int chunk
 }
 
 /// First walkability pass: clear the edge from each cell to any neighbour whose
-/// elevation differs by more than @p max_step_height.
+/// elevation differs by more than `max_step_height`.
 void clear_steep_walkability_edges(const ChunkWindow &chunks, corundum::world::tilemap::WalkabilityGraph &g,
                                    int chunk_size, int max_step_height) {
   using corundum::world::tilemap::k_walk_neighbors;

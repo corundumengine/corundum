@@ -37,13 +37,12 @@ struct PopupState {
   bool show_close_confirm = false;
 };
 
-/**
- * @brief Pending (uncommitted) condition text for one edit field.
+/** Pending (uncommitted) condition text for one edit field.
  *
- * When a condition fails to compile the raw text is kept here so the buffer
- * survives the frame-boundary re-seed, and the error is shown inline under
- * the field. `owner` is the choice/objective index the pending edit belongs
- * to, so switching fields re-syncs the buffer from the committed source.
+ *  When a condition fails to compile the raw text is kept here so the buffer
+ *  survives the frame-boundary re-seed, and the error is shown inline under
+ *  the field. `owner` is the choice/objective index the pending edit belongs
+ *  to, so switching fields re-syncs the buffer from the committed source.
  */
 struct CondEditState {
   bool active = false;
@@ -204,12 +203,11 @@ struct EditorState {
   }
 };
 
-/**
- * @brief Commit a condition text edit into an optional CompiledExpr slot.
+/** Commit a condition text edit into an optional CompiledExpr slot.
  *
- * Empty text clears the condition; valid text compiles and stores it; a
- * malformed expression keeps the raw text in @p edit for inline feedback
- * instead of committing. Only a real mutation pushes an undo snapshot.
+ *  Empty text clears the condition; valid text compiles and stores it; a
+ *  malformed expression keeps the raw text in `edit` for inline feedback
+ *  instead of committing. Only a real mutation pushes an undo snapshot.
  */
 inline void commit_condition(EditorState &state, std::optional<corundum::gameplay::dialogue::CompiledExpr> &slot,
                              const std::string &raw, CondEditState &edit, int owner) {

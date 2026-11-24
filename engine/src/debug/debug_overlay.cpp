@@ -57,7 +57,7 @@ constexpr float k_marker_hw = 5.f;
 constexpr float k_marker_hh = 3.f;
 constexpr float k_line_thickness = 2.f;
 
-/// Outline @p box as an isometric diamond sitting at @p elev.
+/// Outline `box` as an isometric diamond sitting at `elev`.
 ///
 /// tile_to_world takes a whole-tile elevation, so the sub-tile part of an interpolated
 /// ramp elevation rounds away — up to half a step of drift on a ramp, which a debug

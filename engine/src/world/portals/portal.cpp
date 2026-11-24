@@ -29,7 +29,7 @@ struct PortalRect {
   int h = 0;
 };
 
-/// Read the required trigger rectangle, validating its extent. @p context prefixes errors.
+/// Read the required trigger rectangle, validating its extent. `context` prefixes errors.
 std::expected<PortalRect, std::string> read_rect(const json &entry, const std::string &context) {
   try {
     PortalRect rect;
@@ -71,7 +71,7 @@ std::expected<std::pair<int, int>, std::string> read_chunk_target(const json &en
   }
 }
 
-/// Read optional scalar @p key as @p T, defaulting to @p fallback when absent.
+/// Read optional scalar `key` as `T`, defaulting to `fallback` when absent.
 template <typename T>
 std::expected<T, std::string> read_optional(const json &entry, const char *key, T fallback,
                                             const std::string &context) {
@@ -98,7 +98,7 @@ std::expected<std::pair<int, int>, std::string> read_spawn(const json &entry, co
 }
 
 /// Build one Portal from a JSON array entry, applying the same validation the file had
-/// when it was hand-authored. @p context is "Portals '<path>' portals[<i>]".
+/// when it was hand-authored. `context` is "Portals '<path>' portals[<i>]".
 std::expected<Portal, std::string> read_portal(const json &entry, const std::string &context) {
   if (!entry.is_object())
     return std::unexpected(std::format("{} must be an object", context));

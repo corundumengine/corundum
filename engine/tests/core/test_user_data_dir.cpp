@@ -27,7 +27,7 @@ struct EnvGuard {
     unset_env(name);
   }
 
-  /// Sets the variable to @p value for the guard's lifetime.
+  /// Sets the variable to `value` for the guard's lifetime.
   EnvGuard(std::string_view variable_name, const std::string &value)
       : name(variable_name), saved(corundum::core::read_env(name.c_str())) {
     set_env(name, value);

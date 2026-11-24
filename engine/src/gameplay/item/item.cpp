@@ -118,7 +118,7 @@ struct LoadedBatch {
   std::vector<Item> items{};
 };
 
-/// Every batch file under @p dir, each with the items it produced; a file that fails to load is skipped.
+/// Every batch file under `dir`, each with the items it produced; a file that fails to load is skipped.
 std::vector<LoadedBatch> load_batch_files(const core::ContentSource &content, const std::filesystem::path &dir,
                                           ItemCategory category, const Loader &loader) {
   std::vector<LoadedBatch> batches;

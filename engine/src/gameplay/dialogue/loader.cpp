@@ -71,7 +71,7 @@ void validate_actions(const json &arr, const std::string &context) {
   }
 }
 
-/// Parse one choice edge; @p context names it in error messages.
+/// Parse one choice edge; `context` names it in error messages.
 ChoiceEdge parse_choice_edge(const json &j, const std::string &context) {
   ChoiceEdge edge;
 
@@ -186,7 +186,7 @@ std::flat_map<std::string, int> parse_variables(const json &j) {
   return variables;
 }
 
-/// Read @p path and return its schema-validated root object.
+/// Read `path` and return its schema-validated root object.
 json load_validated_root(const core::SchemaValidator &schema, const core::ContentSource &content,
                          const std::string &path) {
   auto root_result = core::read_json(content, path, "dialogue JSON");

@@ -49,7 +49,7 @@ void release_area_textures(corundum::platform::Renderer &r, std::vector<platform
   area_texture_ids.clear();
 }
 
-/// Record @p ids (just returned by load_texture) as area textures. The area keeps one reference
+/// Record `ids` (just returned by load_texture) as area textures. The area keeps one reference
 /// per distinct texture: a repeat (two chunks sharing a tileset) hands its extra reference
 /// straight back. TextureId::Invalid, a failed load, holds no reference.
 void adopt_area_textures(corundum::platform::Renderer &r, std::vector<platform::TextureId> &area_texture_ids,

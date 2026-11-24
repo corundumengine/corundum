@@ -261,7 +261,7 @@ bool pause_menu_blocked(const Engine &engine, world::GameMode mode) noexcept {
 }
 
 /// Modulo wrap of a UI list cursor, matching the dialogue choice cursor: Down past the last
-/// row lands on the first, Up past the first lands on the last. @p count must be > 0.
+/// row lands on the first, Up past the first lands on the last. `count` must be > 0.
 int wrap_cursor(int current, int delta, int count) noexcept {
   return (current + delta + count) % count;
 }
@@ -301,7 +301,7 @@ void save_user_settings(const Engine &engine) {
     warn_log("[engine] WARN: could not save settings: {}", saved.error());
 }
 
-/// True when @p input is the conventional Back press during a rebind capture. Capture
+/// True when `input` is the conventional Back press during a rebind capture. Capture
 /// swallows every press before it reaches the action bitsets, so Back must be recognised
 /// from the captured physical input itself.
 bool is_cancel_capture(input::PhysicalInput input) noexcept {
@@ -340,7 +340,7 @@ void adjust_general_row(Engine &engine, ui::SettingsGeneralRow row, int directio
   }
 }
 
-/// Bind @p captured to the action under the Controls cursor, replacing that action's binding on
+/// Bind `captured` to the action under the Controls cursor, replacing that action's binding on
 /// the same device class and swapping its old input to any action the capture leaves unbound.
 void rebind_captured(Engine &engine, input::PhysicalInput captured) {
   assert(engine.settings_screen.cursor < ui::k_controls_reset_row);
@@ -416,14 +416,14 @@ void update_pause_menu(Engine &engine, const input::InputIntent &intent) {
     activate_menu_command(engine);
 }
 
-/// Switch the settings tab to @p tab, resetting the cursor and scroll.
+/// Switch the settings tab to `tab`, resetting the cursor and scroll.
 void switch_settings_tab(ui::SettingsState &state, ui::SettingsTab tab) noexcept {
   state.tab = tab;
   state.cursor = 0;
   state.scroll = 0;
 }
 
-/// Switch to the tab @p direction steps away, wrapping around.
+/// Switch to the tab `direction` steps away, wrapping around.
 void cycle_settings_tab(ui::SettingsState &state, int direction) {
   const int tabs = ui::k_settings_tab_count;
   switch_settings_tab(state, static_cast<ui::SettingsTab>((static_cast<int>(state.tab) + direction + tabs) % tabs));

@@ -57,7 +57,7 @@ void log_sokol_message(const char *tag, uint32_t level, uint32_t item_id, const 
                              file != nullptr ? file : "?", line, msg != nullptr ? msg : "");
 }
 
-/// Configure and start the process-wide sokol device over @p backend.
+/// Configure and start the process-wide sokol device over `backend`.
 std::expected<void, std::string> start_sokol_device(const gpu_backend::Context *backend) {
   sg_desc sdesc{};
   if (auto configured = gpu_backend::configure_sokol(sdesc, backend); !configured)
