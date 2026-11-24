@@ -28,64 +28,64 @@ namespace item = corundum::gameplay::item;
 
 namespace {
 
-  void write_file(const fs::path &p, std::string_view content) {
-    fs::create_directories(p.parent_path());
-    std::ofstream f(p);
-    f << content;
-  }
+void write_file(const fs::path &p, std::string_view content) {
+  fs::create_directories(p.parent_path());
+  std::ofstream f(p);
+  f << content;
+}
 
-  corundum::test::TempDir temp_dir(std::string_view tag) {
-    return corundum::test::TempDir{"crpg_test_item_serialize_", tag};
-  }
+corundum::test::TempDir temp_dir(std::string_view tag) {
+  return corundum::test::TempDir{"crpg_test_item_serialize_", tag};
+}
 
-  /** @brief Load -> serialize -> write -> load, returning the final parse. */
-  std::expected<std::vector<item::Item>, std::string> round_trip(const fs::path &src, item::ItemCategory category,
-                                                                 const fs::path &out) {
-    auto loaded = item::Loader{}.load(disk(), src, category);
-    if (!loaded)
-      return std::unexpected(loaded.error());
-    auto write_result = corundum::core::write_json(out, item::serialize(*loaded, category));
-    if (!write_result)
-      return std::unexpected(write_result.error());
-    return item::Loader{}.load(disk(), out, category);
-  }
+/** @brief Load -> serialize -> write -> load, returning the final parse. */
+std::expected<std::vector<item::Item>, std::string> round_trip(const fs::path &src, item::ItemCategory category,
+                                                               const fs::path &out) {
+  auto loaded = item::Loader{}.load(disk(), src, category);
+  if (!loaded)
+    return std::unexpected(loaded.error());
+  auto write_result = corundum::core::write_json(out, item::serialize(*loaded, category));
+  if (!write_result)
+    return std::unexpected(write_result.error());
+  return item::Loader{}.load(disk(), out, category);
+}
 
-  void check_same_text(const item::Item &a, const item::Item &b) {
-    CHECK_EQ(a.id, b.id);
-    CHECK_EQ(a.name, b.name);
-    CHECK_EQ(a.description, b.description);
-  }
+void check_same_text(const item::Item &a, const item::Item &b) {
+  CHECK_EQ(a.id, b.id);
+  CHECK_EQ(a.name, b.name);
+  CHECK_EQ(a.description, b.description);
+}
 
-  void check_same_weapon(const item::Item &a, const item::Item &b) {
-    CHECK_EQ(a.weapon.has_value(), b.weapon.has_value());
-    if (a.weapon && b.weapon)
-      CHECK_EQ(a.weapon->damage, b.weapon->damage);
-  }
+void check_same_weapon(const item::Item &a, const item::Item &b) {
+  CHECK_EQ(a.weapon.has_value(), b.weapon.has_value());
+  if (a.weapon && b.weapon)
+    CHECK_EQ(a.weapon->damage, b.weapon->damage);
+}
 
-  void check_same_apparel(const item::Item &a, const item::Item &b) {
-    CHECK_EQ(a.apparel.has_value(), b.apparel.has_value());
-    if (!a.apparel || !b.apparel)
-      return;
-    CHECK_EQ(a.apparel->slot, b.apparel->slot);
-    CHECK_EQ(a.apparel->defense, b.apparel->defense);
-  }
+void check_same_apparel(const item::Item &a, const item::Item &b) {
+  CHECK_EQ(a.apparel.has_value(), b.apparel.has_value());
+  if (!a.apparel || !b.apparel)
+    return;
+  CHECK_EQ(a.apparel->slot, b.apparel->slot);
+  CHECK_EQ(a.apparel->defense, b.apparel->defense);
+}
 
-  void check_same_potion(const item::Item &a, const item::Item &b) {
-    CHECK_EQ(a.potion.has_value(), b.potion.has_value());
-    if (!a.potion || !b.potion)
-      return;
-    CHECK_EQ(a.potion->effect, b.potion->effect);
-    CHECK_EQ(a.potion->magnitude, b.potion->magnitude);
-  }
+void check_same_potion(const item::Item &a, const item::Item &b) {
+  CHECK_EQ(a.potion.has_value(), b.potion.has_value());
+  if (!a.potion || !b.potion)
+    return;
+  CHECK_EQ(a.potion->effect, b.potion->effect);
+  CHECK_EQ(a.potion->magnitude, b.potion->magnitude);
+}
 
-  void check_same_item(const item::Item &a, const item::Item &b) {
-    check_same_text(a, b);
-    CHECK_EQ(a.icon, b.icon);
-    CHECK_EQ(a.category, b.category);
-    check_same_weapon(a, b);
-    check_same_apparel(a, b);
-    check_same_potion(a, b);
-  }
+void check_same_item(const item::Item &a, const item::Item &b) {
+  check_same_text(a, b);
+  CHECK_EQ(a.icon, b.icon);
+  CHECK_EQ(a.category, b.category);
+  check_same_weapon(a, b);
+  check_same_apparel(a, b);
+  check_same_potion(a, b);
+}
 
 } // namespace
 

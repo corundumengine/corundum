@@ -21,15 +21,15 @@ namespace fs = std::filesystem;
 
 namespace {
 
-  void write_file(const fs::path &p, std::string_view content) {
-    fs::create_directories(p.parent_path());
-    std::ofstream f(p);
-    f << content;
-  }
+void write_file(const fs::path &p, std::string_view content) {
+  fs::create_directories(p.parent_path());
+  std::ofstream f(p);
+  f << content;
+}
 
-  corundum::test::TempDir temp_dir(std::string_view tag) {
-    return corundum::test::TempDir{"crpg_test_portals_", tag};
-  }
+corundum::test::TempDir temp_dir(std::string_view tag) {
+  return corundum::test::TempDir{"crpg_test_portals_", tag};
+}
 
 } // namespace
 

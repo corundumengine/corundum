@@ -10,7 +10,7 @@
 
 namespace {
 
-  using corundum::world::FlagStore;
+using corundum::world::FlagStore;
 
 } // namespace
 

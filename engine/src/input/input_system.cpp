@@ -8,11 +8,10 @@
 
 namespace corundum::input {
 
-  void poll(InputMapper &mapper, InputState &state, platform::Window &window,
-            platform::PlatformEvents &events) noexcept {
-    mapper.begin_poll();
-    window.poll_game_input(mapper, events);
-    mapper.end_poll(state);
-  }
+void poll(InputMapper &mapper, InputState &state, platform::Window &window, platform::PlatformEvents &events) noexcept {
+  mapper.begin_poll();
+  window.poll_game_input(mapper, events);
+  mapper.end_poll(state);
+}
 
 } // namespace corundum::input

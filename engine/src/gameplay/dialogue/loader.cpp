@@ -32,218 +32,218 @@ using nlohmann::json;
 
 namespace corundum::gameplay::dialogue {
 
-  namespace {
+namespace {
 
-    struct LoadError : std::runtime_error {
-      using std::runtime_error::runtime_error;
-    };
+struct LoadError : std::runtime_error {
+  using std::runtime_error::runtime_error;
+};
 
-    constexpr std::string_view k_asset_label = "Dialogue";
+constexpr std::string_view k_asset_label = "Dialogue";
 
-    NodeType parse_type(const std::string &raw) {
-      if (raw == "talk")
-        return NodeType::Talk;
-      if (raw == "choice")
-        return NodeType::Choice;
-      if (raw == "event")
-        return NodeType::Event;
-      // "end" — handled by the caller after parse_node
-      return NodeType::End;
+NodeType parse_type(const std::string &raw) {
+  if (raw == "talk")
+    return NodeType::Talk;
+  if (raw == "choice")
+    return NodeType::Choice;
+  if (raw == "event")
+    return NodeType::Event;
+  // "end" — handled by the caller after parse_node
+  return NodeType::End;
+}
+
+SequenceMode parse_sequence(const std::string &raw) {
+  if (raw == "none")
+    return SequenceMode::None;
+  if (raw == "once")
+    return SequenceMode::Once;
+  if (raw == "cycle")
+    return SequenceMode::Cycle;
+  // "random" — checked by schema
+  return SequenceMode::Random;
+}
+
+void validate_actions(const json &arr, const std::string &context) {
+  for (std::size_t i = 0; i < arr.size(); ++i) {
+    const std::string source = arr[i].get<std::string>();
+    const auto result = parse_action(source);
+    if (!result.has_value())
+      throw LoadError(std::format("[{}] action[{}] invalid: {}", context, i, result.error().message));
+  }
+}
+
+/// Parse one choice edge; @p context names it in error messages.
+ChoiceEdge parse_choice_edge(const json &j, const std::string &context) {
+  ChoiceEdge edge;
+
+  // Schema guarantees: label and target are present and non-empty.
+  edge.label = j["label"].get<std::string>();
+  edge.target_id = j["target"].get<std::string>();
+
+  if (j.contains("condition")) {
+    const std::string condition = j["condition"].get<std::string>();
+    if (condition.empty())
+      throw LoadError(std::format("[{}] \"condition\" must not be empty if present", context));
+    auto compiled = compile(condition);
+    if (!compiled)
+      throw LoadError(std::format("[{}] condition invalid: {}", context, compiled.error().message));
+    edge.condition = std::move(*compiled);
+  }
+
+  if (j.contains("actions")) {
+    validate_actions(j["actions"], context);
+    for (const auto &action : j["actions"])
+      edge.actions.push_back(action.get<std::string>());
+  }
+
+  if (j.contains("sequence"))
+    edge.sequence = parse_sequence(j["sequence"].get<std::string>());
+
+  if (j.contains("min_visits"))
+    edge.min_visits = j["min_visits"].get<int>();
+
+  return edge;
+}
+
+/// Parse the optional "metadata" object; non-string values are ignored.
+std::flat_map<std::string, std::string> parse_metadata(const json &j) {
+  std::flat_map<std::string, std::string> metadata;
+  if (j.contains("metadata") && j["metadata"].is_object()) {
+    for (const auto &[key, value] : j["metadata"].items()) {
+      if (value.is_string())
+        metadata.emplace(key, value.get<std::string>());
     }
+  }
+  return metadata;
+}
 
-    SequenceMode parse_sequence(const std::string &raw) {
-      if (raw == "none")
-        return SequenceMode::None;
-      if (raw == "once")
-        return SequenceMode::Once;
-      if (raw == "cycle")
-        return SequenceMode::Cycle;
-      // "random" — checked by schema
-      return SequenceMode::Random;
+Node parse_node(const json &j) {
+  // Schema guarantees: id is present and non-empty, type is present and valid.
+  Node node;
+  node.id = j["id"].get<std::string>();
+  node.type = parse_type(j["type"].get<std::string>());
+
+  if (j.contains("once"))
+    node.once = j["once"].get<bool>();
+
+  if (node.type == NodeType::Talk) {
+    // Schema guarantees: text and next are present and non-empty.
+    node.text = j["text"].get<std::string>();
+    node.next_id = j["next"].get<std::string>();
+  }
+
+  if (node.type == NodeType::Event) {
+    // Schema guarantees: next and actions are present.
+    node.next_id = j["next"].get<std::string>();
+    if (j["actions"].empty())
+      throw LoadError(std::format("[{}] event node has empty \"actions\" array", node.id));
+    validate_actions(j["actions"], node.id);
+    for (const auto &action : j["actions"])
+      node.actions.push_back(action.get<std::string>());
+  }
+
+  if (node.type == NodeType::Choice) {
+    // Schema guarantees: choices is present and non-empty.
+    const json &choices = j["choices"];
+    for (std::size_t i = 0; i < choices.size(); ++i)
+      node.choices.push_back(parse_choice_edge(choices[i], std::format("{}:choice[{}]", node.id, i)));
+  }
+
+  node.metadata = parse_metadata(j);
+  return node;
+}
+
+/// Build the id→index lookup, rejecting duplicate node ids.
+std::flat_map<std::string, std::size_t> build_id_index(const std::vector<Node> &nodes) {
+  std::vector<std::pair<std::string, std::size_t>> index_pairs;
+  index_pairs.reserve(nodes.size());
+  for (std::size_t i = 0; i < nodes.size(); ++i)
+    index_pairs.emplace_back(nodes[i].id, i);
+
+  std::ranges::sort(index_pairs, {}, &std::pair<std::string, std::size_t>::first);
+
+  const auto duplicate = std::ranges::adjacent_find(
+      index_pairs, std::ranges::equal_to{}, [](const auto &entry) -> const std::string & { return entry.first; });
+  if (duplicate != index_pairs.end())
+    throw LoadError(std::format("duplicate node id \"{}\"", duplicate->first));
+
+  // std::sorted_unique is provided by <flat_map>; the include-cleaner mapping
+  // misattributes it to a libc++ internal header, so suppress that one check.
+  // NOLINTNEXTLINE(misc-include-cleaner)
+  return {std::sorted_unique, index_pairs.begin(), index_pairs.end()};
+}
+
+/// Parse the optional graph-level "variables" defaults.
+std::flat_map<std::string, int> parse_variables(const json &j) {
+  std::flat_map<std::string, int> variables;
+  if (j.contains("variables") && j["variables"].is_object()) {
+    for (const auto &[key, value] : j["variables"].items()) {
+      if (value.is_number_integer())
+        variables.emplace(key, value.get<int>());
+      else if (value.is_boolean())
+        variables.emplace(key, value.get<bool>() ? 1 : 0);
     }
+  }
+  return variables;
+}
 
-    void validate_actions(const json &arr, const std::string &context) {
-      for (std::size_t i = 0; i < arr.size(); ++i) {
-        const std::string source = arr[i].get<std::string>();
-        const auto result = parse_action(source);
-        if (!result.has_value())
-          throw LoadError(std::format("[{}] action[{}] invalid: {}", context, i, result.error().message));
-      }
-    }
+/// Read @p path and return its schema-validated root object.
+json load_validated_root(const core::SchemaValidator &schema, const core::ContentSource &content,
+                         const std::string &path) {
+  auto root_result = core::read_json(content, path, "dialogue JSON");
+  if (!root_result)
+    throw LoadError(std::move(root_result).error());
+  json root = std::move(*root_result);
 
-    /// Parse one choice edge; @p context names it in error messages.
-    ChoiceEdge parse_choice_edge(const json &j, const std::string &context) {
-      ChoiceEdge edge;
+  // Schema version is checked before validation.
+  auto prepared = core::prepare_schema_version(root, k_dialogue_schema_version, k_asset_label, path, {});
+  if (!prepared)
+    throw LoadError(std::move(prepared).error());
 
-      // Schema guarantees: label and target are present and non-empty.
-      edge.label = j["label"].get<std::string>();
-      edge.target_id = j["target"].get<std::string>();
+  auto validated = schema.validate(root);
+  if (!validated)
+    throw LoadError(std::format("[schema] {}: {}", path, validated.error()));
 
-      if (j.contains("condition")) {
-        const std::string condition = j["condition"].get<std::string>();
-        if (condition.empty())
-          throw LoadError(std::format("[{}] \"condition\" must not be empty if present", context));
-        auto compiled = compile(condition);
-        if (!compiled)
-          throw LoadError(std::format("[{}] condition invalid: {}", context, compiled.error().message));
-        edge.condition = std::move(*compiled);
-      }
+  // The "type" field is optional — directory context already tells us the type.
+  if (root.contains("type") && root["type"].is_string() && root["type"] != "graph" && root["type"] != "dialogue")
+    corundum::detail::warn_log(R"([warning] dialogue file {} has type "{}" instead of "graph")", path,
+                               root["type"].get<std::string>());
 
-      if (j.contains("actions")) {
-        validate_actions(j["actions"], context);
-        for (const auto &action : j["actions"])
-          edge.actions.push_back(action.get<std::string>());
-      }
+  return root;
+}
 
-      if (j.contains("sequence"))
-        edge.sequence = parse_sequence(j["sequence"].get<std::string>());
+Graph load_graph_impl(const core::SchemaValidator &schema, const core::ContentSource &content,
+                      const std::string &path) {
+  const json root = load_validated_root(schema, content, path);
 
-      if (j.contains("min_visits"))
-        edge.min_visits = j["min_visits"].get<int>();
+  // Schema guarantees: id is present and non-empty.
+  Graph graph;
+  // The document's schema version was checked; this records the current format.
+  graph.schema_version = k_dialogue_schema_version;
+  graph.graph_id = root["id"].get<std::string>();
 
-      return edge;
-    }
+  if (root.contains("speaker") && root["speaker"].is_string())
+    graph.speaker = root["speaker"].get<std::string>();
 
-    /// Parse the optional "metadata" object; non-string values are ignored.
-    std::flat_map<std::string, std::string> parse_metadata(const json &j) {
-      std::flat_map<std::string, std::string> metadata;
-      if (j.contains("metadata") && j["metadata"].is_object()) {
-        for (const auto &[key, value] : j["metadata"].items()) {
-          if (value.is_string())
-            metadata.emplace(key, value.get<std::string>());
-        }
-      }
-      return metadata;
-    }
+  if (root.contains("actor_id") && root["actor_id"].is_string())
+    graph.actor_id = root["actor_id"].get<std::string>();
 
-    Node parse_node(const json &j) {
-      // Schema guarantees: id is present and non-empty, type is present and valid.
-      Node node;
-      node.id = j["id"].get<std::string>();
-      node.type = parse_type(j["type"].get<std::string>());
+  // Schema guarantees: nodes is a non-empty array.
+  const json &nodes = root["nodes"];
+  graph.nodes.reserve(nodes.size());
+  for (const json &node_json : nodes)
+    graph.nodes.push_back(parse_node(node_json));
 
-      if (j.contains("once"))
-        node.once = j["once"].get<bool>();
+  graph.id_to_index = build_id_index(graph.nodes);
+  graph.variables = parse_variables(root);
 
-      if (node.type == NodeType::Talk) {
-        // Schema guarantees: text and next are present and non-empty.
-        node.text = j["text"].get<std::string>();
-        node.next_id = j["next"].get<std::string>();
-      }
+  const std::vector<std::string> errors = validate_graph(graph);
+  if (!errors.empty())
+    throw LoadError(errors[0]);
 
-      if (node.type == NodeType::Event) {
-        // Schema guarantees: next and actions are present.
-        node.next_id = j["next"].get<std::string>();
-        if (j["actions"].empty())
-          throw LoadError(std::format("[{}] event node has empty \"actions\" array", node.id));
-        validate_actions(j["actions"], node.id);
-        for (const auto &action : j["actions"])
-          node.actions.push_back(action.get<std::string>());
-      }
+  return graph;
+}
 
-      if (node.type == NodeType::Choice) {
-        // Schema guarantees: choices is present and non-empty.
-        const json &choices = j["choices"];
-        for (std::size_t i = 0; i < choices.size(); ++i)
-          node.choices.push_back(parse_choice_edge(choices[i], std::format("{}:choice[{}]", node.id, i)));
-      }
-
-      node.metadata = parse_metadata(j);
-      return node;
-    }
-
-    /// Build the id→index lookup, rejecting duplicate node ids.
-    std::flat_map<std::string, std::size_t> build_id_index(const std::vector<Node> &nodes) {
-      std::vector<std::pair<std::string, std::size_t>> index_pairs;
-      index_pairs.reserve(nodes.size());
-      for (std::size_t i = 0; i < nodes.size(); ++i)
-        index_pairs.emplace_back(nodes[i].id, i);
-
-      std::ranges::sort(index_pairs, {}, &std::pair<std::string, std::size_t>::first);
-
-      const auto duplicate = std::ranges::adjacent_find(
-          index_pairs, std::ranges::equal_to{}, [](const auto &entry) -> const std::string & { return entry.first; });
-      if (duplicate != index_pairs.end())
-        throw LoadError(std::format("duplicate node id \"{}\"", duplicate->first));
-
-      // std::sorted_unique is provided by <flat_map>; the include-cleaner mapping
-      // misattributes it to a libc++ internal header, so suppress that one check.
-      // NOLINTNEXTLINE(misc-include-cleaner)
-      return {std::sorted_unique, index_pairs.begin(), index_pairs.end()};
-    }
-
-    /// Parse the optional graph-level "variables" defaults.
-    std::flat_map<std::string, int> parse_variables(const json &j) {
-      std::flat_map<std::string, int> variables;
-      if (j.contains("variables") && j["variables"].is_object()) {
-        for (const auto &[key, value] : j["variables"].items()) {
-          if (value.is_number_integer())
-            variables.emplace(key, value.get<int>());
-          else if (value.is_boolean())
-            variables.emplace(key, value.get<bool>() ? 1 : 0);
-        }
-      }
-      return variables;
-    }
-
-    /// Read @p path and return its schema-validated root object.
-    json load_validated_root(const core::SchemaValidator &schema, const core::ContentSource &content,
-                             const std::string &path) {
-      auto root_result = core::read_json(content, path, "dialogue JSON");
-      if (!root_result)
-        throw LoadError(std::move(root_result).error());
-      json root = std::move(*root_result);
-
-      // Schema version is checked before validation.
-      auto prepared = core::prepare_schema_version(root, k_dialogue_schema_version, k_asset_label, path, {});
-      if (!prepared)
-        throw LoadError(std::move(prepared).error());
-
-      auto validated = schema.validate(root);
-      if (!validated)
-        throw LoadError(std::format("[schema] {}: {}", path, validated.error()));
-
-      // The "type" field is optional — directory context already tells us the type.
-      if (root.contains("type") && root["type"].is_string() && root["type"] != "graph" && root["type"] != "dialogue")
-        corundum::detail::warn_log(R"([warning] dialogue file {} has type "{}" instead of "graph")", path,
-                                   root["type"].get<std::string>());
-
-      return root;
-    }
-
-    Graph load_graph_impl(const core::SchemaValidator &schema, const core::ContentSource &content,
-                          const std::string &path) {
-      const json root = load_validated_root(schema, content, path);
-
-      // Schema guarantees: id is present and non-empty.
-      Graph graph;
-      // The document's schema version was checked; this records the current format.
-      graph.schema_version = k_dialogue_schema_version;
-      graph.graph_id = root["id"].get<std::string>();
-
-      if (root.contains("speaker") && root["speaker"].is_string())
-        graph.speaker = root["speaker"].get<std::string>();
-
-      if (root.contains("actor_id") && root["actor_id"].is_string())
-        graph.actor_id = root["actor_id"].get<std::string>();
-
-      // Schema guarantees: nodes is a non-empty array.
-      const json &nodes = root["nodes"];
-      graph.nodes.reserve(nodes.size());
-      for (const json &node_json : nodes)
-        graph.nodes.push_back(parse_node(node_json));
-
-      graph.id_to_index = build_id_index(graph.nodes);
-      graph.variables = parse_variables(root);
-
-      const std::vector<std::string> errors = validate_graph(graph);
-      if (!errors.empty())
-        throw LoadError(errors[0]);
-
-      return graph;
-    }
-
-    constexpr std::string_view k_dialogue_graph_schema = R"({
+constexpr std::string_view k_dialogue_graph_schema = R"({
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://corundum.dev/schemas/dialogue_graph",
   "type": "object",
@@ -315,17 +315,17 @@ namespace corundum::gameplay::dialogue {
   }
 })";
 
-  } // namespace
+} // namespace
 
-  Loader::Loader() : schema_(core::SchemaValidator::from_embedded(k_dialogue_graph_schema)) {}
+Loader::Loader() : schema_(core::SchemaValidator::from_embedded(k_dialogue_graph_schema)) {}
 
-  std::expected<Graph, std::string> Loader::load(const core::ContentSource &content,
-                                                 const std::filesystem::path &path) const {
-    try {
-      return load_graph_impl(schema_, content, path.string());
-    } catch (const std::exception &e) {
-      return std::unexpected(std::string(e.what()));
-    }
+std::expected<Graph, std::string> Loader::load(const core::ContentSource &content,
+                                               const std::filesystem::path &path) const {
+  try {
+    return load_graph_impl(schema_, content, path.string());
+  } catch (const std::exception &e) {
+    return std::unexpected(std::string(e.what()));
   }
+}
 
 } // namespace corundum::gameplay::dialogue

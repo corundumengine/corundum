@@ -20,52 +20,52 @@ namespace fs = std::filesystem;
 
 namespace {
 
-  void write_text(const fs::path &path, std::string_view contents) {
-    fs::create_directories(path.parent_path());
-    std::ofstream f(path);
-    f << contents;
-  }
+void write_text(const fs::path &path, std::string_view contents) {
+  fs::create_directories(path.parent_path());
+  std::ofstream f(path);
+  f << contents;
+}
 
-  std::vector<std::string> names_of(const std::vector<corundum::core::DirEntry> &entries) {
-    std::vector<std::string> names;
-    names.reserve(entries.size());
-    for (const corundum::core::DirEntry &entry : entries)
-      names.push_back(entry.name);
-    return names;
-  }
+std::vector<std::string> names_of(const std::vector<corundum::core::DirEntry> &entries) {
+  std::vector<std::string> names;
+  names.reserve(entries.size());
+  for (const corundum::core::DirEntry &entry : entries)
+    names.push_back(entry.name);
+  return names;
+}
 
-  // One flat list of contract assertions; splitting it would hide the shared contract.
-  // NOLINTNEXTLINE(readability-function-size)
-  void check_contract(const corundum::core::ContentSource &source, std::string_view label) {
-    INFO(label);
+// One flat list of contract assertions; splitting it would hide the shared contract.
+// NOLINTNEXTLINE(readability-function-size)
+void check_contract(const corundum::core::ContentSource &source, std::string_view label) {
+  INFO(label);
 
-    const auto one = source.read("a/one.json");
-    REQUIRE(one.has_value());
-    CHECK_EQ(*one, std::vector<std::uint8_t>{'1'});
+  const auto one = source.read("a/one.json");
+  REQUIRE(one.has_value());
+  CHECK_EQ(*one, std::vector<std::uint8_t>{'1'});
 
-    CHECK(source.contains("a/sub/three.json"));
-    CHECK_FALSE(source.contains("a/missing.json"));
+  CHECK(source.contains("a/sub/three.json"));
+  CHECK_FALSE(source.contains("a/missing.json"));
 
-    const auto filtered = source.list("a", corundum::core::ListOptions{.extensions = {"json"}});
-    REQUIRE(filtered.has_value());
-    CHECK_EQ(names_of(*filtered), (std::vector<std::string>{"sub", "one.json"}));
+  const auto filtered = source.list("a", corundum::core::ListOptions{.extensions = {"json"}});
+  REQUIRE(filtered.has_value());
+  CHECK_EQ(names_of(*filtered), (std::vector<std::string>{"sub", "one.json"}));
 
-    const auto recursive = source.list("a", corundum::core::ListOptions{.extensions = {"json"}, .recursive = true});
-    REQUIRE(recursive.has_value());
-    bool found_three = false;
-    for (const corundum::core::DirEntry &entry : *recursive)
-      found_three = found_three || entry.name == "three.json";
-    CHECK(found_three);
+  const auto recursive = source.list("a", corundum::core::ListOptions{.extensions = {"json"}, .recursive = true});
+  REQUIRE(recursive.has_value());
+  bool found_three = false;
+  for (const corundum::core::DirEntry &entry : *recursive)
+    found_three = found_three || entry.name == "three.json";
+  CHECK(found_three);
 
-    // The directory has files, but the filter removes them all: still a success with no entries.
-    const auto empty = source.list("a/sub", corundum::core::ListOptions{.extensions = {"txt"}});
-    REQUIRE(empty.has_value());
-    CHECK(empty->empty());
+  // The directory has files, but the filter removes them all: still a success with no entries.
+  const auto empty = source.list("a/sub", corundum::core::ListOptions{.extensions = {"txt"}});
+  REQUIRE(empty.has_value());
+  CHECK(empty->empty());
 
-    const auto missing = source.list("nope", {});
-    REQUIRE_FALSE(missing.has_value());
-    CHECK_MESSAGE(missing.error().find("nope") != std::string::npos, missing.error());
-  }
+  const auto missing = source.list("nope", {});
+  REQUIRE_FALSE(missing.has_value());
+  CHECK_MESSAGE(missing.error().find("nope") != std::string::npos, missing.error());
+}
 
 } // namespace
 

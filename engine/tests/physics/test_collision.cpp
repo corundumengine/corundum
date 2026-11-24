@@ -152,10 +152,10 @@ TEST_CASE("resolve_collisions - elevation within tolerance still blocks") {
 // of resolve_triangle_collisions sees a spurious overlap.
 
 namespace {
-  constexpr float k_probe = 0.01f;
-  constexpr float k_near = 0.02f;
-  constexpr float k_far = 0.97f;
-  constexpr Position k_outside{.col = -1.f, .row = -1.f};
+constexpr float k_probe = 0.01f;
+constexpr float k_near = 0.02f;
+constexpr float k_far = 0.97f;
+constexpr Position k_outside{.col = -1.f, .row = -1.f};
 } // namespace
 
 TEST_CASE("resolve_triangle_collisions - NW cut: empty corner is passable") {

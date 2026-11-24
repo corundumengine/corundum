@@ -14,59 +14,59 @@
 
 namespace corundum::core {
 
-  namespace {
+namespace {
 
-    /// Parse the optional "schema_version" field. Absent -> legacy version 1.
-    std::expected<int, std::string> parse_schema_version(const nlohmann::json &root, std::string_view asset_label,
-                                                         const std::string &path) {
-      if (!root.contains("schema_version"))
-        return 1;
-      if (!root["schema_version"].is_number_integer())
-        return std::unexpected(std::format("{} '{}' field 'schema_version' must be an integer", asset_label, path));
-      return root["schema_version"].get<int>();
-    }
+/// Parse the optional "schema_version" field. Absent -> legacy version 1.
+std::expected<int, std::string> parse_schema_version(const nlohmann::json &root, std::string_view asset_label,
+                                                     const std::string &path) {
+  if (!root.contains("schema_version"))
+    return 1;
+  if (!root["schema_version"].is_number_integer())
+    return std::unexpected(std::format("{} '{}' field 'schema_version' must be an integer", asset_label, path));
+  return root["schema_version"].get<int>();
+}
 
-  } // namespace
+} // namespace
 
-  std::expected<void, std::string> prepare_schema_version(nlohmann::json &root, int current_version,
-                                                          std::string_view asset_label, const std::string &path,
-                                                          const SchemaMigration &migrate) {
-    auto parsed = parse_schema_version(root, asset_label, path);
-    if (!parsed)
-      return std::unexpected(std::move(parsed).error());
-    const int schema_version = *parsed;
+std::expected<void, std::string> prepare_schema_version(nlohmann::json &root, int current_version,
+                                                        std::string_view asset_label, const std::string &path,
+                                                        const SchemaMigration &migrate) {
+  auto parsed = parse_schema_version(root, asset_label, path);
+  if (!parsed)
+    return std::unexpected(std::move(parsed).error());
+  const int schema_version = *parsed;
 
-    if (schema_version > current_version)
-      return std::unexpected(std::format("{} '{}' has schema_version {}, newer than this engine supports (max {}) — "
-                                         "update the engine",
-                                         asset_label, path, schema_version, current_version));
+  if (schema_version > current_version)
+    return std::unexpected(std::format("{} '{}' has schema_version {}, newer than this engine supports (max {}) — "
+                                       "update the engine",
+                                       asset_label, path, schema_version, current_version));
 
-    if (schema_version < 1)
-      return std::unexpected(std::format("{} '{}' has invalid schema_version {}", asset_label, path, schema_version));
+  if (schema_version < 1)
+    return std::unexpected(std::format("{} '{}' has invalid schema_version {}", asset_label, path, schema_version));
 
-    if (schema_version == current_version)
-      return {};
-
-    if (!migrate)
-      return std::unexpected(
-          std::format("{} '{}' has schema_version {}, but no migration to version {} is available — supply a "
-                      "migration or update the engine",
-                      asset_label, path, schema_version, current_version));
-
-    auto reached = migrate(root, schema_version, path);
-    if (!reached)
-      return std::unexpected(std::move(reached).error());
-
-    // A migration that stops short (including the no-op stub left in place after a version bump)
-    // would otherwise let an old document be parsed as current — fail loudly instead.
-    if (*reached != current_version)
-      return std::unexpected(
-          std::format("{} '{}' migration from version {} stopped at version {} (expected {}) — the migration must "
-                      "advance the document to the current version",
-                      asset_label, path, schema_version, *reached, current_version));
-
-    root["schema_version"] = current_version;
+  if (schema_version == current_version)
     return {};
-  }
+
+  if (!migrate)
+    return std::unexpected(
+        std::format("{} '{}' has schema_version {}, but no migration to version {} is available — supply a "
+                    "migration or update the engine",
+                    asset_label, path, schema_version, current_version));
+
+  auto reached = migrate(root, schema_version, path);
+  if (!reached)
+    return std::unexpected(std::move(reached).error());
+
+  // A migration that stops short (including the no-op stub left in place after a version bump)
+  // would otherwise let an old document be parsed as current — fail loudly instead.
+  if (*reached != current_version)
+    return std::unexpected(
+        std::format("{} '{}' migration from version {} stopped at version {} (expected {}) — the migration must "
+                    "advance the document to the current version",
+                    asset_label, path, schema_version, *reached, current_version));
+
+  root["schema_version"] = current_version;
+  return {};
+}
 
 } // namespace corundum::core

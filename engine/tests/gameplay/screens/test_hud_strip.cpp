@@ -23,17 +23,17 @@
 
 namespace {
 
-  using corundum::platform::FontId;
-  using corundum::world::FlagStore;
+using corundum::platform::FontId;
+using corundum::world::FlagStore;
 
-  corundum::gameplay::quest::Quest make_active_quest() {
-    corundum::gameplay::quest::Quest q;
-    q.quest_id = "ember";
-    q.name = "Ember of Greyhollow";
-    q.stages.push_back({.name = "start", .objectives = {{.text = "Find the shrine"}}, .sequence = 1});
-    q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
-    return q;
-  }
+corundum::gameplay::quest::Quest make_active_quest() {
+  corundum::gameplay::quest::Quest q;
+  q.quest_id = "ember";
+  q.name = "Ember of Greyhollow";
+  q.stages.push_back({.name = "start", .objectives = {{.text = "Find the shrine"}}, .sequence = 1});
+  q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
+  return q;
+}
 
 } // namespace
 

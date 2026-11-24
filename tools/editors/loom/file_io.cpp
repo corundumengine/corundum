@@ -27,146 +27,145 @@
 
 namespace tools::loom {
 
-  using nlohmann::json;
+using nlohmann::json;
 
-  std::string default_doc_name(const EditorState &state) {
-    if (!state.file_path.empty())
-      return state.file_path.filename().string();
-    if (state.doc_type_ == DocumentKind::Quest)
-      return state.quest_doc_.quest_id + ".json";
-    if (state.doc_type_ == DocumentKind::Item)
-      return "items.json";
-    return state.graph.graph_id + ".json";
+std::string default_doc_name(const EditorState &state) {
+  if (!state.file_path.empty())
+    return state.file_path.filename().string();
+  if (state.doc_type_ == DocumentKind::Quest)
+    return state.quest_doc_.quest_id + ".json";
+  if (state.doc_type_ == DocumentKind::Item)
+    return "items.json";
+  return state.graph.graph_id + ".json";
+}
+
+std::string app_title(const EditorState &state) {
+  std::string t = "Loom";
+  if (!state.file_path.empty()) {
+    t += " :: " + state.file_path.filename().string();
+  } else if (state.doc_type_ == DocumentKind::Quest) {
+    t += " :: Untitled Quest";
+  } else if (state.doc_type_ == DocumentKind::Item) {
+    t += " :: Untitled Item Batch";
+  } else {
+    t += " :: Untitled Dialogue";
   }
+  return t;
+}
 
-  std::string app_title(const EditorState &state) {
-    std::string t = "Loom";
-    if (!state.file_path.empty()) {
-      t += " :: " + state.file_path.filename().string();
-    } else if (state.doc_type_ == DocumentKind::Quest) {
-      t += " :: Untitled Quest";
-    } else if (state.doc_type_ == DocumentKind::Item) {
-      t += " :: Untitled Item Batch";
-    } else {
-      t += " :: Untitled Dialogue";
-    }
-    return t;
+std::expected<void, std::string> save_graph(const EditorState &state) {
+  if (state.file_path.empty())
+    return std::unexpected("No file path set. Use Save As.");
+  return corundum::core::write_json(state.file_path, corundum::gameplay::dialogue::serialize(state.graph));
+}
+
+std::expected<void, std::string> load_graph_file(EditorState &state, const std::string &path) {
+  auto result = corundum::gameplay::dialogue::Loader{}.load(corundum::core::DirectoryContentSource{}, path);
+  if (!result)
+    return std::unexpected(result.error());
+
+  state.doc_type_ = DocumentKind::Dialogue;
+  state.graph = std::move(*result);
+  state.quest_doc_ = {};
+  state.file_path = path;
+  state.selected_node = -1;
+  state.selected_stage_ = -1;
+  state.inspector_open = false;
+  state.dirty = false;
+  state.last_scroll_target_ = -1;
+  state.undo_stack.clear();
+  recompute_layout(state.graph, state.layout, state.graph_width_);
+  return {};
+}
+
+std::expected<void, std::string> save_quest_file(const EditorState &state) {
+  if (state.file_path.empty())
+    return std::unexpected("No file path set. Use Save As.");
+
+  // Never write a quest the loader would reject — the file format is a contract.
+  const corundum::gameplay::quest::ValidationResult validation = corundum::gameplay::quest::validate(state.quest_doc_);
+  if (!validation.ok())
+    return std::unexpected(validation.errors.front());
+
+  return corundum::core::write_json(state.file_path, corundum::gameplay::quest::serialize(state.quest_doc_));
+}
+
+std::expected<void, std::string> load_quest_file(EditorState &state, const std::string &path) {
+  auto result = corundum::gameplay::quest::Loader{}.load(corundum::core::DirectoryContentSource{}, path);
+  if (!result)
+    return std::unexpected(result.error());
+
+  state.doc_type_ = DocumentKind::Quest;
+  state.quest_doc_ = std::move(*result);
+  state.graph = {};
+  state.file_path = path;
+  state.selected_node = -1;
+  state.selected_stage_ = -1;
+  state.inspector_open = false;
+  state.dirty = false;
+  state.undo_stack.clear();
+  return {};
+}
+
+std::expected<void, std::string> save_item_file_doc(const EditorState &state) {
+  if (state.file_path.empty())
+    return std::unexpected("No file path set. Use Save As.");
+  return corundum::core::write_json(state.file_path,
+                                    corundum::gameplay::item::serialize(state.item_doc_, state.item_category_));
+}
+
+std::expected<void, std::string> load_item_file_doc(EditorState &state, const std::string &path) {
+  const auto category_name = std::filesystem::path(path).parent_path().filename().string();
+  const auto category = corundum::gameplay::item::category_from_dir_name(category_name);
+  if (!category)
+    return std::unexpected(
+        std::format("'{}' is not an item category folder (expected weapons/apparel/potions/misc)", category_name));
+
+  auto result = corundum::gameplay::item::Loader{}.load(corundum::core::DirectoryContentSource{}, path, *category);
+  if (!result)
+    return std::unexpected(result.error());
+
+  state.doc_type_ = DocumentKind::Item;
+  state.item_doc_ = std::move(*result);
+  state.item_category_ = *category;
+  state.graph = {};
+  state.quest_doc_ = {};
+  state.file_path = path;
+  state.selected_node = -1;
+  state.selected_stage_ = -1;
+  state.selected_item_ = -1;
+  state.inspector_open = false;
+  state.dirty = false;
+  state.undo_stack.clear();
+  return {};
+}
+
+std::expected<void, std::string> load_file(EditorState &state, const std::string &path) {
+  // Open and peek at top-level "type" to determine file type
+  std::ifstream f(path);
+  if (!f)
+    return std::unexpected(std::format("Cannot open {}", path));
+  json j;
+  try {
+    j = json::parse(f, nullptr, true, true);
+  } catch (const json::parse_error &e) {
+    return std::unexpected(std::format("JSON parse error in {}: {}", path, e.what()));
   }
+  f.close();
 
-  std::expected<void, std::string> save_graph(const EditorState &state) {
-    if (state.file_path.empty())
-      return std::unexpected("No file path set. Use Save As.");
-    return corundum::core::write_json(state.file_path, corundum::gameplay::dialogue::serialize(state.graph));
-  }
+  if (j.contains("type") && j["type"] == "quest")
+    return load_quest_file(state, path);
+  if (j.contains("items"))
+    return load_item_file_doc(state, path);
+  return load_graph_file(state, path);
+}
 
-  std::expected<void, std::string> load_graph_file(EditorState &state, const std::string &path) {
-    auto result = corundum::gameplay::dialogue::Loader{}.load(corundum::core::DirectoryContentSource{}, path);
-    if (!result)
-      return std::unexpected(result.error());
-
-    state.doc_type_ = DocumentKind::Dialogue;
-    state.graph = std::move(*result);
-    state.quest_doc_ = {};
-    state.file_path = path;
-    state.selected_node = -1;
-    state.selected_stage_ = -1;
-    state.inspector_open = false;
-    state.dirty = false;
-    state.last_scroll_target_ = -1;
-    state.undo_stack.clear();
-    recompute_layout(state.graph, state.layout, state.graph_width_);
-    return {};
-  }
-
-  std::expected<void, std::string> save_quest_file(const EditorState &state) {
-    if (state.file_path.empty())
-      return std::unexpected("No file path set. Use Save As.");
-
-    // Never write a quest the loader would reject — the file format is a contract.
-    const corundum::gameplay::quest::ValidationResult validation =
-        corundum::gameplay::quest::validate(state.quest_doc_);
-    if (!validation.ok())
-      return std::unexpected(validation.errors.front());
-
-    return corundum::core::write_json(state.file_path, corundum::gameplay::quest::serialize(state.quest_doc_));
-  }
-
-  std::expected<void, std::string> load_quest_file(EditorState &state, const std::string &path) {
-    auto result = corundum::gameplay::quest::Loader{}.load(corundum::core::DirectoryContentSource{}, path);
-    if (!result)
-      return std::unexpected(result.error());
-
-    state.doc_type_ = DocumentKind::Quest;
-    state.quest_doc_ = std::move(*result);
-    state.graph = {};
-    state.file_path = path;
-    state.selected_node = -1;
-    state.selected_stage_ = -1;
-    state.inspector_open = false;
-    state.dirty = false;
-    state.undo_stack.clear();
-    return {};
-  }
-
-  std::expected<void, std::string> save_item_file_doc(const EditorState &state) {
-    if (state.file_path.empty())
-      return std::unexpected("No file path set. Use Save As.");
-    return corundum::core::write_json(state.file_path,
-                                      corundum::gameplay::item::serialize(state.item_doc_, state.item_category_));
-  }
-
-  std::expected<void, std::string> load_item_file_doc(EditorState &state, const std::string &path) {
-    const auto category_name = std::filesystem::path(path).parent_path().filename().string();
-    const auto category = corundum::gameplay::item::category_from_dir_name(category_name);
-    if (!category)
-      return std::unexpected(
-          std::format("'{}' is not an item category folder (expected weapons/apparel/potions/misc)", category_name));
-
-    auto result = corundum::gameplay::item::Loader{}.load(corundum::core::DirectoryContentSource{}, path, *category);
-    if (!result)
-      return std::unexpected(result.error());
-
-    state.doc_type_ = DocumentKind::Item;
-    state.item_doc_ = std::move(*result);
-    state.item_category_ = *category;
-    state.graph = {};
-    state.quest_doc_ = {};
-    state.file_path = path;
-    state.selected_node = -1;
-    state.selected_stage_ = -1;
-    state.selected_item_ = -1;
-    state.inspector_open = false;
-    state.dirty = false;
-    state.undo_stack.clear();
-    return {};
-  }
-
-  std::expected<void, std::string> load_file(EditorState &state, const std::string &path) {
-    // Open and peek at top-level "type" to determine file type
-    std::ifstream f(path);
-    if (!f)
-      return std::unexpected(std::format("Cannot open {}", path));
-    json j;
-    try {
-      j = json::parse(f, nullptr, true, true);
-    } catch (const json::parse_error &e) {
-      return std::unexpected(std::format("JSON parse error in {}: {}", path, e.what()));
-    }
-    f.close();
-
-    if (j.contains("type") && j["type"] == "quest")
-      return load_quest_file(state, path);
-    if (j.contains("items"))
-      return load_item_file_doc(state, path);
-    return load_graph_file(state, path);
-  }
-
-  std::expected<void, std::string> save_file(const EditorState &state) {
-    if (state.doc_type_ == DocumentKind::Quest)
-      return save_quest_file(state);
-    if (state.doc_type_ == DocumentKind::Item)
-      return save_item_file_doc(state);
-    return save_graph(state);
-  }
+std::expected<void, std::string> save_file(const EditorState &state) {
+  if (state.doc_type_ == DocumentKind::Quest)
+    return save_quest_file(state);
+  if (state.doc_type_ == DocumentKind::Item)
+    return save_item_file_doc(state);
+  return save_graph(state);
+}
 
 } // namespace tools::loom

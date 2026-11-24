@@ -13,113 +13,111 @@
 #include <vector>
 
 namespace corundum::world {
-  struct MapView;
-  struct Portal;
-  struct Scene;
+struct MapView;
+struct Portal;
+struct Scene;
 } // namespace corundum::world
 
 namespace corundum::physics {
 
-  /** @brief Set player velocity from held movement keys.
-   *  @param[in,out] transforms  SoA table; dx/dy for @p player are modified.
-   *  @param[in]     player      EntityId of the player character.
-   *  @param[in]     input       Current frame input state.
-   *  @param[in]     player_speed Movement speed in isometric pixels/s.
-   *  @param[in]     iso         Isometric projection parameters (half_tw, half_th).
-   *  @note A player absent from @p transforms is a no-op.
-   *  @post Player dx/dy set to 0 then adjusted for held directions; speed is normalised.
-   *  Performance: O(1).
-   */
-  void apply_input(corundum::entities::TransformTable &transforms, corundum::entities::EntityId player,
-                   const corundum::input::InputState &input, float player_speed,
-                   corundum::core::math::IsometricParams iso) noexcept;
+/** @brief Set player velocity from held movement keys.
+ *  @param[in,out] transforms  SoA table; dx/dy for @p player are modified.
+ *  @param[in]     player      EntityId of the player character.
+ *  @param[in]     input       Current frame input state.
+ *  @param[in]     player_speed Movement speed in isometric pixels/s.
+ *  @param[in]     iso         Isometric projection parameters (half_tw, half_th).
+ *  @note A player absent from @p transforms is a no-op.
+ *  @post Player dx/dy set to 0 then adjusted for held directions; speed is normalised.
+ *  Performance: O(1).
+ */
+void apply_input(corundum::entities::TransformTable &transforms, corundum::entities::EntityId player,
+                 const corundum::input::InputState &input, float player_speed,
+                 corundum::core::math::IsometricParams iso) noexcept;
 
-  /** @brief Advance @p e's position by velocity * dt.
-   *  @param[in,out] transforms  SoA table; col/row for @p e are advanced.
-   *  @param[in]     e           Entity to integrate.
-   *  @param[in]     dt          Fixed timestep in seconds.
-   *  @pre @p e must exist in @p transforms.
-   *  @post Entity position updated by velocity * dt.
-   */
-  void integrate(corundum::entities::TransformTable &transforms, corundum::entities::EntityId e, float dt) noexcept;
+/** @brief Advance @p e's position by velocity * dt.
+ *  @param[in,out] transforms  SoA table; col/row for @p e are advanced.
+ *  @param[in]     e           Entity to integrate.
+ *  @param[in]     dt          Fixed timestep in seconds.
+ *  @pre @p e must exist in @p transforms.
+ *  @post Entity position updated by velocity * dt.
+ */
+void integrate(corundum::entities::TransformTable &transforms, corundum::entities::EntityId e, float dt) noexcept;
 
-  /** @brief Drive velocity toward the next waypoint in a click-to-move path.
-   *
-   * Aims at path.front() directly: a waypoint is a tile index, the same space as the
-   * entity's stored position, so the sprite's feet anchor needs no compensation here — it
-   * is applied once, in footprint_of. Pops the waypoint and moves on to the next one once
-   * this frame's movement would reach or pass it (uses dt to detect this robustly rather
-   * than an arbitrary distance epsilon). Zeroes velocity once the path empties.
-   *
-   *  @param[in,out] transforms  SoA table; dc/dr for @p player are modified.
-   *  @param[in]     player      EntityId of the player character.
-   *  @param[in,out] path        Remaining waypoints; front is popped on arrival.
-   *  @param[in]     player_speed Movement speed in isometric pixels/s.
-   *  @param[in]     iso         Isometric projection parameters (half_tw, half_th).
-   *  @param[in]     dt          Fixed timestep in seconds.
-   *  @note A player absent from @p transforms is a no-op.
-   */
-  void follow_path(corundum::entities::TransformTable &transforms, corundum::entities::EntityId player,
-                   std::vector<corundum::world::TileCoord> &path, float player_speed,
-                   corundum::core::math::IsometricParams iso, float dt) noexcept;
+/** @brief Drive velocity toward the next waypoint in a click-to-move path.
+ *
+ * Aims at path.front() directly: a waypoint is a tile index, the same space as the
+ * entity's stored position, so the sprite's feet anchor needs no compensation here — it
+ * is applied once, in footprint_of. Pops the waypoint and moves on to the next one once
+ * this frame's movement would reach or pass it (uses dt to detect this robustly rather
+ * than an arbitrary distance epsilon). Zeroes velocity once the path empties.
+ *
+ *  @param[in,out] transforms  SoA table; dc/dr for @p player are modified.
+ *  @param[in]     player      EntityId of the player character.
+ *  @param[in,out] path        Remaining waypoints; front is popped on arrival.
+ *  @param[in]     player_speed Movement speed in isometric pixels/s.
+ *  @param[in]     iso         Isometric projection parameters (half_tw, half_th).
+ *  @param[in]     dt          Fixed timestep in seconds.
+ *  @note A player absent from @p transforms is a no-op.
+ */
+void follow_path(corundum::entities::TransformTable &transforms, corundum::entities::EntityId player,
+                 std::vector<corundum::world::TileCoord> &path, float player_speed,
+                 corundum::core::math::IsometricParams iso, float dt) noexcept;
 
-  /** @brief Full player step: input → integrate → collision resolve → portal detect.
-   *
-   * Applies input, integrates velocity, converts iso↔Cartesian for collision
-   * resolution against tile rects and triangles, resolves NPC body collisions,
-   * clamps to map bounds, and arms scene.transition_prompt on portal overlap.
-   *
-   *  @param[in,out] transforms    SoA table; read/written for player movement.
-   *  @param[in]     collisions    Collision bounding boxes for all entities.
-   *  @param[in]     player        EntityId of the player character.
-   *  @param[in]     input         Current frame input state.
-   *  @param[in]     player_speed  Movement speed in px/s.
-   *  @param[in]     map           Active map view (tile colliders, bounds, portals).
-   *  @param[in,out] scene         May receive a transition_prompt on portal overlap.
-   *  @param[in]     dt            Fixed timestep in seconds.
-   *  @pre @p player must exist in @p transforms and @p collisions.
-   *  @post Player position is clamped to map bounds.
-   *  @post For cross-map and return-to-world portals, scene.transition_prompt is set and
-   *        scene.mode becomes Prompt; handle_map_transition() runs the transition only after
-   *        the player confirms. Chunk-to-chunk portals teleport the player immediately.
-   *  Performance: O(n) over NPC count. No heap allocation.
-   */
-  void update_player(corundum::entities::TransformTable &transforms,
-                     const corundum::entities::CollisionTable &collisions, corundum::entities::EntityId player,
-                     const corundum::input::InputState &input, float player_speed, const corundum::world::MapView &map,
-                     corundum::world::Scene &scene, float dt) noexcept;
+/** @brief Full player step: input → integrate → collision resolve → portal detect.
+ *
+ * Applies input, integrates velocity, converts iso↔Cartesian for collision
+ * resolution against tile rects and triangles, resolves NPC body collisions,
+ * clamps to map bounds, and arms scene.transition_prompt on portal overlap.
+ *
+ *  @param[in,out] transforms    SoA table; read/written for player movement.
+ *  @param[in]     collisions    Collision bounding boxes for all entities.
+ *  @param[in]     player        EntityId of the player character.
+ *  @param[in]     input         Current frame input state.
+ *  @param[in]     player_speed  Movement speed in px/s.
+ *  @param[in]     map           Active map view (tile colliders, bounds, portals).
+ *  @param[in,out] scene         May receive a transition_prompt on portal overlap.
+ *  @param[in]     dt            Fixed timestep in seconds.
+ *  @pre @p player must exist in @p transforms and @p collisions.
+ *  @post Player position is clamped to map bounds.
+ *  @post For cross-map and return-to-world portals, scene.transition_prompt is set and
+ *        scene.mode becomes Prompt; handle_map_transition() runs the transition only after
+ *        the player confirms. Chunk-to-chunk portals teleport the player immediately.
+ *  Performance: O(n) over NPC count. No heap allocation.
+ */
+void update_player(corundum::entities::TransformTable &transforms, const corundum::entities::CollisionTable &collisions,
+                   corundum::entities::EntityId player, const corundum::input::InputState &input, float player_speed,
+                   const corundum::world::MapView &map, corundum::world::Scene &scene, float dt) noexcept;
 
-  /**
-   * @brief Compute the elevation gate used to filter authored colliders by elevation.
-   *
-   * Rounds the interpolated elevation to nearest so a player at elev 3.99 on a 0→4 ramp gates
-   * at elev 4 instead of elev 3 (where authored top-ramp colliders would be invisible). While
-   * the feet cell is a ramp, widens the tolerance to ceil(Δ/2) so both end elevations stay
-   * within range — without widening, the midpoint player (rounded to 2) would filter out
-   * colliders at both 0 and 4.
-   *
-   * @param[in] map   Active map view (uses elevation_map if set; World mode → defaults).
-   * @param[in] col   Fractional tile column (player's pre-integrate position).
-   * @param[in] row   Fractional tile row.
-   * @return Gate to pass to resolve_collisions / resolve_triangle_collisions.
-   */
-  [[nodiscard]] ElevationGate compute_elevation_gate(const corundum::world::MapView &map, float col,
-                                                     float row) noexcept;
+/**
+ * @brief Compute the elevation gate used to filter authored colliders by elevation.
+ *
+ * Rounds the interpolated elevation to nearest so a player at elev 3.99 on a 0→4 ramp gates
+ * at elev 4 instead of elev 3 (where authored top-ramp colliders would be invisible). While
+ * the feet cell is a ramp, widens the tolerance to ceil(Δ/2) so both end elevations stay
+ * within range — without widening, the midpoint player (rounded to 2) would filter out
+ * colliders at both 0 and 4.
+ *
+ * @param[in] map   Active map view (uses elevation_map if set; World mode → defaults).
+ * @param[in] col   Fractional tile column (player's pre-integrate position).
+ * @param[in] row   Fractional tile row.
+ * @return Gate to pass to resolve_collisions / resolve_triangle_collisions.
+ */
+[[nodiscard]] ElevationGate compute_elevation_gate(const corundum::world::MapView &map, float col, float row) noexcept;
 
-  /**
-   * @brief True if the player is at an elevation that matches the portal's cell elevation.
-   *
-   * Looks up the portal's center cell elevation (rounded) and compares against
-   * @p player_elev within @p elev_tolerance. Without this gate, a player standing on
-   * a bridge (elev 5) would trigger a ground-floor portal (elev 0) authored at the
-   * same cell — they teleport down every time they cross it.
-   *
-   * @param map             Active map view (uses elevation_map; World mode falls back to elev 0).
-   * @param portal          Portal whose center cell is the gating reference.
-   * @param player_elev     Player's rounded gate value (from compute_elevation_gate).
-   * @param elev_tolerance  Ramp-aware tolerance; 0 for off-ramp gating.
-   */
-  [[nodiscard]] bool portal_elev_matches(const corundum::world::MapView &map, const corundum::world::Portal &portal,
-                                         int player_elev, int elev_tolerance) noexcept;
+/**
+ * @brief True if the player is at an elevation that matches the portal's cell elevation.
+ *
+ * Looks up the portal's center cell elevation (rounded) and compares against
+ * @p player_elev within @p elev_tolerance. Without this gate, a player standing on
+ * a bridge (elev 5) would trigger a ground-floor portal (elev 0) authored at the
+ * same cell — they teleport down every time they cross it.
+ *
+ * @param map             Active map view (uses elevation_map; World mode falls back to elev 0).
+ * @param portal          Portal whose center cell is the gating reference.
+ * @param player_elev     Player's rounded gate value (from compute_elevation_gate).
+ * @param elev_tolerance  Ramp-aware tolerance; 0 for off-ramp gating.
+ */
+[[nodiscard]] bool portal_elev_matches(const corundum::world::MapView &map, const corundum::world::Portal &portal,
+                                       int player_elev, int elev_tolerance) noexcept;
 
 } // namespace corundum::physics

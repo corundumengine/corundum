@@ -30,90 +30,90 @@ using corundum::test::disk;
 
 namespace {
 
-  using corundum::core::GameConfig;
-  using corundum::platform::DrawLine;
-  using corundum::platform::DrawRect;
-  using corundum::platform::DrawSprite;
-  using corundum::platform::DrawText;
-  using corundum::platform::RendererStats;
-  using corundum::render::RenderMode;
-  using corundum::render::RenderState;
+using corundum::core::GameConfig;
+using corundum::platform::DrawLine;
+using corundum::platform::DrawRect;
+using corundum::platform::DrawSprite;
+using corundum::platform::DrawText;
+using corundum::platform::RendererStats;
+using corundum::render::RenderMode;
+using corundum::render::RenderState;
 
-  /// Renderer that hands out a distinct id per path and tracks references like SokolRenderer.
-  class CountingRenderer final : public corundum::platform::Renderer {
-  public:
-    corundum::platform::TextureRefCounts refs;
-    std::vector<corundum::platform::TextureId> purged;
+/// Renderer that hands out a distinct id per path and tracks references like SokolRenderer.
+class CountingRenderer final : public corundum::platform::Renderer {
+public:
+  corundum::platform::TextureRefCounts refs;
+  std::vector<corundum::platform::TextureId> purged;
 
-    [[nodiscard]] corundum::platform::TextureId last_issued_id() const {
-      return corundum::platform::TextureId{next_id_ - 1};
-    }
-
-    std::expected<corundum::platform::TextureId, std::string> load_texture(std::string_view path) override {
-      auto [it, inserted] = ids_.try_emplace(std::string{path});
-      if (inserted)
-        it->second = corundum::platform::TextureId{next_id_++};
-      refs.acquire(std::to_underlying(it->second));
-      return it->second;
-    }
-
-    [[nodiscard]] corundum::core::math::Vec2 texture_size(corundum::platform::TextureId /*texture_id*/) const override {
-      return {};
-    }
-
-    void release_texture(corundum::platform::TextureId texture_id) override {
-      refs.release(std::to_underlying(texture_id));
-    }
-
-    void purge_unused_textures() override {
-      for (const uint32_t id : refs.take_unreferenced()) {
-        purged.push_back(corundum::platform::TextureId{id});
-        std::erase_if(ids_, [id](const auto &entry) { return std::to_underlying(entry.second) == id; });
-      }
-    }
-
-    std::expected<corundum::platform::FontId, std::string> load_font(std::string_view /*path*/) override {
-      return corundum::platform::FontId{1};
-    }
-
-    void set_world_view(corundum::core::math::Vec2 /*top_left*/, corundum::core::math::Vec2 /*viewport_size*/,
-                        float /*zoom*/) override {}
-
-    void reset_screen_view() override {}
-
-    [[nodiscard]] bool begin_frame(corundum::core::math::Colour /*clear_colour*/) override { return true; }
-
-    void end_frame() override {}
-
-    void draw(const DrawSprite & /*cmd*/) override {}
-
-    void draw(const DrawText & /*cmd*/) override {}
-
-    void draw(const DrawRect & /*cmd*/) override {}
-
-    void draw(const DrawLine & /*cmd*/) override {}
-
-    [[nodiscard]] float measure_text(corundum::platform::FontId /*font_id*/, std::string_view /*text*/,
-                                     uint32_t /*char_size*/) const override {
-      return 0.f;
-    }
-
-    [[nodiscard]] RendererStats stats() const override { return {}; }
-
-  private:
-    std::unordered_map<std::string, corundum::platform::TextureId> ids_;
-    std::uint32_t next_id_{1}; ///< Raw counter, so issuing an id never converts types.
-  };
-
-  GameConfig fixture_config() {
-    return corundum::test::make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
+  [[nodiscard]] corundum::platform::TextureId last_issued_id() const {
+    return corundum::platform::TextureId{next_id_ - 1};
   }
 
-  /// Sorted copy, so set-equality checks read clearly and failures show both orderings.
-  std::vector<corundum::platform::TextureId> sorted(std::vector<corundum::platform::TextureId> ids) {
-    std::ranges::sort(ids);
-    return ids;
+  std::expected<corundum::platform::TextureId, std::string> load_texture(std::string_view path) override {
+    auto [it, inserted] = ids_.try_emplace(std::string{path});
+    if (inserted)
+      it->second = corundum::platform::TextureId{next_id_++};
+    refs.acquire(std::to_underlying(it->second));
+    return it->second;
   }
+
+  [[nodiscard]] corundum::core::math::Vec2 texture_size(corundum::platform::TextureId /*texture_id*/) const override {
+    return {};
+  }
+
+  void release_texture(corundum::platform::TextureId texture_id) override {
+    refs.release(std::to_underlying(texture_id));
+  }
+
+  void purge_unused_textures() override {
+    for (const uint32_t id : refs.take_unreferenced()) {
+      purged.push_back(corundum::platform::TextureId{id});
+      std::erase_if(ids_, [id](const auto &entry) { return std::to_underlying(entry.second) == id; });
+    }
+  }
+
+  std::expected<corundum::platform::FontId, std::string> load_font(std::string_view /*path*/) override {
+    return corundum::platform::FontId{1};
+  }
+
+  void set_world_view(corundum::core::math::Vec2 /*top_left*/, corundum::core::math::Vec2 /*viewport_size*/,
+                      float /*zoom*/) override {}
+
+  void reset_screen_view() override {}
+
+  [[nodiscard]] bool begin_frame(corundum::core::math::Colour /*clear_colour*/) override { return true; }
+
+  void end_frame() override {}
+
+  void draw(const DrawSprite & /*cmd*/) override {}
+
+  void draw(const DrawText & /*cmd*/) override {}
+
+  void draw(const DrawRect & /*cmd*/) override {}
+
+  void draw(const DrawLine & /*cmd*/) override {}
+
+  [[nodiscard]] float measure_text(corundum::platform::FontId /*font_id*/, std::string_view /*text*/,
+                                   uint32_t /*char_size*/) const override {
+    return 0.f;
+  }
+
+  [[nodiscard]] RendererStats stats() const override { return {}; }
+
+private:
+  std::unordered_map<std::string, corundum::platform::TextureId> ids_;
+  std::uint32_t next_id_{1}; ///< Raw counter, so issuing an id never converts types.
+};
+
+GameConfig fixture_config() {
+  return corundum::test::make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
+}
+
+/// Sorted copy, so set-equality checks read clearly and failures show both orderings.
+std::vector<corundum::platform::TextureId> sorted(std::vector<corundum::platform::TextureId> ids) {
+  std::ranges::sort(ids);
+  return ids;
+}
 
 } // namespace
 

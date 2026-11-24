@@ -8,20 +8,20 @@
 #include <string>
 
 namespace corundum::core {
-  class ContentSource;
+class ContentSource;
 }
 
 namespace corundum::sprites {
 
-  /** @brief Load a sprite-sheet clips JSON file.
-   *
-   * A missing schema_version field is read as version 1; a newer version is rejected. Every
-   * field is type- and range-checked, so a malformed file returns an error rather than throwing.
-   *
-   * @param[in] path  Path to the sprite-sheet clips JSON.
-   * @return SpriteSheetClips on success, or an error string on failure.
-   */
-  [[nodiscard]] std::expected<SpriteSheetClips, std::string> load_sprite_sheet_clips(const core::ContentSource &content,
-                                                                                     const std::filesystem::path &path);
+/** @brief Load a sprite-sheet clips JSON file.
+ *
+ * A missing schema_version field is read as version 1; a newer version is rejected. Every
+ * field is type- and range-checked, so a malformed file returns an error rather than throwing.
+ *
+ * @param[in] path  Path to the sprite-sheet clips JSON.
+ * @return SpriteSheetClips on success, or an error string on failure.
+ */
+[[nodiscard]] std::expected<SpriteSheetClips, std::string> load_sprite_sheet_clips(const core::ContentSource &content,
+                                                                                   const std::filesystem::path &path);
 
 } // namespace corundum::sprites

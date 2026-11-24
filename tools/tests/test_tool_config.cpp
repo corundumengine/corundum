@@ -21,78 +21,78 @@ using corundum::toolkit::host::load_tool_config;
 
 namespace {
 
-  fs::path make_temp_dir() {
-    static int counter = 0;
-    const fs::path path =
-        fs::temp_directory_path() / std::format("corundum_tool_config_{}_{}", std::random_device{}(), counter++);
-    fs::create_directories(path);
-    return path;
+fs::path make_temp_dir() {
+  static int counter = 0;
+  const fs::path path =
+      fs::temp_directory_path() / std::format("corundum_tool_config_{}_{}", std::random_device{}(), counter++);
+  fs::create_directories(path);
+  return path;
+}
+
+void write_file(const fs::path &path, const std::string &contents) {
+  std::ofstream out(path);
+  REQUIRE(out.good());
+  out << contents;
+}
+
+/// Arguments plus the mutable argv view load_tool_config() expects.
+class Args {
+public:
+  explicit Args(std::vector<std::string> values) : values_(std::move(values)) {
+    for (std::string &value : values_)
+      argv_.push_back(value.data());
   }
 
-  void write_file(const fs::path &path, const std::string &contents) {
-    std::ofstream out(path);
-    REQUIRE(out.good());
-    out << contents;
+  [[nodiscard]] int argc() const { return static_cast<int>(argv_.size()); }
+
+  [[nodiscard]] char **argv() { return argv_.data(); }
+
+private:
+  std::vector<std::string> values_;
+  std::vector<char *> argv_;
+};
+
+/// Set an environment variable for the test's duration and restore the prior value.
+class ScopedEnv {
+public:
+  ScopedEnv(const char *name, const std::string &value) : name_(name), prior_(corundum::core::read_env(name)) {
+    set(value);
   }
 
-  /// Arguments plus the mutable argv view load_tool_config() expects.
-  class Args {
-  public:
-    explicit Args(std::vector<std::string> values) : values_(std::move(values)) {
-      for (std::string &value : values_)
-        argv_.push_back(value.data());
-    }
+  ~ScopedEnv() {
+    if (prior_)
+      set(*prior_);
+    else
+      clear();
+  }
 
-    [[nodiscard]] int argc() const { return static_cast<int>(argv_.size()); }
+  ScopedEnv(const ScopedEnv &) = delete;
+  ScopedEnv &operator=(const ScopedEnv &) = delete;
+  ScopedEnv(ScopedEnv &&) = delete;
+  ScopedEnv &operator=(ScopedEnv &&) = delete;
 
-    [[nodiscard]] char **argv() { return argv_.data(); }
-
-  private:
-    std::vector<std::string> values_;
-    std::vector<char *> argv_;
-  };
-
-  /// Set an environment variable for the test's duration and restore the prior value.
-  class ScopedEnv {
-  public:
-    ScopedEnv(const char *name, const std::string &value) : name_(name), prior_(corundum::core::read_env(name)) {
-      set(value);
-    }
-
-    ~ScopedEnv() {
-      if (prior_)
-        set(*prior_);
-      else
-        clear();
-    }
-
-    ScopedEnv(const ScopedEnv &) = delete;
-    ScopedEnv &operator=(const ScopedEnv &) = delete;
-    ScopedEnv(ScopedEnv &&) = delete;
-    ScopedEnv &operator=(ScopedEnv &&) = delete;
-
-  private:
-    void set(const std::string &value) {
+private:
+  void set(const std::string &value) {
 #ifdef _WIN32
-      _putenv_s(name_.c_str(), value.c_str());
+    _putenv_s(name_.c_str(), value.c_str());
 #else
-      // NOLINTNEXTLINE(misc-include-cleaner) — POSIX setenv lives in <stdlib.h>, pulled in via <cstdlib>.
-      ::setenv(name_.c_str(), value.c_str(), 1);
+    // NOLINTNEXTLINE(misc-include-cleaner) — POSIX setenv lives in <stdlib.h>, pulled in via <cstdlib>.
+    ::setenv(name_.c_str(), value.c_str(), 1);
 #endif
-    }
+  }
 
-    void clear() {
+  void clear() {
 #ifdef _WIN32
-      _putenv_s(name_.c_str(), "");
+    _putenv_s(name_.c_str(), "");
 #else
-      // NOLINTNEXTLINE(misc-include-cleaner) — POSIX unsetenv lives in <stdlib.h>, pulled in via <cstdlib>.
-      ::unsetenv(name_.c_str());
+    // NOLINTNEXTLINE(misc-include-cleaner) — POSIX unsetenv lives in <stdlib.h>, pulled in via <cstdlib>.
+    ::unsetenv(name_.c_str());
 #endif
-    }
+  }
 
-    std::string name_;
-    std::optional<std::string> prior_;
-  };
+  std::string name_;
+  std::optional<std::string> prior_;
+};
 
 } // namespace
 

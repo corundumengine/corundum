@@ -18,16 +18,16 @@ namespace fs = std::filesystem;
 
 namespace {
 
-  void write_bytes(const fs::path &path, const std::vector<std::uint8_t> &bytes) {
-    fs::create_directories(path.parent_path());
-    std::ofstream f(path, std::ios::binary);
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-    f.write(reinterpret_cast<const char *>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
-  }
+void write_bytes(const fs::path &path, const std::vector<std::uint8_t> &bytes) {
+  fs::create_directories(path.parent_path());
+  std::ofstream f(path, std::ios::binary);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+  f.write(reinterpret_cast<const char *>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+}
 
-  corundum::test::TempDir temp_dir(std::string_view tag) {
-    return corundum::test::TempDir{"crpg_test_content_", tag};
-  }
+corundum::test::TempDir temp_dir(std::string_view tag) {
+  return corundum::test::TempDir{"crpg_test_content_", tag};
+}
 
 } // namespace
 

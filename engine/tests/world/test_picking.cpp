@@ -24,47 +24,47 @@ using corundum::world::tilemap::TilemapLayer;
 
 namespace {
 
-  constexpr float k_half_tw = 32.f;
-  constexpr float k_half_th = 16.f;
-  constexpr float k_elev_step = 4.f;
+constexpr float k_half_tw = 32.f;
+constexpr float k_half_th = 16.f;
+constexpr float k_elev_step = 4.f;
 
-  // 2x2 flat map, all tiles present so elevation_at() registers data at every cell.
-  Tilemap make_flat_map() {
-    Tilemap tm;
-    tm.width = 2;
-    tm.height = 2;
-    TilemapLayer layer;
-    layer.name = "ground";
-    layer.z_index = 0;
-    layer.tiles.assign(static_cast<std::size_t>(tm.width) * static_cast<std::size_t>(tm.height), 1);
-    tm.layers.push_back(std::move(layer));
-    return tm;
-  }
+// 2x2 flat map, all tiles present so elevation_at() registers data at every cell.
+Tilemap make_flat_map() {
+  Tilemap tm;
+  tm.width = 2;
+  tm.height = 2;
+  TilemapLayer layer;
+  layer.name = "ground";
+  layer.z_index = 0;
+  layer.tiles.assign(static_cast<std::size_t>(tm.width) * static_cast<std::size_t>(tm.height), 1);
+  tm.layers.push_back(std::move(layer));
+  return tm;
+}
 
-  // Same 2x2 map, but (1,1) is raised — chosen (elevation 8, elev_step 4) so its
-  // raised diamond's center inverts, at elevation 0, to exactly cell (0,0)'s center —
-  // i.e. (0,0) and (1,1) both claim the same screen point, testing topmost-first
-  // resolution. See plan derivation: center of (1,1) raised by 8 is world (0,16);
-  // inverting (0,16) at elevation 0 gives fractional (0.5,0.5) -> floor (0,0).
-  Tilemap make_overlap_map() {
-    Tilemap tm = make_flat_map();
-    tm.layers[0].elevation.assign(static_cast<std::size_t>(tm.width) * static_cast<std::size_t>(tm.height), 0);
-    tm.layers[0].elevation[(1 * tm.width) + 1] = 8;
-    return tm;
-  }
+// Same 2x2 map, but (1,1) is raised — chosen (elevation 8, elev_step 4) so its
+// raised diamond's center inverts, at elevation 0, to exactly cell (0,0)'s center —
+// i.e. (0,0) and (1,1) both claim the same screen point, testing topmost-first
+// resolution. See plan derivation: center of (1,1) raised by 8 is world (0,16);
+// inverting (0,16) at elevation 0 gives fractional (0.5,0.5) -> floor (0,0).
+Tilemap make_overlap_map() {
+  Tilemap tm = make_flat_map();
+  tm.layers[0].elevation.assign(static_cast<std::size_t>(tm.width) * static_cast<std::size_t>(tm.height), 0);
+  tm.layers[0].elevation[(1 * tm.width) + 1] = 8;
+  return tm;
+}
 
-  MapView make_view(const Tilemap &tm) {
-    MapView v;
-    v.projection.half_tw = k_half_tw;
-    v.projection.half_th = k_half_th;
-    v.projection.x_origin = 0.f;
-    v.elevation_map = &tm;
-    return v;
-  }
+MapView make_view(const Tilemap &tm) {
+  MapView v;
+  v.projection.half_tw = k_half_tw;
+  v.projection.half_th = k_half_th;
+  v.projection.x_origin = 0.f;
+  v.elevation_map = &tm;
+  return v;
+}
 
-  corundum::core::math::IsometricParams make_iso() {
-    return {.half_tw = k_half_tw, .half_th = k_half_th, .x_origin = 0.f, .elev_step = k_elev_step};
-  }
+corundum::core::math::IsometricParams make_iso() {
+  return {.half_tw = k_half_tw, .half_th = k_half_th, .x_origin = 0.f, .elev_step = k_elev_step};
+}
 
 } // namespace
 

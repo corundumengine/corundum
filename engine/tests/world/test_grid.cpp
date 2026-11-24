@@ -8,9 +8,9 @@
 
 namespace {
 
-  using corundum::world::tile_distance;
-  using corundum::world::tile_of;
-  using corundum::world::TileCoord;
+using corundum::world::tile_distance;
+using corundum::world::tile_of;
+using corundum::world::TileCoord;
 
 } // namespace
 

@@ -23,150 +23,150 @@
 
 namespace corundum::platform {
 
-  namespace {
+namespace {
 
-    /** @brief Backend handles belonging to one published texture. */
-    struct TextureHandles {
-      /** @brief Image the view was created from; 0 when creation failed. */
-      sg_image image{};
+/** @brief Backend handles belonging to one published texture. */
+struct TextureHandles {
+  /** @brief Image the view was created from; 0 when creation failed. */
+  sg_image image{};
 
-      /** @brief Sampler owned together with the image. */
-      sg_sampler sampler{};
+  /** @brief Sampler owned together with the image. */
+  sg_sampler sampler{};
 
-      /** @brief View through which draws sample the image. */
-      sg_view view{};
-    };
+  /** @brief View through which draws sample the image. */
+  sg_view view{};
+};
 
-    using SlotTable = TextureSlotTable<TextureHandles>;
+using SlotTable = TextureSlotTable<TextureHandles>;
 
-    sg_sampler make_sampler(WrapMode wrap) {
-      const sg_wrap mode = (wrap == WrapMode::Repeat) ? SG_WRAP_REPEAT : SG_WRAP_CLAMP_TO_EDGE;
+sg_sampler make_sampler(WrapMode wrap) {
+  const sg_wrap mode = (wrap == WrapMode::Repeat) ? SG_WRAP_REPEAT : SG_WRAP_CLAMP_TO_EDGE;
 
-      sg_sampler_desc desc{};
-      desc.min_filter = SG_FILTER_NEAREST;
-      desc.mag_filter = SG_FILTER_NEAREST;
-      desc.wrap_u = mode;
-      desc.wrap_v = mode;
-      desc.label = "texture_cache";
+  sg_sampler_desc desc{};
+  desc.min_filter = SG_FILTER_NEAREST;
+  desc.mag_filter = SG_FILTER_NEAREST;
+  desc.wrap_u = mode;
+  desc.wrap_v = mode;
+  desc.label = "texture_cache";
 
-      return sg_make_sampler(&desc);
-    }
+  return sg_make_sampler(&desc);
+}
 
-    /** @brief False unless every handle in @p handles is usable for drawing. */
-    bool handles_valid(const TextureHandles &handles) {
-      return sg_query_image_state(handles.image) == SG_RESOURCESTATE_VALID &&
-             sg_query_sampler_state(handles.sampler) == SG_RESOURCESTATE_VALID &&
-             sg_query_view_state(handles.view) == SG_RESOURCESTATE_VALID;
-    }
+/** @brief False unless every handle in @p handles is usable for drawing. */
+bool handles_valid(const TextureHandles &handles) {
+  return sg_query_image_state(handles.image) == SG_RESOURCESTATE_VALID &&
+         sg_query_sampler_state(handles.sampler) == SG_RESOURCESTATE_VALID &&
+         sg_query_view_state(handles.view) == SG_RESOURCESTATE_VALID;
+}
 
-    /** @brief Release every valid handle in @p handles. */
-    void destroy_handles(TextureHandles handles) {
-      if (handles.view.id != 0)
-        sg_destroy_view(handles.view);
-      if (handles.sampler.id != 0)
-        sg_destroy_sampler(handles.sampler);
-      if (handles.image.id != 0)
-        sg_destroy_image(handles.image);
-    }
+/** @brief Release every valid handle in @p handles. */
+void destroy_handles(TextureHandles handles) {
+  if (handles.view.id != 0)
+    sg_destroy_view(handles.view);
+  if (handles.sampler.id != 0)
+    sg_destroy_sampler(handles.sampler);
+  if (handles.image.id != 0)
+    sg_destroy_image(handles.image);
+}
 
-    /** @brief Largest pixel dimension the sokol upload path accepts. */
-    constexpr unsigned k_max_texture_dimension = static_cast<unsigned>(std::numeric_limits<int>::max());
+/** @brief Largest pixel dimension the sokol upload path accepts. */
+constexpr unsigned k_max_texture_dimension = static_cast<unsigned>(std::numeric_limits<int>::max());
 
-    /** @brief Publish a freshly created handle set, or release it and report @p failure.
-     *
-     * @param[in] failure  Message returned when the backend rejected any handle.
-     * @return The published texture's metadata, or std::unexpected with @p failure.
-     */
-    std::expected<TextureInfo, std::string> publish(SlotTable &slots, sg_image image, unsigned width, unsigned height,
-                                                    WrapMode wrap, std::string failure) {
-      const TextureHandles handles{
-          .image = image,
-          .sampler = make_sampler(wrap),
-          .view = glfw::make_texture_view(image, "texture_cache"),
-      };
-      if (!handles_valid(handles)) {
-        destroy_handles(handles);
-        return std::unexpected(std::move(failure));
-      }
-
-      const uint32_t id = slots.adopt(handles, width, height);
-      return TextureInfo{.height = height, .id = id, .width = width};
-    }
-
-  } // namespace
-
-  struct TextureCache::Impl {
-    SlotTable slots;
+/** @brief Publish a freshly created handle set, or release it and report @p failure.
+ *
+ * @param[in] failure  Message returned when the backend rejected any handle.
+ * @return The published texture's metadata, or std::unexpected with @p failure.
+ */
+std::expected<TextureInfo, std::string> publish(SlotTable &slots, sg_image image, unsigned width, unsigned height,
+                                                WrapMode wrap, std::string failure) {
+  const TextureHandles handles{
+      .image = image,
+      .sampler = make_sampler(wrap),
+      .view = glfw::make_texture_view(image, "texture_cache"),
   };
-
-  TextureCache::TextureCache() : impl_{std::make_unique<Impl>()} {}
-
-  TextureCache::~TextureCache() {
-    // Retire id by id rather than as a batch: releasing every handle in one pass
-    // would have to hand them back in a container, and teardown has no room to allocate.
-    const std::size_t count = impl_->slots.slot_count();
-    for (uint32_t id = 1; id <= count; ++id) {
-      const std::optional<TextureHandles> handles = impl_->slots.release(id);
-      if (handles)
-        destroy_handles(*handles);
-    }
+  if (!handles_valid(handles)) {
+    destroy_handles(handles);
+    return std::unexpected(std::move(failure));
   }
 
-  std::expected<TextureInfo, std::string> TextureCache::load(std::string_view path) {
-    const std::string path_str{path};
+  const uint32_t id = slots.adopt(handles, width, height);
+  return TextureInfo{.height = height, .id = id, .width = width};
+}
 
-    int w{};
-    int h{};
-    int channels{};
-    stbi_uc *pixels = stbi_load(path_str.c_str(), &w, &h, &channels, STBI_rgb_alpha);
-    if (pixels == nullptr)
-      return std::unexpected(std::string{"stb_image: "} + stbi_failure_reason());
+} // namespace
 
-    const sg_image image =
-        glfw::make_rgba8_image(std::as_bytes(std::span{pixels, glfw::rgba8_byte_count(w, h)}), w, h, "texture_cache");
-    stbi_image_free(pixels);
+struct TextureCache::Impl {
+  SlotTable slots;
+};
 
-    return publish(impl_->slots, image, static_cast<unsigned>(w), static_cast<unsigned>(h), WrapMode::Clamp,
-                   std::string{"TextureCache: could not create GPU resources for '"} + path_str + "'");
-  }
+TextureCache::TextureCache() : impl_{std::make_unique<Impl>()} {}
 
-  std::expected<TextureInfo, std::string> TextureCache::create(unsigned width, unsigned height,
-                                                               std::span<const std::uint32_t> rgba, WrapMode wrap) {
-    if (width == 0 || height == 0)
-      return std::unexpected(std::string{"TextureCache: texture size must be non-zero"});
-    if (width > k_max_texture_dimension || height > k_max_texture_dimension)
-      return std::unexpected(std::string{"TextureCache: texture size out of range"});
-    const std::size_t pixel_count = static_cast<std::size_t>(width) * height;
-    if (rgba.size() != pixel_count)
-      return std::unexpected(std::format("TextureCache: a {}x{} texture needs {} pixels, got {}", width, height,
-                                         pixel_count, rgba.size()));
-
-    const sg_image image =
-        glfw::make_rgba8_image(std::as_bytes(rgba), static_cast<int>(width), static_cast<int>(height), "texture_cache");
-
-    return publish(impl_->slots, image, width, height, wrap, "TextureCache: could not create GPU resources");
-  }
-
-  void TextureCache::destroy(uint32_t id) noexcept {
+TextureCache::~TextureCache() {
+  // Retire id by id rather than as a batch: releasing every handle in one pass
+  // would have to hand them back in a container, and teardown has no room to allocate.
+  const std::size_t count = impl_->slots.slot_count();
+  for (uint32_t id = 1; id <= count; ++id) {
     const std::optional<TextureHandles> handles = impl_->slots.release(id);
     if (handles)
       destroy_handles(*handles);
   }
+}
 
-  std::optional<TextureInfo> TextureCache::info(uint32_t id) const {
-    const SlotTable::Slot *slot = impl_->slots.peek(id);
-    if (slot == nullptr)
-      return std::nullopt;
+std::expected<TextureInfo, std::string> TextureCache::load(std::string_view path) {
+  const std::string path_str{path};
 
-    return TextureInfo{.height = slot->height, .id = id, .width = slot->width};
-  }
+  int w{};
+  int h{};
+  int channels{};
+  stbi_uc *pixels = stbi_load(path_str.c_str(), &w, &h, &channels, STBI_rgb_alpha);
+  if (pixels == nullptr)
+    return std::unexpected(std::string{"stb_image: "} + stbi_failure_reason());
 
-  std::optional<BackendTexture> TextureCache::backend_handle(uint32_t id) const noexcept {
-    const SlotTable::Slot *slot = impl_->slots.peek(id);
-    if (slot == nullptr)
-      return std::nullopt;
+  const sg_image image =
+      glfw::make_rgba8_image(std::as_bytes(std::span{pixels, glfw::rgba8_byte_count(w, h)}), w, h, "texture_cache");
+  stbi_image_free(pixels);
 
-    return BackendTexture{.sampler = slot->payload.sampler.id, .view = slot->payload.view.id};
-  }
+  return publish(impl_->slots, image, static_cast<unsigned>(w), static_cast<unsigned>(h), WrapMode::Clamp,
+                 std::string{"TextureCache: could not create GPU resources for '"} + path_str + "'");
+}
+
+std::expected<TextureInfo, std::string> TextureCache::create(unsigned width, unsigned height,
+                                                             std::span<const std::uint32_t> rgba, WrapMode wrap) {
+  if (width == 0 || height == 0)
+    return std::unexpected(std::string{"TextureCache: texture size must be non-zero"});
+  if (width > k_max_texture_dimension || height > k_max_texture_dimension)
+    return std::unexpected(std::string{"TextureCache: texture size out of range"});
+  const std::size_t pixel_count = static_cast<std::size_t>(width) * height;
+  if (rgba.size() != pixel_count)
+    return std::unexpected(
+        std::format("TextureCache: a {}x{} texture needs {} pixels, got {}", width, height, pixel_count, rgba.size()));
+
+  const sg_image image =
+      glfw::make_rgba8_image(std::as_bytes(rgba), static_cast<int>(width), static_cast<int>(height), "texture_cache");
+
+  return publish(impl_->slots, image, width, height, wrap, "TextureCache: could not create GPU resources");
+}
+
+void TextureCache::destroy(uint32_t id) noexcept {
+  const std::optional<TextureHandles> handles = impl_->slots.release(id);
+  if (handles)
+    destroy_handles(*handles);
+}
+
+std::optional<TextureInfo> TextureCache::info(uint32_t id) const {
+  const SlotTable::Slot *slot = impl_->slots.peek(id);
+  if (slot == nullptr)
+    return std::nullopt;
+
+  return TextureInfo{.height = slot->height, .id = id, .width = slot->width};
+}
+
+std::optional<BackendTexture> TextureCache::backend_handle(uint32_t id) const noexcept {
+  const SlotTable::Slot *slot = impl_->slots.peek(id);
+  if (slot == nullptr)
+    return std::nullopt;
+
+  return BackendTexture{.sampler = slot->payload.sampler.id, .view = slot->payload.view.id};
+}
 
 } // namespace corundum::platform

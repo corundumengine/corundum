@@ -7,6 +7,6 @@
 
 namespace tools::loom {
 
-  void render_item_editor(EditorState &state);
+void render_item_editor(EditorState &state);
 
 } // namespace tools::loom

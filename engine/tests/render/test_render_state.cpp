@@ -37,50 +37,50 @@ namespace render_data = corundum::render;
 
 namespace {
 
-  tilemap::Tilemap make_flat_map() {
-    tilemap::Tilemap tm;
-    tm.width = 2;
-    tm.height = 2;
-    tilemap::TilemapLayer layer;
-    layer.name = "ground";
-    layer.z_index = 0;
-    layer.tiles.assign(static_cast<std::size_t>(tm.width) * static_cast<std::size_t>(tm.height), 1);
-    tm.layers.push_back(std::move(layer));
-    return tm;
+tilemap::Tilemap make_flat_map() {
+  tilemap::Tilemap tm;
+  tm.width = 2;
+  tm.height = 2;
+  tilemap::TilemapLayer layer;
+  layer.name = "ground";
+  layer.z_index = 0;
+  layer.tiles.assign(static_cast<std::size_t>(tm.width) * static_cast<std::size_t>(tm.height), 1);
+  tm.layers.push_back(std::move(layer));
+  return tm;
+}
+
+// A 7x7 world whose chunk window starts centred at (3,3), then shifts one chunk east to
+// (4,3) — mirroring sync_active_chunks()'s recenter → prune → enqueue sequence. Returns the
+// state with the new centre applied and the newly-adjacent east column queued for loading.
+render_data::RenderState shifted_window_state() {
+  constexpr int k_chunk_size = 16;
+  render_data::RenderState state;
+  auto &world_area = corundum::test::emplace_world_area(state);
+  world_area.manifest.chunk_size = k_chunk_size;
+  world_area.manifest.chunks_wide = 7;
+  world_area.manifest.chunks_tall = 7;
+
+  const tilemap::ChunkCoord start_center{.col = 3, .row = 3};
+  world_area.chunks.set_last_center(start_center);
+  for (const tilemap::ChunkCoord coord :
+       tilemap::active_chunk_coords(start_center, render_data::ChunkWindow::k_radius, world_area.manifest)) {
+    render_data::ChunkEntry e;
+    e.coord = coord;
+    e.tilemap = make_flat_map();
+    world_area.chunks.add_active(std::move(e));
   }
 
-  // A 7x7 world whose chunk window starts centred at (3,3), then shifts one chunk east to
-  // (4,3) — mirroring sync_active_chunks()'s recenter → prune → enqueue sequence. Returns the
-  // state with the new centre applied and the newly-adjacent east column queued for loading.
-  render_data::RenderState shifted_window_state() {
-    constexpr int k_chunk_size = 16;
-    render_data::RenderState state;
-    auto &world_area = corundum::test::emplace_world_area(state);
-    world_area.manifest.chunk_size = k_chunk_size;
-    world_area.manifest.chunks_wide = 7;
-    world_area.manifest.chunks_tall = 7;
-
-    const tilemap::ChunkCoord start_center{.col = 3, .row = 3};
-    world_area.chunks.set_last_center(start_center);
-    for (const tilemap::ChunkCoord coord :
-         tilemap::active_chunk_coords(start_center, render_data::ChunkWindow::k_radius, world_area.manifest)) {
-      render_data::ChunkEntry e;
-      e.coord = coord;
-      e.tilemap = make_flat_map();
-      world_area.chunks.add_active(std::move(e));
-    }
-
-    const tilemap::ChunkCoord new_center{.col = 4, .row = 3};
-    world_area.chunks.set_last_center(new_center);
-    const std::vector<tilemap::ChunkCoord> desired =
-        tilemap::active_chunk_coords(new_center, render_data::ChunkWindow::k_radius, world_area.manifest);
-    world_area.chunks.prune_active(
-        [&](const render_data::ChunkEntry &e) { return std::ranges::contains(desired, e.coord); });
-    (void)world_area.chunks.consume_dirty();
-    for (const tilemap::ChunkCoord c : desired)
-      world_area.chunks.enqueue_pending(c);
-    return state;
-  }
+  const tilemap::ChunkCoord new_center{.col = 4, .row = 3};
+  world_area.chunks.set_last_center(new_center);
+  const std::vector<tilemap::ChunkCoord> desired =
+      tilemap::active_chunk_coords(new_center, render_data::ChunkWindow::k_radius, world_area.manifest);
+  world_area.chunks.prune_active(
+      [&](const render_data::ChunkEntry &e) { return std::ranges::contains(desired, e.coord); });
+  (void)world_area.chunks.consume_dirty();
+  for (const tilemap::ChunkCoord c : desired)
+    world_area.chunks.enqueue_pending(c);
+  return state;
+}
 
 } // namespace
 
@@ -443,29 +443,29 @@ TEST_CASE("ChunkWindow - enqueue_pending ignores a chunk that is already pending
 
 namespace {
 
-  constexpr std::string_view k_one_chunk_tileset_path{"one_chunk_world/tileset.json"};
+constexpr std::string_view k_one_chunk_tileset_path{"one_chunk_world/tileset.json"};
 
-  /// A one-tile spritepacker atlas whose texture is @p texture_path.
-  std::string one_tile_atlas_json(std::string_view texture_path) {
-    return std::format(R"({{"schema_version":2,"path":"{}","width":16,"height":16,"sprites":[)"
-                       R"({{"name":"tile_0","x":0,"y":0,"w":16,"h":16,"trim_x":0,"trim_y":0,)"
-                       R"("source_width":16,"source_height":16,"pivot_x":0.5,"pivot_y":1.0}}]}})",
-                       texture_path);
-  }
+/// A one-tile spritepacker atlas whose texture is @p texture_path.
+std::string one_tile_atlas_json(std::string_view texture_path) {
+  return std::format(R"({{"schema_version":2,"path":"{}","width":16,"height":16,"sprites":[)"
+                     R"({{"name":"tile_0","x":0,"y":0,"w":16,"h":16,"trim_x":0,"trim_y":0,)"
+                     R"("source_width":16,"source_height":16,"pivot_x":0.5,"pivot_y":1.0}}]}})",
+                     texture_path);
+}
 
-  /// A 1×1-chunk world of 2×2 tiles whose chunk uses the tileset at k_one_chunk_tileset_path,
-  /// which the caller adds. It has no portals file, which reads as no portals.
-  corundum::core::GameConfig add_one_chunk_world(corundum::test::MemoryContentSource &content) {
-    content.add("one_chunk_world/manifest.json", R"({"chunk_size":2,"chunks_wide":1,"chunks_tall":1})");
-    content.add("one_chunk_world/chunk_0_0.json",
-                std::format(R"({{"id":"chunk_0_0","iso_diamond_w":32,"iso_diamond_h":16,"width":2,"height":2,)"
-                            R"("layers":[{{"name":"ground","tiles":["0,0","0,0"]}}],)"
-                            R"("tilesets":[{{"first_gid":0,"source":"{}"}}]}})",
-                            k_one_chunk_tileset_path));
-    corundum::core::GameConfig cfg{};
-    cfg.paths.world_manifest_path = "one_chunk_world/manifest.json";
-    return cfg;
-  }
+/// A 1×1-chunk world of 2×2 tiles whose chunk uses the tileset at k_one_chunk_tileset_path,
+/// which the caller adds. It has no portals file, which reads as no portals.
+corundum::core::GameConfig add_one_chunk_world(corundum::test::MemoryContentSource &content) {
+  content.add("one_chunk_world/manifest.json", R"({"chunk_size":2,"chunks_wide":1,"chunks_tall":1})");
+  content.add("one_chunk_world/chunk_0_0.json",
+              std::format(R"({{"id":"chunk_0_0","iso_diamond_w":32,"iso_diamond_h":16,"width":2,"height":2,)"
+                          R"("layers":[{{"name":"ground","tiles":["0,0","0,0"]}}],)"
+                          R"("tilesets":[{{"first_gid":0,"source":"{}"}}]}})",
+                          k_one_chunk_tileset_path));
+  corundum::core::GameConfig cfg{};
+  cfg.paths.world_manifest_path = "one_chunk_world/manifest.json";
+  return cfg;
+}
 
 } // namespace
 

@@ -25,341 +25,340 @@
 
 namespace corundum::input {
 
-  namespace {
+namespace {
 
-    constexpr std::array<std::pair<Action, std::string_view>, k_action_count> k_action_names{
-        {
-            {Action::MoveUp, "MoveUp"},
-            {Action::MoveDown, "MoveDown"},
-            {Action::MoveLeft, "MoveLeft"},
-            {Action::MoveRight, "MoveRight"},
-            {Action::Select, "Select"},
-            {Action::Activate, "Activate"},
-            {Action::Cancel, "Cancel"},
-            {Action::Quit, "Quit"},
-            {Action::ZoomIn, "ZoomIn"},
-            {Action::ZoomOut, "ZoomOut"},
-            {Action::Inventory, "Inventory"},
-            {Action::Journal, "Journal"},
-            {Action::Codex, "Codex"},
-            {Action::Map, "Map"},
-            {Action::Character, "Character"},
-            {Action::Menu, "Menu"},
-            {Action::Hub, "Hub"},
-            {Action::TabNext, "TabNext"},
-            {Action::TabPrev, "TabPrev"},
-            {Action::SubTabNext, "SubTabNext"},
-            {Action::SubTabPrev, "SubTabPrev"},
-            {Action::Pause, "Pause"},
-            {Action::CombatCommand1, "CombatCommand1"},
-            {Action::CombatCommand2, "CombatCommand2"},
-            {Action::CombatCommand3, "CombatCommand3"},
-            {Action::CombatCommand4, "CombatCommand4"},
-            {Action::CombatCommand5, "CombatCommand5"},
-            {Action::CombatCommand6, "CombatCommand6"},
-            {Action::CombatCommand7, "CombatCommand7"},
-            {Action::CombatCommand8, "CombatCommand8"},
-            {Action::CombatCommand9, "CombatCommand9"},
-            {Action::CombatPageNext, "CombatPageNext"},
-            {Action::CombatPagePrev, "CombatPagePrev"},
-            {Action::CombatTargetNext, "CombatTargetNext"},
-            {Action::QuickSave, "QuickSave"},
-            {Action::QuickLoad, "QuickLoad"},
-        },
-    };
+constexpr std::array<std::pair<Action, std::string_view>, k_action_count> k_action_names{
+    {
+        {Action::MoveUp, "MoveUp"},
+        {Action::MoveDown, "MoveDown"},
+        {Action::MoveLeft, "MoveLeft"},
+        {Action::MoveRight, "MoveRight"},
+        {Action::Select, "Select"},
+        {Action::Activate, "Activate"},
+        {Action::Cancel, "Cancel"},
+        {Action::Quit, "Quit"},
+        {Action::ZoomIn, "ZoomIn"},
+        {Action::ZoomOut, "ZoomOut"},
+        {Action::Inventory, "Inventory"},
+        {Action::Journal, "Journal"},
+        {Action::Codex, "Codex"},
+        {Action::Map, "Map"},
+        {Action::Character, "Character"},
+        {Action::Menu, "Menu"},
+        {Action::Hub, "Hub"},
+        {Action::TabNext, "TabNext"},
+        {Action::TabPrev, "TabPrev"},
+        {Action::SubTabNext, "SubTabNext"},
+        {Action::SubTabPrev, "SubTabPrev"},
+        {Action::Pause, "Pause"},
+        {Action::CombatCommand1, "CombatCommand1"},
+        {Action::CombatCommand2, "CombatCommand2"},
+        {Action::CombatCommand3, "CombatCommand3"},
+        {Action::CombatCommand4, "CombatCommand4"},
+        {Action::CombatCommand5, "CombatCommand5"},
+        {Action::CombatCommand6, "CombatCommand6"},
+        {Action::CombatCommand7, "CombatCommand7"},
+        {Action::CombatCommand8, "CombatCommand8"},
+        {Action::CombatCommand9, "CombatCommand9"},
+        {Action::CombatPageNext, "CombatPageNext"},
+        {Action::CombatPagePrev, "CombatPagePrev"},
+        {Action::CombatTargetNext, "CombatTargetNext"},
+        {Action::QuickSave, "QuickSave"},
+        {Action::QuickLoad, "QuickLoad"},
+    },
+};
 
-    /// @p action's first input on @p device other than @p input, or nullopt when it has none.
-    std::optional<PhysicalInput> first_other_input(const Bindings &bindings, Action action, InputDevice device,
-                                                   PhysicalInput input) {
-      const auto row = std::ranges::find_if(bindings, [action, device, input](const Binding &candidate) {
-        return candidate.action == action && device_of(candidate.input) == device && candidate.input != input;
-      });
-      if (row == bindings.end())
-        return std::nullopt;
-      return row->input;
-    }
-
-    /// Whether @p action has any row on @p device.
-    bool has_input_on(const Bindings &bindings, Action action, InputDevice device) {
-      return std::ranges::any_of(bindings, [action, device](const Binding &row) {
-        return row.action == action && device_of(row.input) == device;
-      });
-    }
-
-  } // namespace
-
-  Bindings default_bindings() {
-    return {
-        {.action = Action::MoveUp, .input = physical(Key::W)},
-        {.action = Action::MoveDown, .input = physical(Key::S)},
-        {.action = Action::MoveLeft, .input = physical(Key::A)},
-        {.action = Action::MoveRight, .input = physical(Key::D)},
-        {.action = Action::MoveUp, .input = physical(Key::Up)},
-        {.action = Action::MoveDown, .input = physical(Key::Down)},
-        {.action = Action::MoveLeft, .input = physical(Key::Left)},
-        {.action = Action::MoveRight, .input = physical(Key::Right)},
-        {.action = Action::Select, .input = physical(Key::Enter)},
-        {.action = Action::Select, .input = physical(Key::Space)},
-        {.action = Action::Activate, .input = physical(Key::Enter)},
-        {.action = Action::Activate, .input = physical(Key::Space)},
-        {.action = Action::Pause, .input = physical(Key::Space)},
-        {.action = Action::CombatCommand1, .input = physical(Key::Digit1)},
-        {.action = Action::CombatCommand2, .input = physical(Key::Digit2)},
-        {.action = Action::CombatCommand3, .input = physical(Key::Digit3)},
-        {.action = Action::CombatCommand4, .input = physical(Key::Digit4)},
-        {.action = Action::CombatCommand5, .input = physical(Key::Digit5)},
-        {.action = Action::CombatCommand6, .input = physical(Key::Digit6)},
-        {.action = Action::CombatCommand7, .input = physical(Key::Digit7)},
-        {.action = Action::CombatCommand8, .input = physical(Key::Digit8)},
-        {.action = Action::CombatCommand9, .input = physical(Key::Digit9)},
-        {.action = Action::CombatTargetNext, .input = physical(Key::Tab)},
-        {.action = Action::Cancel, .input = physical(Key::Escape)},
-        {.action = Action::Cancel, .input = physical(MouseButton::Right)},
-        {.action = Action::Quit, .input = physical(Key::Q)},
-        {.action = Action::Inventory, .input = physical(Key::I)},
-        {.action = Action::Journal, .input = physical(Key::J)},
-        {.action = Action::Codex, .input = physical(Key::C)},
-        {.action = Action::Map, .input = physical(Key::M)},
-        {.action = Action::Character, .input = physical(Key::P)},
-        // Esc doubles as Cancel; with a screen open its back handling gets the press (the
-        // menu-open path treats a same-step Cancel as a close), so the shared key never opens
-        // and closes the menu in one step. With no screen open Esc opens the pause menu.
-        {.action = Action::Menu, .input = physical(Key::Escape)},
-        {.action = Action::TabPrev, .input = physical(Key::LeftBracket)},
-        {.action = Action::TabNext, .input = physical(Key::RightBracket)},
-        {.action = Action::SubTabPrev, .input = physical(Key::Comma)},
-        {.action = Action::SubTabNext, .input = physical(Key::Period)},
-        {.action = Action::ZoomIn, .input = physical(Key::Equal)}, // '=' doubles as '+' without needing Shift
-        {.action = Action::ZoomOut, .input = physical(Key::Minus)},
-        {.action = Action::QuickSave, .input = physical(Key::F5)},
-        {.action = Action::QuickLoad, .input = physical(Key::F9)},
-        {.action = Action::Select, .input = physical(MouseButton::Left)},
-        {.action = Action::Select, .input = physical(GamepadControl::A)},
-        {.action = Action::Activate, .input = physical(MouseButton::Left)},
-        {.action = Action::Activate, .input = physical(GamepadControl::A)},
-        {.action = Action::Pause, .input = physical(GamepadControl::X)},
-        // Only a fight reads these; outside one, A, Y and B keep their Select/Activate, Hub and
-        // Cancel jobs, none of which a fight uses.
-        {.action = Action::CombatCommand1, .input = physical(GamepadControl::A)},
-        {.action = Action::CombatCommand2, .input = physical(GamepadControl::Y)},
-        {.action = Action::CombatCommand3, .input = physical(GamepadControl::B)},
-        {.action = Action::Cancel, .input = physical(GamepadControl::B)},
-        {.action = Action::Character, .input = physical(GamepadControl::Back)},
-        {.action = Action::Menu, .input = physical(GamepadControl::Start)},
-        {.action = Action::TabPrev, .input = physical(GamepadControl::LeftBumper)},
-        {.action = Action::TabNext, .input = physical(GamepadControl::RightBumper)},
-        // Outside a fight the bumpers keep their tab jobs, which a fight doesn't use.
-        {.action = Action::CombatPagePrev, .input = physical(GamepadControl::LeftBumper)},
-        {.action = Action::CombatPageNext, .input = physical(GamepadControl::RightBumper)},
-        {.action = Action::CombatTargetNext, .input = physical(GamepadControl::RightThumb)},
-        // Hub is the one gamepad button for the four menu screens; the I/J/C/M keyboard hotkeys
-        // open a tab directly. Journal/Codex/Map stay in this table so a settings file saved
-        // before the hub (gamepad Y still bound to Journal) opens the hub on the Journal tab:
-        // fill_missing_defaults() will not steal Y back for Hub while Journal holds it.
-        {.action = Action::Hub, .input = physical(GamepadControl::Y)},
-        {.action = Action::SubTabPrev, .input = physical(GamepadControl::LeftTrigger)},
-        {.action = Action::SubTabNext, .input = physical(GamepadControl::RightTrigger)},
-        {.action = Action::MoveUp, .input = physical(GamepadControl::LeftStickUp)},
-        {.action = Action::MoveUp, .input = physical(GamepadControl::DpadUp)},
-        {.action = Action::MoveDown, .input = physical(GamepadControl::LeftStickDown)},
-        {.action = Action::MoveDown, .input = physical(GamepadControl::DpadDown)},
-        {.action = Action::MoveLeft, .input = physical(GamepadControl::LeftStickLeft)},
-        {.action = Action::MoveLeft, .input = physical(GamepadControl::DpadLeft)},
-        {.action = Action::MoveRight, .input = physical(GamepadControl::LeftStickRight)},
-        {.action = Action::MoveRight, .input = physical(GamepadControl::DpadRight)},
-        {.action = Action::ZoomOut, .input = physical(GamepadControl::LeftTrigger)}, // L2
-        {.action = Action::ZoomIn, .input = physical(GamepadControl::RightTrigger)}, // R2
-    };
-  }
-
-  std::string_view action_name(Action action) noexcept {
-    for (const auto &[candidate, name] : k_action_names) {
-      if (candidate == action)
-        return name;
-    }
-    return {};
-  }
-
-  std::optional<Action> parse_action(std::string_view name) noexcept {
-    for (const auto &[action, candidate] : k_action_names) {
-      if (candidate == name)
-        return action;
-    }
+/// @p action's first input on @p device other than @p input, or nullopt when it has none.
+std::optional<PhysicalInput> first_other_input(const Bindings &bindings, Action action, InputDevice device,
+                                               PhysicalInput input) {
+  const auto row = std::ranges::find_if(bindings, [action, device, input](const Binding &candidate) {
+    return candidate.action == action && device_of(candidate.input) == device && candidate.input != input;
+  });
+  if (row == bindings.end())
     return std::nullopt;
+  return row->input;
+}
+
+/// Whether @p action has any row on @p device.
+bool has_input_on(const Bindings &bindings, Action action, InputDevice device) {
+  return std::ranges::any_of(bindings, [action, device](const Binding &row) {
+    return row.action == action && device_of(row.input) == device;
+  });
+}
+
+} // namespace
+
+Bindings default_bindings() {
+  return {
+      {.action = Action::MoveUp, .input = physical(Key::W)},
+      {.action = Action::MoveDown, .input = physical(Key::S)},
+      {.action = Action::MoveLeft, .input = physical(Key::A)},
+      {.action = Action::MoveRight, .input = physical(Key::D)},
+      {.action = Action::MoveUp, .input = physical(Key::Up)},
+      {.action = Action::MoveDown, .input = physical(Key::Down)},
+      {.action = Action::MoveLeft, .input = physical(Key::Left)},
+      {.action = Action::MoveRight, .input = physical(Key::Right)},
+      {.action = Action::Select, .input = physical(Key::Enter)},
+      {.action = Action::Select, .input = physical(Key::Space)},
+      {.action = Action::Activate, .input = physical(Key::Enter)},
+      {.action = Action::Activate, .input = physical(Key::Space)},
+      {.action = Action::Pause, .input = physical(Key::Space)},
+      {.action = Action::CombatCommand1, .input = physical(Key::Digit1)},
+      {.action = Action::CombatCommand2, .input = physical(Key::Digit2)},
+      {.action = Action::CombatCommand3, .input = physical(Key::Digit3)},
+      {.action = Action::CombatCommand4, .input = physical(Key::Digit4)},
+      {.action = Action::CombatCommand5, .input = physical(Key::Digit5)},
+      {.action = Action::CombatCommand6, .input = physical(Key::Digit6)},
+      {.action = Action::CombatCommand7, .input = physical(Key::Digit7)},
+      {.action = Action::CombatCommand8, .input = physical(Key::Digit8)},
+      {.action = Action::CombatCommand9, .input = physical(Key::Digit9)},
+      {.action = Action::CombatTargetNext, .input = physical(Key::Tab)},
+      {.action = Action::Cancel, .input = physical(Key::Escape)},
+      {.action = Action::Cancel, .input = physical(MouseButton::Right)},
+      {.action = Action::Quit, .input = physical(Key::Q)},
+      {.action = Action::Inventory, .input = physical(Key::I)},
+      {.action = Action::Journal, .input = physical(Key::J)},
+      {.action = Action::Codex, .input = physical(Key::C)},
+      {.action = Action::Map, .input = physical(Key::M)},
+      {.action = Action::Character, .input = physical(Key::P)},
+      // Esc doubles as Cancel; with a screen open its back handling gets the press (the
+      // menu-open path treats a same-step Cancel as a close), so the shared key never opens
+      // and closes the menu in one step. With no screen open Esc opens the pause menu.
+      {.action = Action::Menu, .input = physical(Key::Escape)},
+      {.action = Action::TabPrev, .input = physical(Key::LeftBracket)},
+      {.action = Action::TabNext, .input = physical(Key::RightBracket)},
+      {.action = Action::SubTabPrev, .input = physical(Key::Comma)},
+      {.action = Action::SubTabNext, .input = physical(Key::Period)},
+      {.action = Action::ZoomIn, .input = physical(Key::Equal)}, // '=' doubles as '+' without needing Shift
+      {.action = Action::ZoomOut, .input = physical(Key::Minus)},
+      {.action = Action::QuickSave, .input = physical(Key::F5)},
+      {.action = Action::QuickLoad, .input = physical(Key::F9)},
+      {.action = Action::Select, .input = physical(MouseButton::Left)},
+      {.action = Action::Select, .input = physical(GamepadControl::A)},
+      {.action = Action::Activate, .input = physical(MouseButton::Left)},
+      {.action = Action::Activate, .input = physical(GamepadControl::A)},
+      {.action = Action::Pause, .input = physical(GamepadControl::X)},
+      // Only a fight reads these; outside one, A, Y and B keep their Select/Activate, Hub and
+      // Cancel jobs, none of which a fight uses.
+      {.action = Action::CombatCommand1, .input = physical(GamepadControl::A)},
+      {.action = Action::CombatCommand2, .input = physical(GamepadControl::Y)},
+      {.action = Action::CombatCommand3, .input = physical(GamepadControl::B)},
+      {.action = Action::Cancel, .input = physical(GamepadControl::B)},
+      {.action = Action::Character, .input = physical(GamepadControl::Back)},
+      {.action = Action::Menu, .input = physical(GamepadControl::Start)},
+      {.action = Action::TabPrev, .input = physical(GamepadControl::LeftBumper)},
+      {.action = Action::TabNext, .input = physical(GamepadControl::RightBumper)},
+      // Outside a fight the bumpers keep their tab jobs, which a fight doesn't use.
+      {.action = Action::CombatPagePrev, .input = physical(GamepadControl::LeftBumper)},
+      {.action = Action::CombatPageNext, .input = physical(GamepadControl::RightBumper)},
+      {.action = Action::CombatTargetNext, .input = physical(GamepadControl::RightThumb)},
+      // Hub is the one gamepad button for the four menu screens; the I/J/C/M keyboard hotkeys
+      // open a tab directly. Journal/Codex/Map stay in this table so a settings file saved
+      // before the hub (gamepad Y still bound to Journal) opens the hub on the Journal tab:
+      // fill_missing_defaults() will not steal Y back for Hub while Journal holds it.
+      {.action = Action::Hub, .input = physical(GamepadControl::Y)},
+      {.action = Action::SubTabPrev, .input = physical(GamepadControl::LeftTrigger)},
+      {.action = Action::SubTabNext, .input = physical(GamepadControl::RightTrigger)},
+      {.action = Action::MoveUp, .input = physical(GamepadControl::LeftStickUp)},
+      {.action = Action::MoveUp, .input = physical(GamepadControl::DpadUp)},
+      {.action = Action::MoveDown, .input = physical(GamepadControl::LeftStickDown)},
+      {.action = Action::MoveDown, .input = physical(GamepadControl::DpadDown)},
+      {.action = Action::MoveLeft, .input = physical(GamepadControl::LeftStickLeft)},
+      {.action = Action::MoveLeft, .input = physical(GamepadControl::DpadLeft)},
+      {.action = Action::MoveRight, .input = physical(GamepadControl::LeftStickRight)},
+      {.action = Action::MoveRight, .input = physical(GamepadControl::DpadRight)},
+      {.action = Action::ZoomOut, .input = physical(GamepadControl::LeftTrigger)}, // L2
+      {.action = Action::ZoomIn, .input = physical(GamepadControl::RightTrigger)}, // R2
+  };
+}
+
+std::string_view action_name(Action action) noexcept {
+  for (const auto &[candidate, name] : k_action_names) {
+    if (candidate == action)
+      return name;
+  }
+  return {};
+}
+
+std::optional<Action> parse_action(std::string_view name) noexcept {
+  for (const auto &[action, candidate] : k_action_names) {
+    if (candidate == name)
+      return action;
+  }
+  return std::nullopt;
+}
+
+std::vector<PhysicalInput> inputs_for(const Bindings &bindings, Action action) {
+  std::vector<PhysicalInput> result;
+  for (const Binding &row : bindings) {
+    if (row.action == action)
+      result.push_back(row.input);
+  }
+  return result;
+}
+
+void bind(Bindings &bindings, Action action, PhysicalInput input) {
+  std::erase_if(bindings, [input](const Binding &row) { return row.input == input; });
+  bindings.push_back(Binding{.action = action, .input = input});
+}
+
+void rebind(Bindings &bindings, Action action, PhysicalInput from, PhysicalInput to) {
+  if (from == to)
+    return;
+
+  std::erase_if(bindings, [to](const Binding &row) { return row.input == to; });
+
+  const auto target = std::ranges::find_if(
+      bindings, [action, from](const Binding &row) { return row.action == action && row.input == from; });
+  if (target != bindings.end()) {
+    target->input = to;
+    return;
+  }
+  bindings.push_back(Binding{.action = action, .input = to});
+}
+
+void unbind(Bindings &bindings, Action action, PhysicalInput input) {
+  std::erase_if(bindings, [action, input](const Binding &row) { return row.action == action && row.input == input; });
+}
+
+void bind_swapping(Bindings &bindings, Action action, PhysicalInput input) {
+  const InputDevice device = device_of(input);
+  const std::optional<PhysicalInput> displaced = first_other_input(bindings, action, device, input);
+
+  std::vector<Action> losers;
+  for (const Binding &row : bindings) {
+    if (row.input == input && row.action != action)
+      losers.push_back(row.action);
   }
 
-  std::vector<PhysicalInput> inputs_for(const Bindings &bindings, Action action) {
-    std::vector<PhysicalInput> result;
-    for (const Binding &row : bindings) {
-      if (row.action == action)
-        result.push_back(row.input);
+  std::erase_if(bindings, [action, device, input](const Binding &row) {
+    const bool is_own_on_device = row.action == action && device_of(row.input) == device;
+    return is_own_on_device || row.input == input;
+  });
+
+  if (displaced) {
+    for (const Action loser : losers) {
+      if (!has_input_on(bindings, loser, device))
+        bindings.push_back(Binding{.action = loser, .input = *displaced});
     }
-    return result;
   }
+  bindings.push_back(Binding{.action = action, .input = input});
+}
 
-  void bind(Bindings &bindings, Action action, PhysicalInput input) {
-    std::erase_if(bindings, [input](const Binding &row) { return row.input == input; });
-    bindings.push_back(Binding{.action = action, .input = input});
-  }
-
-  void rebind(Bindings &bindings, Action action, PhysicalInput from, PhysicalInput to) {
-    if (from == to)
-      return;
-
-    std::erase_if(bindings, [to](const Binding &row) { return row.input == to; });
-
-    const auto target = std::ranges::find_if(
-        bindings, [action, from](const Binding &row) { return row.action == action && row.input == from; });
-    if (target != bindings.end()) {
-      target->input = to;
-      return;
-    }
-    bindings.push_back(Binding{.action = action, .input = to});
-  }
-
-  void unbind(Bindings &bindings, Action action, PhysicalInput input) {
-    std::erase_if(bindings, [action, input](const Binding &row) { return row.action == action && row.input == input; });
-  }
-
-  void bind_swapping(Bindings &bindings, Action action, PhysicalInput input) {
-    const InputDevice device = device_of(input);
-    const std::optional<PhysicalInput> displaced = first_other_input(bindings, action, device, input);
-
-    std::vector<Action> losers;
-    for (const Binding &row : bindings) {
-      if (row.input == input && row.action != action)
-        losers.push_back(row.action);
-    }
-
-    std::erase_if(bindings, [action, device, input](const Binding &row) {
-      const bool is_own_on_device = row.action == action && device_of(row.input) == device;
-      return is_own_on_device || row.input == input;
+nlohmann::json serialize(const Bindings &bindings) {
+  nlohmann::json array = nlohmann::json::array();
+  for (const Binding &row : bindings) {
+    array.push_back({
+        {"action", std::string(action_name(row.action))},
+        {"device", std::string(device_name(device_of(row.input)))},
+        {"input", std::string(name_of(row.input))},
     });
+  }
+  return array;
+}
 
-    if (displaced) {
-      for (const Action loser : losers) {
-        if (!has_input_on(bindings, loser, device))
-          bindings.push_back(Binding{.action = loser, .input = *displaced});
-      }
+namespace {
+
+/// Why one entry of the serialized array could not be read; empty when it was.
+std::string parse_entry_error(const nlohmann::json &entry, std::size_t index) {
+  if (!entry.is_object() || !entry.contains("action") || !entry["action"].is_string() || !entry.contains("device") ||
+      !entry["device"].is_string() || !entry.contains("input") || !entry["input"].is_string()) {
+    return std::format("bindings[{}]: must be an object with string fields action, device, input", index);
+  }
+  return {};
+}
+
+/// Whether @p default_row's input is shared with another action by @p defaults themselves.
+bool is_shared_default(const Bindings &defaults, const Binding &default_row) {
+  return std::ranges::any_of(defaults, [&default_row](const Binding &row) {
+    return row.action != default_row.action && row.input == default_row.input;
+  });
+}
+
+/// Whether @p bindings holds @p default_row's input on a row the defaults don't contain, which
+/// means the player moved it to another action.
+bool is_moved_by_player(const Bindings &bindings, const Bindings &defaults, const Binding &default_row) {
+  return std::ranges::any_of(bindings, [&defaults, &default_row](const Binding &row) {
+    return row.input == default_row.input && std::ranges::find(defaults, row) == defaults.end();
+  });
+}
+
+/// Restore the defaults a file omitted, preserving deliberate partial unbinds. See
+/// parse_bindings()'s contract for the exact rules.
+void fill_missing_defaults(Bindings &result, const Bindings &defaults) {
+  // Whether an action was bound *before* any defaults were restored decides whether its plain
+  // defaults are restored as a group; without the snapshot, restoring the first one would make
+  // the action look present and suppress the rest.
+  std::array<bool, k_action_count> originally_present{};
+  for (const Binding &row : result)
+    originally_present[static_cast<std::size_t>(row.action)] = true;
+
+  for (const Binding &default_row : defaults) {
+    if (std::ranges::find(result, default_row) != result.end())
+      continue; // this exact row is already present
+
+    const Action action = default_row.action;
+    // The input is shared between two actions by the defaults themselves (Escape = Cancel +
+    // Menu; Enter/Space/left mouse/A = Select + Activate): restore it for a device the action
+    // has nothing on, unless the player moved the input to an action the defaults don't give
+    // it to, which would make one press drive both.
+    if (is_shared_default(defaults, default_row)) {
+      const bool device_has_binding = has_input_on(result, action, device_of(default_row.input));
+      if (!device_has_binding && !is_moved_by_player(result, defaults, default_row))
+        result.push_back(default_row);
+      continue;
     }
-    bindings.push_back(Binding{.action = action, .input = input});
+
+    // A plain default is only restored when the action had no rows at all, so a deliberate
+    // partial unbind survives; an input assigned to another action is never stolen back.
+    const bool input_on_other = std::ranges::any_of(result, [&default_row](const Binding &row) {
+      return row.action != default_row.action && row.input == default_row.input;
+    });
+    if (!originally_present[static_cast<std::size_t>(action)] && !input_on_other)
+      result.push_back(default_row);
+  }
+}
+
+} // namespace
+
+std::expected<Bindings, std::string> parse_bindings(const nlohmann::json &array, const Bindings &defaults) {
+  if (!array.is_array())
+    return std::unexpected("bindings: must be an array");
+
+  Bindings result;
+  for (std::size_t index = 0; index < array.size(); ++index) {
+    const nlohmann::json &entry = array[index];
+    if (const std::string error = parse_entry_error(entry, index); !error.empty())
+      return std::unexpected(error);
+
+    const std::string action_text = entry["action"].get<std::string>();
+    const std::string device_text = entry["device"].get<std::string>();
+    const std::string input_text = entry["input"].get<std::string>();
+
+    const std::optional<Action> action = parse_action(action_text);
+    if (!action)
+      return std::unexpected(std::format("bindings[{}]: unknown action '{}'", index, action_text));
+
+    const std::optional<InputDevice> device = parse_device(device_text);
+    if (!device)
+      return std::unexpected(std::format("bindings[{}]: unknown device '{}'", index, device_text));
+
+    const std::optional<PhysicalInput> input = parse_physical_input(*device, input_text);
+    if (!input)
+      return std::unexpected(std::format("bindings[{}]: unknown input '{}'", index, input_text));
+
+    const Binding row{.action = *action, .input = *input};
+    if (std::ranges::find(result, row) == result.end())
+      result.push_back(row);
   }
 
-  nlohmann::json serialize(const Bindings &bindings) {
-    nlohmann::json array = nlohmann::json::array();
-    for (const Binding &row : bindings) {
-      array.push_back({
-          {"action", std::string(action_name(row.action))},
-          {"device", std::string(device_name(device_of(row.input)))},
-          {"input", std::string(name_of(row.input))},
-      });
-    }
-    return array;
-  }
+  fill_missing_defaults(result, defaults);
 
-  namespace {
+  if (result.size() > k_max_input_sources)
+    return std::unexpected(
+        std::format("binding table has {} rows; the limit is {}", result.size(), k_max_input_sources));
 
-    /// Why one entry of the serialized array could not be read; empty when it was.
-    std::string parse_entry_error(const nlohmann::json &entry, std::size_t index) {
-      if (!entry.is_object() || !entry.contains("action") || !entry["action"].is_string() ||
-          !entry.contains("device") || !entry["device"].is_string() || !entry.contains("input") ||
-          !entry["input"].is_string()) {
-        return std::format("bindings[{}]: must be an object with string fields action, device, input", index);
-      }
-      return {};
-    }
-
-    /// Whether @p default_row's input is shared with another action by @p defaults themselves.
-    bool is_shared_default(const Bindings &defaults, const Binding &default_row) {
-      return std::ranges::any_of(defaults, [&default_row](const Binding &row) {
-        return row.action != default_row.action && row.input == default_row.input;
-      });
-    }
-
-    /// Whether @p bindings holds @p default_row's input on a row the defaults don't contain, which
-    /// means the player moved it to another action.
-    bool is_moved_by_player(const Bindings &bindings, const Bindings &defaults, const Binding &default_row) {
-      return std::ranges::any_of(bindings, [&defaults, &default_row](const Binding &row) {
-        return row.input == default_row.input && std::ranges::find(defaults, row) == defaults.end();
-      });
-    }
-
-    /// Restore the defaults a file omitted, preserving deliberate partial unbinds. See
-    /// parse_bindings()'s contract for the exact rules.
-    void fill_missing_defaults(Bindings &result, const Bindings &defaults) {
-      // Whether an action was bound *before* any defaults were restored decides whether its plain
-      // defaults are restored as a group; without the snapshot, restoring the first one would make
-      // the action look present and suppress the rest.
-      std::array<bool, k_action_count> originally_present{};
-      for (const Binding &row : result)
-        originally_present[static_cast<std::size_t>(row.action)] = true;
-
-      for (const Binding &default_row : defaults) {
-        if (std::ranges::find(result, default_row) != result.end())
-          continue; // this exact row is already present
-
-        const Action action = default_row.action;
-        // The input is shared between two actions by the defaults themselves (Escape = Cancel +
-        // Menu; Enter/Space/left mouse/A = Select + Activate): restore it for a device the action
-        // has nothing on, unless the player moved the input to an action the defaults don't give
-        // it to, which would make one press drive both.
-        if (is_shared_default(defaults, default_row)) {
-          const bool device_has_binding = has_input_on(result, action, device_of(default_row.input));
-          if (!device_has_binding && !is_moved_by_player(result, defaults, default_row))
-            result.push_back(default_row);
-          continue;
-        }
-
-        // A plain default is only restored when the action had no rows at all, so a deliberate
-        // partial unbind survives; an input assigned to another action is never stolen back.
-        const bool input_on_other = std::ranges::any_of(result, [&default_row](const Binding &row) {
-          return row.action != default_row.action && row.input == default_row.input;
-        });
-        if (!originally_present[static_cast<std::size_t>(action)] && !input_on_other)
-          result.push_back(default_row);
-      }
-    }
-
-  } // namespace
-
-  std::expected<Bindings, std::string> parse_bindings(const nlohmann::json &array, const Bindings &defaults) {
-    if (!array.is_array())
-      return std::unexpected("bindings: must be an array");
-
-    Bindings result;
-    for (std::size_t index = 0; index < array.size(); ++index) {
-      const nlohmann::json &entry = array[index];
-      if (const std::string error = parse_entry_error(entry, index); !error.empty())
-        return std::unexpected(error);
-
-      const std::string action_text = entry["action"].get<std::string>();
-      const std::string device_text = entry["device"].get<std::string>();
-      const std::string input_text = entry["input"].get<std::string>();
-
-      const std::optional<Action> action = parse_action(action_text);
-      if (!action)
-        return std::unexpected(std::format("bindings[{}]: unknown action '{}'", index, action_text));
-
-      const std::optional<InputDevice> device = parse_device(device_text);
-      if (!device)
-        return std::unexpected(std::format("bindings[{}]: unknown device '{}'", index, device_text));
-
-      const std::optional<PhysicalInput> input = parse_physical_input(*device, input_text);
-      if (!input)
-        return std::unexpected(std::format("bindings[{}]: unknown input '{}'", index, input_text));
-
-      const Binding row{.action = *action, .input = *input};
-      if (std::ranges::find(result, row) == result.end())
-        result.push_back(row);
-    }
-
-    fill_missing_defaults(result, defaults);
-
-    if (result.size() > k_max_input_sources)
-      return std::unexpected(
-          std::format("binding table has {} rows; the limit is {}", result.size(), k_max_input_sources));
-
-    return result;
-  }
+  return result;
+}
 
 } // namespace corundum::input

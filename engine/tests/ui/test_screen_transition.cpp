@@ -12,10 +12,10 @@
 
 namespace {
 
-  using corundum::ui::ScreenTransition;
-  using corundum::ui::TransitionPhase;
+using corundum::ui::ScreenTransition;
+using corundum::ui::TransitionPhase;
 
-  constexpr float k_duration = ScreenTransition::k_fade_duration_seconds;
+constexpr float k_duration = ScreenTransition::k_fade_duration_seconds;
 
 } // namespace
 

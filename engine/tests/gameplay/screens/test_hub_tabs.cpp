@@ -20,11 +20,11 @@
 
 namespace {
 
-  using corundum::gameplay::screens::hub_tab_label;
-  using corundum::gameplay::screens::hub_tab_strip;
-  using corundum::test::RecordingRenderer;
-  using corundum::world::GameMode;
-  namespace screens = corundum::gameplay::screens;
+using corundum::gameplay::screens::hub_tab_label;
+using corundum::gameplay::screens::hub_tab_strip;
+using corundum::test::RecordingRenderer;
+using corundum::world::GameMode;
+namespace screens = corundum::gameplay::screens;
 
 } // namespace
 

@@ -28,126 +28,126 @@ using nlohmann::json;
 
 namespace corundum::gameplay::quest {
 
-  namespace {
+namespace {
 
-    struct LoadError : std::runtime_error {
-      using std::runtime_error::runtime_error;
-    };
+struct LoadError : std::runtime_error {
+  using std::runtime_error::runtime_error;
+};
 
-    constexpr std::string_view k_ctx = "quest";
-    constexpr std::string_view k_asset_label = "Quest";
+constexpr std::string_view k_ctx = "quest";
+constexpr std::string_view k_asset_label = "Quest";
 
-    Objective parse_objective(const json &obj_json, const std::string &ctx) {
-      // Schema guarantees: text is present.
-      Objective obj;
-      obj.text = obj_json["text"].get<std::string>();
-      if (obj_json.contains("done_condition")) {
-        const std::string cond = obj_json["done_condition"].get<std::string>();
-        // An empty expression compiles to a constant-true node, which would
-        // silently mark the objective done (and auto-advance its stage).
-        if (cond.empty())
-          throw LoadError(std::format("[{}] \"done_condition\" must not be empty if present", ctx));
-        auto compiled = dialogue::compile(cond);
-        if (!compiled)
-          throw LoadError(std::format("[{}] done_condition invalid: {}", ctx, compiled.error().message));
-        obj.done_condition = std::move(*compiled);
-      }
-      return obj;
-    }
+Objective parse_objective(const json &obj_json, const std::string &ctx) {
+  // Schema guarantees: text is present.
+  Objective obj;
+  obj.text = obj_json["text"].get<std::string>();
+  if (obj_json.contains("done_condition")) {
+    const std::string cond = obj_json["done_condition"].get<std::string>();
+    // An empty expression compiles to a constant-true node, which would
+    // silently mark the objective done (and auto-advance its stage).
+    if (cond.empty())
+      throw LoadError(std::format("[{}] \"done_condition\" must not be empty if present", ctx));
+    auto compiled = dialogue::compile(cond);
+    if (!compiled)
+      throw LoadError(std::format("[{}] done_condition invalid: {}", ctx, compiled.error().message));
+    obj.done_condition = std::move(*compiled);
+  }
+  return obj;
+}
 
-    Stage parse_stage(const json &j, std::size_t index) {
-      const auto ctx = std::format("stage[{}]", index);
+Stage parse_stage(const json &j, std::size_t index) {
+  const auto ctx = std::format("stage[{}]", index);
 
-      // Schema guarantees: name and sequence are present, sequence >= 1.
-      Stage stage;
-      stage.name = j["name"].get<std::string>();
-      stage.sequence = j["sequence"].get<int>();
+  // Schema guarantees: name and sequence are present, sequence >= 1.
+  Stage stage;
+  stage.name = j["name"].get<std::string>();
+  stage.sequence = j["sequence"].get<int>();
 
-      if (j.contains("resolved"))
-        stage.resolved = j["resolved"].get<bool>();
+  if (j.contains("resolved"))
+    stage.resolved = j["resolved"].get<bool>();
 
-      if (j.contains("failed")) {
-        stage.failed = j["failed"].get<bool>();
-        if (stage.failed)
-          stage.resolved = true;
-      }
+  if (j.contains("failed")) {
+    stage.failed = j["failed"].get<bool>();
+    if (stage.failed)
+      stage.resolved = true;
+  }
 
-      // Schema guarantees: objectives is present.
-      const auto &objs = j["objectives"];
-      stage.objectives.reserve(objs.size());
-      for (std::size_t i = 0; i < objs.size(); ++i)
-        stage.objectives.push_back(parse_objective(objs[i], std::format("{} objective[{}]", ctx, i)));
+  // Schema guarantees: objectives is present.
+  const auto &objs = j["objectives"];
+  stage.objectives.reserve(objs.size());
+  for (std::size_t i = 0; i < objs.size(); ++i)
+    stage.objectives.push_back(parse_objective(objs[i], std::format("{} objective[{}]", ctx, i)));
 
-      if (j.contains("advances_to")) {
-        const auto &targets = j["advances_to"];
-        stage.advances_to.reserve(targets.size());
-        for (const auto &target : targets)
-          stage.advances_to.push_back(target.get<std::string>());
-      }
+  if (j.contains("advances_to")) {
+    const auto &targets = j["advances_to"];
+    stage.advances_to.reserve(targets.size());
+    for (const auto &target : targets)
+      stage.advances_to.push_back(target.get<std::string>());
+  }
 
-      if (j.contains("auto_advance_to")) {
-        stage.auto_advance_to = j["auto_advance_to"].get<std::string>();
-        if (stage.auto_advance_to->empty())
-          throw LoadError(std::format("[{}] \"auto_advance_to\" must not be empty", ctx));
-      }
+  if (j.contains("auto_advance_to")) {
+    stage.auto_advance_to = j["auto_advance_to"].get<std::string>();
+    if (stage.auto_advance_to->empty())
+      throw LoadError(std::format("[{}] \"auto_advance_to\" must not be empty", ctx));
+  }
 
-      return stage;
-    }
+  return stage;
+}
 
-    /// Read @p path, check its schema version, and return its schema-validated root.
-    json load_validated_root(const core::SchemaValidator &schema, const core::ContentSource &content,
-                             const std::string &path) {
-      auto root_result = core::read_json(content, path, "quest JSON");
-      if (!root_result)
-        throw LoadError(std::move(root_result).error());
-      json root = std::move(*root_result);
+/// Read @p path, check its schema version, and return its schema-validated root.
+json load_validated_root(const core::SchemaValidator &schema, const core::ContentSource &content,
+                         const std::string &path) {
+  auto root_result = core::read_json(content, path, "quest JSON");
+  if (!root_result)
+    throw LoadError(std::move(root_result).error());
+  json root = std::move(*root_result);
 
-      // Schema version is checked before validation.
-      auto prepared = core::prepare_schema_version(root, k_quest_schema_version, k_asset_label, path, {});
-      if (!prepared)
-        throw LoadError(std::move(prepared).error());
+  // Schema version is checked before validation.
+  auto prepared = core::prepare_schema_version(root, k_quest_schema_version, k_asset_label, path, {});
+  if (!prepared)
+    throw LoadError(std::move(prepared).error());
 
-      auto validated = schema.validate(root);
-      if (!validated)
-        throw LoadError(std::format("[schema] {}: {}", path, validated.error()));
+  auto validated = schema.validate(root);
+  if (!validated)
+    throw LoadError(std::format("[schema] {}: {}", path, validated.error()));
 
-      // The "type" field is optional — directory context already tells us the type.
-      if (root.contains("type") && root["type"].is_string() && root["type"] != "quest")
-        corundum::detail::warn_log(R"([warning] quest file {} has type "{}" instead of "quest")", path,
-                                   root["type"].get<std::string>());
+  // The "type" field is optional — directory context already tells us the type.
+  if (root.contains("type") && root["type"].is_string() && root["type"] != "quest")
+    corundum::detail::warn_log(R"([warning] quest file {} has type "{}" instead of "quest")", path,
+                               root["type"].get<std::string>());
 
-      return root;
-    }
+  return root;
+}
 
-    /// Build a Quest from an already schema-validated root.
-    Quest load_quest_impl(const core::SchemaValidator &schema, const core::ContentSource &content,
-                          const std::string &path) {
-      const json root = load_validated_root(schema, content, path);
+/// Build a Quest from an already schema-validated root.
+Quest load_quest_impl(const core::SchemaValidator &schema, const core::ContentSource &content,
+                      const std::string &path) {
+  const json root = load_validated_root(schema, content, path);
 
-      // Schema guarantees: id, name, description are present; id and name are non-empty.
-      Quest quest;
-      // The document's schema version was checked; this records the current format.
-      quest.schema_version = k_quest_schema_version;
-      quest.quest_id = root["id"].get<std::string>();
-      quest.name = root["name"].get<std::string>();
-      quest.description = root["description"].get<std::string>();
+  // Schema guarantees: id, name, description are present; id and name are non-empty.
+  Quest quest;
+  // The document's schema version was checked; this records the current format.
+  quest.schema_version = k_quest_schema_version;
+  quest.quest_id = root["id"].get<std::string>();
+  quest.name = root["name"].get<std::string>();
+  quest.description = root["description"].get<std::string>();
 
-      // Schema guarantees: stages is a non-empty array.
-      const auto &stages = root["stages"];
-      quest.stages.reserve(stages.size());
-      for (std::size_t i = 0; i < stages.size(); ++i)
-        quest.stages.push_back(parse_stage(stages[i], i));
+  // Schema guarantees: stages is a non-empty array.
+  const auto &stages = root["stages"];
+  quest.stages.reserve(stages.size());
+  for (std::size_t i = 0; i < stages.size(); ++i)
+    quest.stages.push_back(parse_stage(stages[i], i));
 
-      const ValidationResult validation = validate(quest);
-      if (!validation.ok())
-        throw LoadError(std::format("[{}] {}", k_ctx, validation.errors.front()));
-      for (const auto &warning : validation.warnings)
-        corundum::detail::warn_log("[warning] quest {}: {}", path, warning);
+  const ValidationResult validation = validate(quest);
+  if (!validation.ok())
+    throw LoadError(std::format("[{}] {}", k_ctx, validation.errors.front()));
+  for (const auto &warning : validation.warnings)
+    corundum::detail::warn_log("[warning] quest {}: {}", path, warning);
 
-      return quest;
-    }
+  return quest;
+}
 
-    constexpr std::string_view k_quest_schema = R"({
+constexpr std::string_view k_quest_schema = R"({
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://corundum.dev/schemas/quest",
   "type": "object",
@@ -195,17 +195,17 @@ namespace corundum::gameplay::quest {
   }
 })";
 
-  } // namespace
+} // namespace
 
-  Loader::Loader() : schema_(core::SchemaValidator::from_embedded(k_quest_schema)) {}
+Loader::Loader() : schema_(core::SchemaValidator::from_embedded(k_quest_schema)) {}
 
-  std::expected<Quest, std::string> Loader::load(const core::ContentSource &content,
-                                                 const std::filesystem::path &path) const {
-    try {
-      return load_quest_impl(schema_, content, path.string());
-    } catch (const std::exception &e) {
-      return std::unexpected(std::string(e.what()));
-    }
+std::expected<Quest, std::string> Loader::load(const core::ContentSource &content,
+                                               const std::filesystem::path &path) const {
+  try {
+    return load_quest_impl(schema_, content, path.string());
+  } catch (const std::exception &e) {
+    return std::unexpected(std::string(e.what()));
   }
+}
 
 } // namespace corundum::gameplay::quest

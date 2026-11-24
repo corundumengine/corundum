@@ -21,23 +21,23 @@ using tools::tilesmith::screen_to_tile;
 
 namespace {
 
-  // 16x16 flat map with a single elevated tile at (0, 0). Defaults: tile_w=64, tile_h=32,
-  // elev_step=4, k_content_margin=2.
-  tilemap::Tilemap make_map_with_elevated_corner(uint8_t corner_elev) {
-    tilemap::Tilemap tm;
-    tm.width = 16;
-    tm.height = 16;
-    tm.iso_diamond_w = 64;
-    tm.iso_diamond_h = 32;
-    tilemap::TilemapLayer layer;
-    layer.name = "ground";
-    layer.z_index = 0;
-    layer.tiles.assign(static_cast<std::size_t>(16 * 16), 1);
-    layer.elevation.assign(static_cast<std::size_t>(16 * 16), 0);
-    layer.elevation[0] = corner_elev; // (0, 0)
-    tm.layers.push_back(std::move(layer));
-    return tm;
-  }
+// 16x16 flat map with a single elevated tile at (0, 0). Defaults: tile_w=64, tile_h=32,
+// elev_step=4, k_content_margin=2.
+tilemap::Tilemap make_map_with_elevated_corner(uint8_t corner_elev) {
+  tilemap::Tilemap tm;
+  tm.width = 16;
+  tm.height = 16;
+  tm.iso_diamond_w = 64;
+  tm.iso_diamond_h = 32;
+  tilemap::TilemapLayer layer;
+  layer.name = "ground";
+  layer.z_index = 0;
+  layer.tiles.assign(static_cast<std::size_t>(16 * 16), 1);
+  layer.elevation.assign(static_cast<std::size_t>(16 * 16), 0);
+  layer.elevation[0] = corner_elev; // (0, 0)
+  tm.layers.push_back(std::move(layer));
+  return tm;
+}
 
 } // namespace
 

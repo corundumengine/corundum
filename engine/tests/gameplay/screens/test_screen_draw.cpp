@@ -48,85 +48,84 @@ using corundum::test::RecordingRenderer;
 
 namespace {
 
-  // Flattens a styled line back to plain text, so tests can assert on content regardless of
-  // how the markup parser split it into segments.
-  std::string styled_line_text(const corundum::ui::StyledLine &line) {
-    std::string result;
-    for (const corundum::ui::StyledSegment &segment : line.segments)
-      result += segment.text;
-    return result;
-  }
+// Flattens a styled line back to plain text, so tests can assert on content regardless of
+// how the markup parser split it into segments.
+std::string styled_line_text(const corundum::ui::StyledLine &line) {
+  std::string result;
+  for (const corundum::ui::StyledSegment &segment : line.segments)
+    result += segment.text;
+  return result;
+}
 
-  // Wraps one plain-text line as a single Regular segment, for tests that construct a layout
-  // by hand rather than through build_layout.
-  corundum::ui::StyledLine plain_line(std::string text) {
-    corundum::ui::StyledLine line;
-    if (!text.empty()) {
-      corundum::ui::StyledSegment segment;
-      segment.text = std::move(text);
-      line.width = static_cast<float>(segment.text.size()) * 8.f;
-      line.segments.push_back(std::move(segment));
-    }
-    return line;
+// Wraps one plain-text line as a single Regular segment, for tests that construct a layout
+// by hand rather than through build_layout.
+corundum::ui::StyledLine plain_line(std::string text) {
+  corundum::ui::StyledLine line;
+  if (!text.empty()) {
+    corundum::ui::StyledSegment segment;
+    segment.text = std::move(text);
+    line.width = static_cast<float>(segment.text.size()) * 8.f;
+    line.segments.push_back(std::move(segment));
   }
+  return line;
+}
 
-  // Builds a Talk graph with the requested graph_id, speaker, and a node literally
-  // named "n0". Used to reproduce the Keystone bug where two NPCs share a first-node
-  // id but have different speakers.
-  corundum::gameplay::dialogue::Graph make_talk_graph(std::string graph_id, std::string speaker,
-                                                      std::string talk_text) {
-    using namespace corundum::gameplay::dialogue;
-    Graph g;
-    g.graph_id = std::move(graph_id);
-    g.speaker = std::move(speaker);
-    Node n;
-    n.id = "n0";
-    n.type = NodeType::Talk;
-    n.text = std::move(talk_text);
-    n.next_id = "end";
-    g.id_to_index[n.id] = 0;
-    g.nodes.push_back(std::move(n));
-    return g;
-  }
+// Builds a Talk graph with the requested graph_id, speaker, and a node literally
+// named "n0". Used to reproduce the Keystone bug where two NPCs share a first-node
+// id but have different speakers.
+corundum::gameplay::dialogue::Graph make_talk_graph(std::string graph_id, std::string speaker, std::string talk_text) {
+  using namespace corundum::gameplay::dialogue;
+  Graph g;
+  g.graph_id = std::move(graph_id);
+  g.speaker = std::move(speaker);
+  Node n;
+  n.id = "n0";
+  n.type = NodeType::Talk;
+  n.text = std::move(talk_text);
+  n.next_id = "end";
+  g.id_to_index[n.id] = 0;
+  g.nodes.push_back(std::move(n));
+  return g;
+}
 
-  // Builds a Choice graph where the second option is gated by quest_is_at.
-  // Used to verify that threading the quest registry through dialog_box_update
-  // yields the gated choice in the layout (not hidden by a parse failure).
-  corundum::gameplay::dialogue::Graph make_choice_graph_with_quest_gate() {
-    using namespace corundum::gameplay::dialogue;
-    Graph g;
-    g.graph_id = "gated";
-    g.speaker = "Gatekeeper";
-    Node n;
-    n.id = "n0";
-    n.type = NodeType::Choice;
-    n.choices = {
-        {.label = "Always.", .target_id = "a"},
-        {.label = "Secret.", .target_id = "b", .condition = *compile("quest_is_at(ember, done)")},
-    };
-    g.id_to_index[n.id] = 0;
-    g.nodes.push_back(std::move(n));
-    return g;
-  }
+// Builds a Choice graph where the second option is gated by quest_is_at.
+// Used to verify that threading the quest registry through dialog_box_update
+// yields the gated choice in the layout (not hidden by a parse failure).
+corundum::gameplay::dialogue::Graph make_choice_graph_with_quest_gate() {
+  using namespace corundum::gameplay::dialogue;
+  Graph g;
+  g.graph_id = "gated";
+  g.speaker = "Gatekeeper";
+  Node n;
+  n.id = "n0";
+  n.type = NodeType::Choice;
+  n.choices = {
+      {.label = "Always.", .target_id = "a"},
+      {.label = "Secret.", .target_id = "b", .condition = *compile("quest_is_at(ember, done)")},
+  };
+  g.id_to_index[n.id] = 0;
+  g.nodes.push_back(std::move(n));
+  return g;
+}
 
-  // Builds a Choice graph whose second option is gated by a plain boolean flag,
-  // for exercising a visibility change at an otherwise unchanged node.
-  corundum::gameplay::dialogue::Graph make_flag_gated_choice_graph() {
-    using namespace corundum::gameplay::dialogue;
-    Graph g;
-    g.graph_id = "flag_gated";
-    g.speaker = "Gatekeeper";
-    Node n;
-    n.id = "n0";
-    n.type = NodeType::Choice;
-    n.choices = {
-        {.label = "Always.", .target_id = "a"},
-        {.label = "Secret.", .target_id = "b", .condition = *compile("secret == true")},
-    };
-    g.id_to_index[n.id] = 0;
-    g.nodes.push_back(std::move(n));
-    return g;
-  }
+// Builds a Choice graph whose second option is gated by a plain boolean flag,
+// for exercising a visibility change at an otherwise unchanged node.
+corundum::gameplay::dialogue::Graph make_flag_gated_choice_graph() {
+  using namespace corundum::gameplay::dialogue;
+  Graph g;
+  g.graph_id = "flag_gated";
+  g.speaker = "Gatekeeper";
+  Node n;
+  n.id = "n0";
+  n.type = NodeType::Choice;
+  n.choices = {
+      {.label = "Always.", .target_id = "a"},
+      {.label = "Secret.", .target_id = "b", .condition = *compile("secret == true")},
+  };
+  g.id_to_index[n.id] = 0;
+  g.nodes.push_back(std::move(n));
+  return g;
+}
 
 } // namespace
 

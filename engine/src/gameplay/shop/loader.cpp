@@ -22,25 +22,25 @@ using nlohmann::json;
 
 namespace corundum::gameplay::shop {
 
-  namespace {
+namespace {
 
-    Shop parse_shop(const json &element) {
-      Shop shop;
-      shop.id = element["id"].get<std::string>();
-      shop.name = element["name"].get<std::string>();
-      if (element.contains("stock")) {
-        for (const auto &stock : element["stock"]) {
-          StockEntry entry;
-          entry.item = stock["item"].get<std::string>();
-          if (stock.contains("price"))
-            entry.price = stock["price"].get<int>();
-          shop.stock.push_back(std::move(entry));
-        }
-      }
-      return shop;
+Shop parse_shop(const json &element) {
+  Shop shop;
+  shop.id = element["id"].get<std::string>();
+  shop.name = element["name"].get<std::string>();
+  if (element.contains("stock")) {
+    for (const auto &stock : element["stock"]) {
+      StockEntry entry;
+      entry.item = stock["item"].get<std::string>();
+      if (stock.contains("price"))
+        entry.price = stock["price"].get<int>();
+      shop.stock.push_back(std::move(entry));
     }
+  }
+  return shop;
+}
 
-    constexpr std::string_view k_shop_schema = R"({
+constexpr std::string_view k_shop_schema = R"({
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://corundum.dev/schemas/shop",
   "type": "object",
@@ -76,30 +76,30 @@ namespace corundum::gameplay::shop {
   }
 })";
 
-  } // namespace
+} // namespace
 
-  Loader::Loader() : schema_(core::SchemaValidator::from_embedded(k_shop_schema)) {}
+Loader::Loader() : schema_(core::SchemaValidator::from_embedded(k_shop_schema)) {}
 
-  std::expected<std::vector<Shop>, std::string> Loader::load(const core::ContentSource &content,
-                                                             const std::filesystem::path &path) const {
-    const std::string path_string = path.string();
+std::expected<std::vector<Shop>, std::string> Loader::load(const core::ContentSource &content,
+                                                           const std::filesystem::path &path) const {
+  const std::string path_string = path.string();
 
-    auto root_result = core::read_json(content, path, "shop JSON");
-    if (!root_result)
-      return std::unexpected(std::move(root_result).error());
-    json root = std::move(*root_result);
+  auto root_result = core::read_json(content, path, "shop JSON");
+  if (!root_result)
+    return std::unexpected(std::move(root_result).error());
+  json root = std::move(*root_result);
 
-    if (auto prepared = core::prepare_schema_version(root, k_shop_schema_version, "Shop", path_string, {}); !prepared)
-      return std::unexpected(std::move(prepared).error());
+  if (auto prepared = core::prepare_schema_version(root, k_shop_schema_version, "Shop", path_string, {}); !prepared)
+    return std::unexpected(std::move(prepared).error());
 
-    if (auto validated = schema_.validate(root); !validated)
-      return std::unexpected(std::format("[schema] {}: {}", path_string, validated.error()));
+  if (auto validated = schema_.validate(root); !validated)
+    return std::unexpected(std::format("[schema] {}: {}", path_string, validated.error()));
 
-    std::vector<Shop> shops;
-    shops.reserve(root["shops"].size());
-    for (const auto &element : root["shops"])
-      shops.push_back(parse_shop(element));
-    return shops;
-  }
+  std::vector<Shop> shops;
+  shops.reserve(root["shops"].size());
+  for (const auto &element : root["shops"])
+    shops.push_back(parse_shop(element));
+  return shops;
+}
 
 } // namespace corundum::gameplay::shop

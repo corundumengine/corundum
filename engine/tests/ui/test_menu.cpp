@@ -14,18 +14,18 @@
 
 namespace {
 
-  bool contains_text(const corundum::test::RecordingRenderer &r, std::string_view needle) {
-    for (const auto &call : r.log) {
-      if (const auto *text = std::get_if<corundum::platform::DrawText>(&call); text != nullptr && text->text == needle)
-        return true;
-    }
-    return false;
+bool contains_text(const corundum::test::RecordingRenderer &r, std::string_view needle) {
+  for (const auto &call : r.log) {
+    if (const auto *text = std::get_if<corundum::platform::DrawText>(&call); text != nullptr && text->text == needle)
+      return true;
   }
+  return false;
+}
 
-  corundum::ui::PanelStyle make_style() {
-    corundum::ui::PanelStyle style{};
-    return style;
-  }
+corundum::ui::PanelStyle make_style() {
+  corundum::ui::PanelStyle style{};
+  return style;
+}
 
 } // namespace
 

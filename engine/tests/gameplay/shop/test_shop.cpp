@@ -25,22 +25,22 @@ namespace shop = corundum::gameplay::shop;
 
 namespace {
 
-  void write_file(const fs::path &p, std::string_view content) {
-    fs::create_directories(p.parent_path());
-    std::ofstream f(p);
-    f << content;
-  }
+void write_file(const fs::path &p, std::string_view content) {
+  fs::create_directories(p.parent_path());
+  std::ofstream f(p);
+  f << content;
+}
 
-  corundum::test::TempDir temp_dir(std::string_view tag) {
-    return corundum::test::TempDir{"crpg_test_shop_", tag};
-  }
+corundum::test::TempDir temp_dir(std::string_view tag) {
+  return corundum::test::TempDir{"crpg_test_shop_", tag};
+}
 
-  corundum::gameplay::item::Registry make_items() {
-    corundum::gameplay::item::Registry items;
-    items.add(corundum::gameplay::item::Item{.id = "salt", .name = "Salt", .price = 10});
-    items.add(corundum::gameplay::item::Item{.id = "hammer", .name = "Osric's Hammer", .price = 40});
-    return items;
-  }
+corundum::gameplay::item::Registry make_items() {
+  corundum::gameplay::item::Registry items;
+  items.add(corundum::gameplay::item::Item{.id = "salt", .name = "Salt", .price = 10});
+  items.add(corundum::gameplay::item::Item{.id = "hammer", .name = "Osric's Hammer", .price = 40});
+  return items;
+}
 
 } // namespace
 

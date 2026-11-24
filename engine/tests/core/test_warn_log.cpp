@@ -10,7 +10,7 @@
 #include <utility>
 
 namespace {
-  struct ThrowsOnFormat {};
+struct ThrowsOnFormat {};
 } // namespace
 
 template <> struct std::formatter<ThrowsOnFormat> {

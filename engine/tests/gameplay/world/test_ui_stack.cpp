@@ -11,9 +11,9 @@
 
 namespace {
 
-  using corundum::world::GameMode;
-  using corundum::world::UIStack;
-  namespace screens = corundum::gameplay::screens;
+using corundum::world::GameMode;
+using corundum::world::UIStack;
+namespace screens = corundum::gameplay::screens;
 
 } // namespace
 

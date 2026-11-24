@@ -27,42 +27,42 @@
 
 namespace {
 
-  using corundum::platform::FontId;
-  using corundum::world::FlagStore;
-  namespace screens = corundum::gameplay::screens;
+using corundum::platform::FontId;
+using corundum::world::FlagStore;
+namespace screens = corundum::gameplay::screens;
 
-  /// Two-stage quest: a non-resolved start with one bare objective, then a resolved end.
-  corundum::gameplay::quest::Quest make_two_stage_quest(std::string id, std::string name) {
-    corundum::gameplay::quest::Quest q;
-    q.quest_id = std::move(id);
-    q.name = std::move(name);
-    q.stages.push_back({.name = "start", .objectives = {{.text = "Find the shrine"}}, .sequence = 1});
-    q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
-    return q;
-  }
+/// Two-stage quest: a non-resolved start with one bare objective, then a resolved end.
+corundum::gameplay::quest::Quest make_two_stage_quest(std::string id, std::string name) {
+  corundum::gameplay::quest::Quest q;
+  q.quest_id = std::move(id);
+  q.name = std::move(name);
+  q.stages.push_back({.name = "start", .objectives = {{.text = "Find the shrine"}}, .sequence = 1});
+  q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
+  return q;
+}
 
-  /// Advance @p id to its second (resolved) stage.
-  void complete(FlagStore &flags, std::string_view quest_id) {
-    flags[corundum::gameplay::quest::quest_flag_key(quest_id)] = 2;
-  }
+/// Advance @p id to its second (resolved) stage.
+void complete(FlagStore &flags, std::string_view quest_id) {
+  flags[corundum::gameplay::quest::quest_flag_key(quest_id)] = 2;
+}
 
-  /// Every text payload the recording renderer received, in draw order.
-  std::vector<std::string> recorded_texts(const corundum::test::RecordingRenderer &r) {
-    std::vector<std::string> texts;
-    for (const auto &call : r.log)
-      if (std::holds_alternative<corundum::platform::DrawText>(call))
-        texts.emplace_back(std::get<corundum::platform::DrawText>(call).text);
-    return texts;
-  }
+/// Every text payload the recording renderer received, in draw order.
+std::vector<std::string> recorded_texts(const corundum::test::RecordingRenderer &r) {
+  std::vector<std::string> texts;
+  for (const auto &call : r.log)
+    if (std::holds_alternative<corundum::platform::DrawText>(call))
+      texts.emplace_back(std::get<corundum::platform::DrawText>(call).text);
+  return texts;
+}
 
-  /// The recorded DrawText with exactly @p text, or nullptr.
-  const corundum::platform::DrawText *find_text(const corundum::test::RecordingRenderer &r, std::string_view text) {
-    for (const auto &call : r.log) {
-      if (const auto *drawn = std::get_if<corundum::platform::DrawText>(&call); drawn != nullptr && drawn->text == text)
-        return drawn;
-    }
-    return nullptr;
+/// The recorded DrawText with exactly @p text, or nullptr.
+const corundum::platform::DrawText *find_text(const corundum::test::RecordingRenderer &r, std::string_view text) {
+  for (const auto &call : r.log) {
+    if (const auto *drawn = std::get_if<corundum::platform::DrawText>(&call); drawn != nullptr && drawn->text == text)
+      return drawn;
   }
+  return nullptr;
+}
 
 } // namespace
 

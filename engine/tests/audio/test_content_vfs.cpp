@@ -13,8 +13,8 @@
 
 namespace {
 
-  using corundum::platform::miniaudio::ContentVfs;
-  using corundum::platform::miniaudio::make_content_vfs;
+using corundum::platform::miniaudio::ContentVfs;
+using corundum::platform::miniaudio::make_content_vfs;
 
 } // namespace
 

@@ -7,6 +7,6 @@
 
 namespace tools::loom {
 
-  void render_graph(EditorState &state);
+void render_graph(EditorState &state);
 
 } // namespace tools::loom

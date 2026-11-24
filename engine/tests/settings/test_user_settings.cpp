@@ -34,61 +34,61 @@
 
 namespace {
 
-  using corundum::audio::AudioBus;
-  using corundum::core::WindowMode;
-  using corundum::input::Action;
-  using corundum::input::action_name;
-  using corundum::input::GamepadControl;
-  using corundum::input::InputDevice;
-  using corundum::input::k_max_input_sources;
-  using corundum::input::Key;
-  using corundum::input::name_of;
-  using corundum::input::physical;
-  using corundum::settings::UserSettings;
-  using corundum::test::gamepad_inputs;
-  using corundum::test::MemoryUserStorage;
+using corundum::audio::AudioBus;
+using corundum::core::WindowMode;
+using corundum::input::Action;
+using corundum::input::action_name;
+using corundum::input::GamepadControl;
+using corundum::input::InputDevice;
+using corundum::input::k_max_input_sources;
+using corundum::input::Key;
+using corundum::input::name_of;
+using corundum::input::physical;
+using corundum::settings::UserSettings;
+using corundum::test::gamepad_inputs;
+using corundum::test::MemoryUserStorage;
 
-  /// Adopt a NullPlatform so capture()/apply() have a window to read and write.
-  void adopt_platform(corundum::Engine &engine, unsigned w, unsigned h) {
-    corundum::platform::null::NullPlatform platform{corundum::platform::null::make_null_platform(w, h)};
-    corundum::platform::null::adopt_null_platform(engine, platform);
-  }
+/// Adopt a NullPlatform so capture()/apply() have a window to read and write.
+void adopt_platform(corundum::Engine &engine, unsigned w, unsigned h) {
+  corundum::platform::null::NullPlatform platform{corundum::platform::null::make_null_platform(w, h)};
+  corundum::platform::null::adopt_null_platform(engine, platform);
+}
 
-  /// A non-default settings value: Fullscreen with MoveUp moved off W onto Q.
-  [[nodiscard]] UserSettings make_settings() {
-    UserSettings settings;
-    settings.bindings = corundum::input::default_bindings();
-    corundum::input::rebind(settings.bindings, Action::MoveUp, physical(Key::W), physical(Key::Q));
-    settings.window_mode = WindowMode::Fullscreen;
-    settings.master_volume = 0.4f;
-    settings.music_volume = 0.6f;
-    settings.ambience_volume = 0.2f;
-    settings.sound_volume = 0.7f;
-    settings.voice_volume = 0.8f;
-    settings.text_speed = 2.f;
-    settings.ui_scale = 1.25f;
-    return settings;
-  }
+/// A non-default settings value: Fullscreen with MoveUp moved off W onto Q.
+[[nodiscard]] UserSettings make_settings() {
+  UserSettings settings;
+  settings.bindings = corundum::input::default_bindings();
+  corundum::input::rebind(settings.bindings, Action::MoveUp, physical(Key::W), physical(Key::Q));
+  settings.window_mode = WindowMode::Fullscreen;
+  settings.master_volume = 0.4f;
+  settings.music_volume = 0.6f;
+  settings.ambience_volume = 0.2f;
+  settings.sound_volume = 0.7f;
+  settings.voice_volume = 0.8f;
+  settings.text_speed = 2.f;
+  settings.ui_scale = 1.25f;
+  return settings;
+}
 
-  /// A JSON array of k_max_input_sources + 1 distinct, otherwise valid binding rows.
-  [[nodiscard]] nlohmann::json oversized_bindings_json() {
-    nlohmann::json rows = nlohmann::json::array();
-    std::size_t made{};
-    for (std::uint16_t code = 0; code <= 400 && made < k_max_input_sources + 1; ++code) {
-      const auto input = physical(static_cast<Key>(code));
-      const std::string_view name = name_of(input);
-      if (name.empty())
-        continue;
-      const auto action = static_cast<Action>(made % corundum::input::k_action_count);
-      rows.push_back({
-          {"action", std::string(action_name(action))},
-          {"device", std::string(corundum::input::device_name(InputDevice::Keyboard))},
-          {"input", std::string(name)},
-      });
-      ++made;
-    }
-    return rows;
+/// A JSON array of k_max_input_sources + 1 distinct, otherwise valid binding rows.
+[[nodiscard]] nlohmann::json oversized_bindings_json() {
+  nlohmann::json rows = nlohmann::json::array();
+  std::size_t made{};
+  for (std::uint16_t code = 0; code <= 400 && made < k_max_input_sources + 1; ++code) {
+    const auto input = physical(static_cast<Key>(code));
+    const std::string_view name = name_of(input);
+    if (name.empty())
+      continue;
+    const auto action = static_cast<Action>(made % corundum::input::k_action_count);
+    rows.push_back({
+        {"action", std::string(action_name(action))},
+        {"device", std::string(corundum::input::device_name(InputDevice::Keyboard))},
+        {"input", std::string(name)},
+    });
+    ++made;
   }
+  return rows;
+}
 
 } // namespace
 

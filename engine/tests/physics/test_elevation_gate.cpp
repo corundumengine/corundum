@@ -22,32 +22,32 @@ using corundum::world::tilemap::TilemapLayer;
 
 namespace {
 
-  // Build a single-tile-per-cell tilemap with a per-cell elevation vector. Ramps
-  // are optional; ramp_cell is the (col, row) of the ramp and ramp_axis is its axis.
-  Tilemap make_map(int w, int h, const std::vector<uint8_t> &elevs,
-                   std::optional<std::pair<int, int>> ramp_cell = std::nullopt,
-                   RampAxis ramp_axis = RampAxis::NorthSouth) {
-    Tilemap tm;
-    tm.width = w;
-    tm.height = h;
-    TilemapLayer layer;
-    layer.name = "ground";
-    layer.z_index = 0;
-    layer.tiles.assign(static_cast<std::size_t>(w) * static_cast<std::size_t>(h), 1);
-    layer.elevation = elevs;
-    if (ramp_cell) {
-      const auto [rc, rr] = *ramp_cell;
-      layer.ramps[(rr * w) + rc] = ramp_axis;
-    }
-    tm.layers.push_back(std::move(layer));
-    return tm;
+// Build a single-tile-per-cell tilemap with a per-cell elevation vector. Ramps
+// are optional; ramp_cell is the (col, row) of the ramp and ramp_axis is its axis.
+Tilemap make_map(int w, int h, const std::vector<uint8_t> &elevs,
+                 std::optional<std::pair<int, int>> ramp_cell = std::nullopt,
+                 RampAxis ramp_axis = RampAxis::NorthSouth) {
+  Tilemap tm;
+  tm.width = w;
+  tm.height = h;
+  TilemapLayer layer;
+  layer.name = "ground";
+  layer.z_index = 0;
+  layer.tiles.assign(static_cast<std::size_t>(w) * static_cast<std::size_t>(h), 1);
+  layer.elevation = elevs;
+  if (ramp_cell) {
+    const auto [rc, rr] = *ramp_cell;
+    layer.ramps[(rr * w) + rc] = ramp_axis;
   }
+  tm.layers.push_back(std::move(layer));
+  return tm;
+}
 
-  MapView map_with_elevation_map(const Tilemap &tm) {
-    MapView map;
-    map.elevation_map = &tm;
-    return map;
-  }
+MapView map_with_elevation_map(const Tilemap &tm) {
+  MapView map;
+  map.elevation_map = &tm;
+  return map;
+}
 
 } // namespace
 

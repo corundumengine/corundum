@@ -37,128 +37,128 @@
 
 namespace {
 
-  using corundum::test::adopt_platform;
-  using corundum::test::make_world_config;
-  using corundum::test::RecordingRenderer;
-  using corundum::ui::TransitionPhase;
-  namespace platform = corundum::platform;
-  namespace screens = corundum::gameplay::screens;
+using corundum::test::adopt_platform;
+using corundum::test::make_world_config;
+using corundum::test::RecordingRenderer;
+using corundum::ui::TransitionPhase;
+namespace platform = corundum::platform;
+namespace screens = corundum::gameplay::screens;
 
-  /// Renderer that gives each path its own id and counts references like SokolRenderer. Any path
-  /// containing "missing" fails to load, which is how these tests reach open_splash()'s skip path
-  /// (the null renderer loads everything).
-  class SplashRenderer final : public platform::Renderer {
-  public:
-    platform::TextureRefCounts refs;
+/// Renderer that gives each path its own id and counts references like SokolRenderer. Any path
+/// containing "missing" fails to load, which is how these tests reach open_splash()'s skip path
+/// (the null renderer loads everything).
+class SplashRenderer final : public platform::Renderer {
+public:
+  platform::TextureRefCounts refs;
 
-    std::expected<platform::TextureId, std::string> load_texture(std::string_view path) override {
-      if (path.contains("missing"))
-        return std::unexpected(std::string{"no such file"});
-      auto [it, inserted] = ids_.try_emplace(std::string{path});
-      if (inserted)
-        it->second = platform::TextureId{next_id_++};
-      refs.acquire(std::to_underlying(it->second));
-      return it->second;
-    }
-
-    [[nodiscard]] corundum::core::math::Vec2 texture_size(platform::TextureId /*texture_id*/) const override {
-      return {.x = 64.f, .y = 32.f};
-    }
-
-    void release_texture(platform::TextureId texture_id) override { refs.release(std::to_underlying(texture_id)); }
-
-    void purge_unused_textures() override {}
-
-    std::expected<platform::FontId, std::string> load_font(std::string_view /*path*/) override {
-      return platform::FontId{1};
-    }
-
-    void set_world_view(corundum::core::math::Vec2 /*top_left*/, corundum::core::math::Vec2 /*viewport_size*/,
-                        float /*zoom*/) override {}
-
-    void reset_screen_view() override {}
-
-    [[nodiscard]] bool begin_frame(corundum::core::math::Colour /*clear_colour*/) override { return true; }
-
-    void end_frame() override {}
-
-    void draw(const platform::DrawSprite & /*cmd*/) override {}
-
-    void draw(const platform::DrawText & /*cmd*/) override {}
-
-    void draw(const platform::DrawRect & /*cmd*/) override {}
-
-    void draw(const platform::DrawLine & /*cmd*/) override {}
-
-    [[nodiscard]] float measure_text(platform::FontId /*font_id*/, std::string_view /*text*/,
-                                     uint32_t /*char_size*/) const override {
-      return 0.f;
-    }
-
-    [[nodiscard]] platform::RendererStats stats() const override { return {}; }
-
-    /// The id load_texture() gave @p path, or TextureId::Invalid when it never loaded.
-    [[nodiscard]] platform::TextureId id_of(std::string_view path) const {
-      const auto it = ids_.find(std::string{path});
-      return it == ids_.end() ? platform::TextureId::Invalid : it->second;
-    }
-
-  private:
-    std::unordered_map<std::string, platform::TextureId> ids_;
-
-    std::uint32_t next_id_{1}; ///< Raw counter, so issuing an id never converts types.
-  };
-
-  /// Adopt the null platform, then swap in a SplashRenderer the engine owns; returns it for
-  /// assertions. Call before Engine::initialize().
-  SplashRenderer &adopt_splash_renderer(corundum::Engine &engine) {
-    platform::null::NullPlatform bundle = platform::null::make_null_platform(320, 240);
-    auto *renderer = new SplashRenderer(); // NOLINT(cppcoreguidelines-owning-memory): the Handle below owns it.
-    bundle.renderer = platform::Handle<platform::Renderer>{
-        renderer, platform::BackendDeleter<platform::Renderer>{&platform::null::detail::destroy_renderer}};
-    platform::null::adopt_null_platform(engine, bundle);
-    return *renderer;
+  std::expected<platform::TextureId, std::string> load_texture(std::string_view path) override {
+    if (path.contains("missing"))
+      return std::unexpected(std::string{"no such file"});
+    auto [it, inserted] = ids_.try_emplace(std::string{path});
+    if (inserted)
+      it->second = platform::TextureId{next_id_++};
+    refs.acquire(std::to_underlying(it->second));
+    return it->second;
   }
 
-  /// Fixed steps that comfortably cover any splash this file configures (about 6 s of steps).
-  constexpr int k_step_budget = 60 * 10;
-
-  corundum::core::GameConfig make_splash_config(bool show_title) {
-    corundum::core::GameConfig cfg = make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
-    cfg.show_title = show_title;
-    cfg.game_id = "test_game";
-    // The null renderer loads any path, so these need not exist on disk.
-    cfg.paths.splash_images = {"studio.png", "engine.png"};
-    return cfg;
+  [[nodiscard]] corundum::core::math::Vec2 texture_size(platform::TextureId /*texture_id*/) const override {
+    return {.x = 64.f, .y = 32.f};
   }
 
-  /// One fixed step as run_fixed_steps() drives a step-owning screen: advance the fade, then
-  /// dispatch the top screen with @p action (if any) pressed.
-  void step(corundum::Engine &engine, std::optional<corundum::input::Action> action = std::nullopt) {
-    engine.screen_transition.update(engine.timer.target_dt);
-    corundum::input::InputState state{};
-    if (action)
-      state.pressed.set(static_cast<std::size_t>(*action));
-    engine.input_state = state;
-    const corundum::input::InputIntent intent =
-        corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
-    static_cast<void>(engine.update_engine_screens(intent));
+  void release_texture(platform::TextureId texture_id) override { refs.release(std::to_underlying(texture_id)); }
+
+  void purge_unused_textures() override {}
+
+  std::expected<platform::FontId, std::string> load_font(std::string_view /*path*/) override {
+    return platform::FontId{1};
   }
 
-  /// Step until the splash closes or the budget runs out; returns the steps taken.
-  int step_until_splash_closes(corundum::Engine &engine) {
-    int steps{};
-    while (engine.scene.mode() == screens::Splash && steps < k_step_budget) {
-      step(engine);
-      ++steps;
-    }
-    return steps;
+  void set_world_view(corundum::core::math::Vec2 /*top_left*/, corundum::core::math::Vec2 /*viewport_size*/,
+                      float /*zoom*/) override {}
+
+  void reset_screen_view() override {}
+
+  [[nodiscard]] bool begin_frame(corundum::core::math::Colour /*clear_colour*/) override { return true; }
+
+  void end_frame() override {}
+
+  void draw(const platform::DrawSprite & /*cmd*/) override {}
+
+  void draw(const platform::DrawText & /*cmd*/) override {}
+
+  void draw(const platform::DrawRect & /*cmd*/) override {}
+
+  void draw(const platform::DrawLine & /*cmd*/) override {}
+
+  [[nodiscard]] float measure_text(platform::FontId /*font_id*/, std::string_view /*text*/,
+                                   uint32_t /*char_size*/) const override {
+    return 0.f;
   }
 
-  /// Steps that the hold alone spans at the engine's fixed rate.
-  int hold_steps(const corundum::Engine &engine) {
-    return static_cast<int>(screens::k_splash_hold_seconds / engine.timer.target_dt);
+  [[nodiscard]] platform::RendererStats stats() const override { return {}; }
+
+  /// The id load_texture() gave @p path, or TextureId::Invalid when it never loaded.
+  [[nodiscard]] platform::TextureId id_of(std::string_view path) const {
+    const auto it = ids_.find(std::string{path});
+    return it == ids_.end() ? platform::TextureId::Invalid : it->second;
   }
+
+private:
+  std::unordered_map<std::string, platform::TextureId> ids_;
+
+  std::uint32_t next_id_{1}; ///< Raw counter, so issuing an id never converts types.
+};
+
+/// Adopt the null platform, then swap in a SplashRenderer the engine owns; returns it for
+/// assertions. Call before Engine::initialize().
+SplashRenderer &adopt_splash_renderer(corundum::Engine &engine) {
+  platform::null::NullPlatform bundle = platform::null::make_null_platform(320, 240);
+  auto *renderer = new SplashRenderer(); // NOLINT(cppcoreguidelines-owning-memory): the Handle below owns it.
+  bundle.renderer = platform::Handle<platform::Renderer>{
+      renderer, platform::BackendDeleter<platform::Renderer>{&platform::null::detail::destroy_renderer}};
+  platform::null::adopt_null_platform(engine, bundle);
+  return *renderer;
+}
+
+/// Fixed steps that comfortably cover any splash this file configures (about 6 s of steps).
+constexpr int k_step_budget = 60 * 10;
+
+corundum::core::GameConfig make_splash_config(bool show_title) {
+  corundum::core::GameConfig cfg = make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
+  cfg.show_title = show_title;
+  cfg.game_id = "test_game";
+  // The null renderer loads any path, so these need not exist on disk.
+  cfg.paths.splash_images = {"studio.png", "engine.png"};
+  return cfg;
+}
+
+/// One fixed step as run_fixed_steps() drives a step-owning screen: advance the fade, then
+/// dispatch the top screen with @p action (if any) pressed.
+void step(corundum::Engine &engine, std::optional<corundum::input::Action> action = std::nullopt) {
+  engine.screen_transition.update(engine.timer.target_dt);
+  corundum::input::InputState state{};
+  if (action)
+    state.pressed.set(static_cast<std::size_t>(*action));
+  engine.input_state = state;
+  const corundum::input::InputIntent intent =
+      corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
+  static_cast<void>(engine.update_engine_screens(intent));
+}
+
+/// Step until the splash closes or the budget runs out; returns the steps taken.
+int step_until_splash_closes(corundum::Engine &engine) {
+  int steps{};
+  while (engine.scene.mode() == screens::Splash && steps < k_step_budget) {
+    step(engine);
+    ++steps;
+  }
+  return steps;
+}
+
+/// Steps that the hold alone spans at the engine's fixed rate.
+int hold_steps(const corundum::Engine &engine) {
+  return static_cast<int>(screens::k_splash_hold_seconds / engine.timer.target_dt);
+}
 
 } // namespace
 

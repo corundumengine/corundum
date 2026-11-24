@@ -14,25 +14,25 @@
 
 namespace corundum::platform::glfw::gpu_backend {
 
-  std::expected<ContextHandle, std::string> create(GLFWwindow * /*win*/) {
-    // The GL backend has no separate device or drawable state; sokol drives the default
-    // framebuffer directly.
-    return ContextHandle{};
-  }
+std::expected<ContextHandle, std::string> create(GLFWwindow * /*win*/) {
+  // The GL backend has no separate device or drawable state; sokol drives the default
+  // framebuffer directly.
+  return ContextHandle{};
+}
 
-  std::expected<void, std::string> configure_sokol(sg_desc & /*desc*/, const Context * /*context*/) {
-    return {};
-  }
+std::expected<void, std::string> configure_sokol(sg_desc & /*desc*/, const Context * /*context*/) {
+  return {};
+}
 
-  bool begin_pass(sg_swapchain &swapchain, Context * /*context*/, int /*width*/, int /*height*/) noexcept {
-    swapchain.color_format = SG_PIXELFORMAT_RGBA8;
-    return true;
-  }
+bool begin_pass(sg_swapchain &swapchain, Context * /*context*/, int /*width*/, int /*height*/) noexcept {
+  swapchain.color_format = SG_PIXELFORMAT_RGBA8;
+  return true;
+}
 
-  void end_pass(Context * /*context*/, GLFWwindow *win) noexcept {
-    glfwSwapBuffers(win);
-  }
+void end_pass(Context * /*context*/, GLFWwindow *win) noexcept {
+  glfwSwapBuffers(win);
+}
 
-  void ContextDeleter::operator()(Context * /*context*/) const noexcept {}
+void ContextDeleter::operator()(Context * /*context*/) const noexcept {}
 
 } // namespace corundum::platform::glfw::gpu_backend

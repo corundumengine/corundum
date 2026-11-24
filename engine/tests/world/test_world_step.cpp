@@ -22,44 +22,44 @@
 
 namespace {
 
-  using corundum::test::adopt_platform;
-  using corundum::test::initialize_with_world;
-  using corundum::test::make_world_config;
-  using corundum::test::run_one_step;
-  using corundum::world::WorldStep;
+using corundum::test::adopt_platform;
+using corundum::test::initialize_with_world;
+using corundum::test::make_world_config;
+using corundum::test::run_one_step;
+using corundum::world::WorldStep;
 
-  /// An extension mode no framework registers; a test registers the screen it needs.
-  constexpr corundum::world::GameMode k_test_mode{
-      static_cast<corundum::world::GameMode>(corundum::world::k_first_extension_mode + 40),
-  };
+/// An extension mode no framework registers; a test registers the screen it needs.
+constexpr corundum::world::GameMode k_test_mode{
+    static_cast<corundum::world::GameMode>(corundum::world::k_first_extension_mode + 40),
+};
 
-  void place_player(corundum::Engine &engine, float col, float row) {
-    auto &transforms = engine.scene.world.transforms;
-    const auto slot = transforms.dense_index(engine.scene.player);
-    transforms.col[slot] = col;
-    transforms.row[slot] = row;
-  }
+void place_player(corundum::Engine &engine, float col, float row) {
+  auto &transforms = engine.scene.world.transforms;
+  const auto slot = transforms.dense_index(engine.scene.player);
+  transforms.col[slot] = col;
+  transforms.row[slot] = row;
+}
 
-  /// The fixture world with the player on (8, 8), a path queued to (9, 8), and k_test_mode on top.
-  std::unique_ptr<corundum::Engine> make_walking_engine() {
-    auto engine = std::make_unique<corundum::Engine>();
-    adopt_platform(*engine, 320, 240);
-    REQUIRE(initialize_with_world(*engine, make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR)).has_value());
-    place_player(*engine, 8.f, 8.f);
-    engine->scene.path = {corundum::world::TileCoord{.col = 9, .row = 8}};
-    engine->scene.ui.push(k_test_mode);
-    return engine;
-  }
+/// The fixture world with the player on (8, 8), a path queued to (9, 8), and k_test_mode on top.
+std::unique_ptr<corundum::Engine> make_walking_engine() {
+  auto engine = std::make_unique<corundum::Engine>();
+  adopt_platform(*engine, 320, 240);
+  REQUIRE(initialize_with_world(*engine, make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR)).has_value());
+  place_player(*engine, 8.f, 8.f);
+  engine->scene.path = {corundum::world::TileCoord{.col = 9, .row = 8}};
+  engine->scene.ui.push(k_test_mode);
+  return engine;
+}
 
-  void update_once(corundum::Engine &engine, const corundum::input::InputState &input, WorldStep world_step) {
-    const corundum::world::MapView map = corundum::world::build_map_view(engine.render, engine.cfg);
-    corundum::world::update(engine.scene, engine.cfg, input, map, 1.f / 60.f, static_cast<float>(engine.window_width()),
-                            static_cast<float>(engine.window_height()), engine.input_mapper.last_device(), world_step);
-  }
+void update_once(corundum::Engine &engine, const corundum::input::InputState &input, WorldStep world_step) {
+  const corundum::world::MapView map = corundum::world::build_map_view(engine.render, engine.cfg);
+  corundum::world::update(engine.scene, engine.cfg, input, map, 1.f / 60.f, static_cast<float>(engine.window_width()),
+                          static_cast<float>(engine.window_height()), engine.input_mapper.last_device(), world_step);
+}
 
-  float player_col(const corundum::Engine &engine) {
-    return engine.scene.world.transforms.pos_col(engine.scene.player);
-  }
+float player_col(const corundum::Engine &engine) {
+  return engine.scene.world.transforms.pos_col(engine.scene.player);
+}
 
 } // namespace
 

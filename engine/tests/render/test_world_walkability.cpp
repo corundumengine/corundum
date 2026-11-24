@@ -10,8 +10,8 @@
 
 namespace {
 
-  using corundum::test::flat_chunk;
-  using corundum::test::init_world;
+using corundum::test::flat_chunk;
+using corundum::test::init_world;
 
 } // namespace
 

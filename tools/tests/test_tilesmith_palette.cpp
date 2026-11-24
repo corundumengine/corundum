@@ -23,14 +23,14 @@ using tools::tilesmith::snap_to_tile_rect;
 
 namespace {
 
-  tilemap::TilemapTileset make_tileset(tilemap::TileId first_gid, const std::vector<std::pair<int, int>> &sizes) {
-    tilemap::TilemapTileset tileset;
-    tileset.first_gid = first_gid;
-    tileset.info.tile_count = static_cast<int>(sizes.size());
-    for (const auto &[width, height] : sizes)
-      tileset.info.tile_rects.push_back(IntRect{.x = 0, .y = 0, .width = width, .height = height});
-    return tileset;
-  }
+tilemap::TilemapTileset make_tileset(tilemap::TileId first_gid, const std::vector<std::pair<int, int>> &sizes) {
+  tilemap::TilemapTileset tileset;
+  tileset.first_gid = first_gid;
+  tileset.info.tile_count = static_cast<int>(sizes.size());
+  for (const auto &[width, height] : sizes)
+    tileset.info.tile_rects.push_back(IntRect{.x = 0, .y = 0, .width = width, .height = height});
+  return tileset;
+}
 
 } // namespace
 

@@ -10,181 +10,181 @@
 
 namespace corundum::input {
 
-  /**
-   * @brief Game input actions supported by the engine.
-   */
-  enum class Action : uint8_t {
-    MoveUp,
-    MoveDown,
-    MoveLeft,
-    MoveRight,
-    Select,
-    Activate, ///< World/UI "use this thing" intent, distinct from the dialogue/confirm Select.
-    Cancel,
-    Quit,
-    ZoomIn,
-    ZoomOut,
-    Inventory,  ///< Inventory hotkey (I). Opens the hub on the Inventory tab.
-    Journal,    ///< Journal hotkey (J). Opens the hub on the Journal tab.
-    Codex,      ///< Codex hotkey (C). Opens the hub on the Codex tab.
-    Map,        ///< Map/fast-travel hotkey (M). Opens the hub on the Map tab.
-    Character,  ///< Character-sheet hotkey (P). Opens the character sheet from Exploring.
-    Menu,       ///< Pause/system menu toggle (Esc / gamepad Start).
-    Hub,        ///< Menu-hub toggle (gamepad Y). Opens the last hub tab; closes it when one is on top.
-    TabNext,    ///< Next tab: settings pages, barter Buy/Sell, hub tabs (] / gamepad R1).
-    TabPrev,    ///< Previous tab: settings pages, barter Buy/Sell, hub tabs ([ / gamepad L1).
-    SubTabNext, ///< Next sub-tab inside a hub tab: journal Active/Completed/Failed (. / gamepad R2).
-    SubTabPrev, ///< Previous sub-tab inside a hub tab: journal Active/Completed/Failed (, / gamepad L2).
-    Pause,      ///< Combat pause toggle (Space / gamepad X). Only a fight reads it; Space also raises Select/Activate.
-    CombatCommand1,   ///< Fight: attack the hostile (1 / gamepad A, shared with Select/Activate).
-    CombatCommand2,   ///< Fight: press the command bar's second slot (2 / gamepad Y, shared with Hub).
-    CombatCommand3,   ///< Fight: press the command bar's third slot (3 / gamepad B, shared with Cancel).
-    CombatCommand4,   ///< Fight: press the fourth slot (4). Slots 4 to 9 are keyboard only; a gamepad pages A/Y/B.
-    CombatCommand5,   ///< Fight: press the fifth slot (5).
-    CombatCommand6,   ///< Fight: press the sixth slot (6).
-    CombatCommand7,   ///< Fight: press the seventh slot (7).
-    CombatCommand8,   ///< Fight: press the eighth slot (8).
-    CombatCommand9,   ///< Fight: press the ninth slot (9).
-    CombatPageNext,   ///< Fight: show the bar's next three slots on A/Y/B (gamepad R1, shared with TabNext).
-    CombatPagePrev,   ///< Fight: show the bar's previous three slots on A/Y/B (gamepad L1, shared with TabPrev).
-    CombatTargetNext, ///< Fight: attack the next hostile still fighting, wrapping (Tab / gamepad R3).
-    QuickSave,        ///< Dev quick-save intent (F5 on desktop). Engine raises it; game code acts on it.
-    QuickLoad,        ///< Dev quick-load intent (F9 on desktop). Engine raises it; game code acts on it.
-    Count,
-  };
+/**
+ * @brief Game input actions supported by the engine.
+ */
+enum class Action : uint8_t {
+  MoveUp,
+  MoveDown,
+  MoveLeft,
+  MoveRight,
+  Select,
+  Activate, ///< World/UI "use this thing" intent, distinct from the dialogue/confirm Select.
+  Cancel,
+  Quit,
+  ZoomIn,
+  ZoomOut,
+  Inventory,  ///< Inventory hotkey (I). Opens the hub on the Inventory tab.
+  Journal,    ///< Journal hotkey (J). Opens the hub on the Journal tab.
+  Codex,      ///< Codex hotkey (C). Opens the hub on the Codex tab.
+  Map,        ///< Map/fast-travel hotkey (M). Opens the hub on the Map tab.
+  Character,  ///< Character-sheet hotkey (P). Opens the character sheet from Exploring.
+  Menu,       ///< Pause/system menu toggle (Esc / gamepad Start).
+  Hub,        ///< Menu-hub toggle (gamepad Y). Opens the last hub tab; closes it when one is on top.
+  TabNext,    ///< Next tab: settings pages, barter Buy/Sell, hub tabs (] / gamepad R1).
+  TabPrev,    ///< Previous tab: settings pages, barter Buy/Sell, hub tabs ([ / gamepad L1).
+  SubTabNext, ///< Next sub-tab inside a hub tab: journal Active/Completed/Failed (. / gamepad R2).
+  SubTabPrev, ///< Previous sub-tab inside a hub tab: journal Active/Completed/Failed (, / gamepad L2).
+  Pause,      ///< Combat pause toggle (Space / gamepad X). Only a fight reads it; Space also raises Select/Activate.
+  CombatCommand1,   ///< Fight: attack the hostile (1 / gamepad A, shared with Select/Activate).
+  CombatCommand2,   ///< Fight: press the command bar's second slot (2 / gamepad Y, shared with Hub).
+  CombatCommand3,   ///< Fight: press the command bar's third slot (3 / gamepad B, shared with Cancel).
+  CombatCommand4,   ///< Fight: press the fourth slot (4). Slots 4 to 9 are keyboard only; a gamepad pages A/Y/B.
+  CombatCommand5,   ///< Fight: press the fifth slot (5).
+  CombatCommand6,   ///< Fight: press the sixth slot (6).
+  CombatCommand7,   ///< Fight: press the seventh slot (7).
+  CombatCommand8,   ///< Fight: press the eighth slot (8).
+  CombatCommand9,   ///< Fight: press the ninth slot (9).
+  CombatPageNext,   ///< Fight: show the bar's next three slots on A/Y/B (gamepad R1, shared with TabNext).
+  CombatPagePrev,   ///< Fight: show the bar's previous three slots on A/Y/B (gamepad L1, shared with TabPrev).
+  CombatTargetNext, ///< Fight: attack the next hostile still fighting, wrapping (Tab / gamepad R3).
+  QuickSave,        ///< Dev quick-save intent (F5 on desktop). Engine raises it; game code acts on it.
+  QuickLoad,        ///< Dev quick-load intent (F9 on desktop). Engine raises it; game code acts on it.
+  Count,
+};
 
-  /**
-   * @brief Total number of input actions.
-   */
-  inline constexpr std::size_t k_action_count = static_cast<std::size_t>(Action::Count);
+/**
+ * @brief Total number of input actions.
+ */
+inline constexpr std::size_t k_action_count = static_cast<std::size_t>(Action::Count);
 
+/**
+ * @brief Container for actions pressed this frame.
+ *
+ * Zero-allocation; supports range-for iteration via begin/end.
+ */
+struct PressedActions {
+  std::array<Action, k_action_count> actions{};
+  std::size_t count{};
+
+  [[nodiscard]] auto begin() const noexcept { return actions.begin(); }
+
+  [[nodiscard]] auto end() const noexcept { return actions.begin() + static_cast<std::ptrdiff_t>(count); }
+
+  [[nodiscard]] std::size_t size() const noexcept { return count; }
+
+  [[nodiscard]] bool empty() const noexcept { return count == 0; }
+};
+
+/**
+ * @brief Per-frame snapshot of digital action state.
+ *
+ * Updated once per event-poll cycle. Use @c held to poll sustained input
+ * and @c pressed for one-frame-only triggers.
+ */
+struct InputState {
   /**
-   * @brief Container for actions pressed this frame.
+   * @brief True while the key bound to an action is held down.
+   */
+  std::bitset<k_action_count> held{};
+  /**
+   * @brief True only on the frame the key bound to an action was pressed.
+   */
+  std::bitset<k_action_count> pressed{};
+  /**
+   * @brief Cursor position in window pixels, updated once per poll cycle.
    *
-   * Zero-allocation; supports range-for iteration via begin/end.
+   * Analog data, deliberately separate from the discrete Action bitsets above.
    */
-  struct PressedActions {
-    std::array<Action, k_action_count> actions{};
-    std::size_t count{};
-
-    [[nodiscard]] auto begin() const noexcept { return actions.begin(); }
-
-    [[nodiscard]] auto end() const noexcept { return actions.begin() + static_cast<std::ptrdiff_t>(count); }
-
-    [[nodiscard]] std::size_t size() const noexcept { return count; }
-
-    [[nodiscard]] bool empty() const noexcept { return count == 0; }
-  };
-
+  float mouse_x{};
+  float mouse_y{};
   /**
-   * @brief Per-frame snapshot of digital action state.
+   * @brief Cursor position at the previous poll cycle.
    *
-   * Updated once per event-poll cycle. Use @c held to poll sustained input
-   * and @c pressed for one-frame-only triggers.
+   * make_input_intent() compares these against @c mouse_x/@c mouse_y to raise
+   * InputIntent::mouse_moved, so a screen only shifts focus for a real movement and not
+   * merely because a pointer happens to rest over a row. InputMapper::end_poll() copies
+   * the outgoing position into them before accumulating this poll.
    */
-  struct InputState {
-    /**
-     * @brief True while the key bound to an action is held down.
-     */
-    std::bitset<k_action_count> held{};
-    /**
-     * @brief True only on the frame the key bound to an action was pressed.
-     */
-    std::bitset<k_action_count> pressed{};
-    /**
-     * @brief Cursor position in window pixels, updated once per poll cycle.
-     *
-     * Analog data, deliberately separate from the discrete Action bitsets above.
-     */
-    float mouse_x{};
-    float mouse_y{};
-    /**
-     * @brief Cursor position at the previous poll cycle.
-     *
-     * make_input_intent() compares these against @c mouse_x/@c mouse_y to raise
-     * InputIntent::mouse_moved, so a screen only shifts focus for a real movement and not
-     * merely because a pointer happens to rest over a row. InputMapper::end_poll() copies
-     * the outgoing position into them before accumulating this poll.
-     */
-    float prev_mouse_x{};
-    float prev_mouse_y{};
-    /**
-     * @brief True only on the frame the left mouse button was pressed.
-     *
-     * Deliberately separate from Action::Select (also bound to the mouse button for
-     * click-to-interact) — consumers that mean "the player clicked a screen point"
-     * specifically (e.g. click-to-move) must check this, not Select, since Select is
-     * also raised by keyboard/gamepad confirm presses that carry no click position.
-     */
-    bool mouse_click_pressed{};
-    /**
-     * @brief Accumulated scroll wheel delta this poll cycle (positive = away from user).
-     *
-     * Analog and transient like mouse_click_pressed — reset each cycle, not a discrete
-     * Action, since "how much" matters, not just "did it happen".
-     */
-    float scroll_delta_y{};
-
-    /// @pre @p action must not be Action::Count; Count is a sentinel, not an action.
-    [[nodiscard]] bool is_held(Action action) const noexcept {
-      assert(action != Action::Count && "Count is a sentinel, not an action");
-      return held[static_cast<std::size_t>(action)];
-    }
-
-    /// @pre @p action must not be Action::Count; Count is a sentinel, not an action.
-    [[nodiscard]] bool is_pressed(Action action) const noexcept {
-      assert(action != Action::Count && "Count is a sentinel, not an action");
-      return pressed[static_cast<std::size_t>(action)];
-    }
-  };
-
+  float prev_mouse_x{};
+  float prev_mouse_y{};
   /**
-   * @brief Resets all pressed flags to false.
+   * @brief True only on the frame the left mouse button was pressed.
    *
-   * @param state Input state to clear.
-   * @pre Call after consuming pressed actions to prevent re-triggering — either before the
-   *      next event-poll cycle or after each fixed-step simulation iteration.
+   * Deliberately separate from Action::Select (also bound to the mouse button for
+   * click-to-interact) — consumers that mean "the player clicked a screen point"
+   * specifically (e.g. click-to-move) must check this, not Select, since Select is
+   * also raised by keyboard/gamepad confirm presses that carry no click position.
    */
-  inline void clear_pressed(InputState &state) noexcept {
-    state.pressed.reset();
-    state.mouse_click_pressed = false;
-    state.scroll_delta_y = 0.f;
+  bool mouse_click_pressed{};
+  /**
+   * @brief Accumulated scroll wheel delta this poll cycle (positive = away from user).
+   *
+   * Analog and transient like mouse_click_pressed — reset each cycle, not a discrete
+   * Action, since "how much" matters, not just "did it happen".
+   */
+  float scroll_delta_y{};
+
+  /// @pre @p action must not be Action::Count; Count is a sentinel, not an action.
+  [[nodiscard]] bool is_held(Action action) const noexcept {
+    assert(action != Action::Count && "Count is a sentinel, not an action");
+    return held[static_cast<std::size_t>(action)];
   }
 
-  /**
-   * @brief Accumulates freshly-polled input into destination state.
-   *
-   * Copies @p source held state directly (always reflects current key state) and
-   * ORs @p source pressed bits into @p destination so that presses are preserved
-   * across render frames between fixed-step simulation ticks.
-   *
-   * @param[in,out] destination Destination state to accumulate into.
-   * @param[in]     source      Source state from the current event-poll cycle.
-   */
-  inline void accumulate_input(InputState &destination, const InputState &source) noexcept {
-    destination.held = source.held;
-    destination.pressed |= source.pressed;
-    destination.mouse_x = source.mouse_x;
-    destination.mouse_y = source.mouse_y;
-    destination.mouse_click_pressed |= source.mouse_click_pressed;
-    destination.scroll_delta_y += source.scroll_delta_y;
+  /// @pre @p action must not be Action::Count; Count is a sentinel, not an action.
+  [[nodiscard]] bool is_pressed(Action action) const noexcept {
+    assert(action != Action::Count && "Count is a sentinel, not an action");
+    return pressed[static_cast<std::size_t>(action)];
   }
+};
 
-  /**
-   * @brief Collect all actions that were pressed this frame.
-   *
-   * @param state Current input state to query.
-   * @return Container of every Action whose pressed flag is set.
-   * @note Zero-allocation; result is returned by value.
-   */
-  [[nodiscard]] inline PressedActions pressed_actions(const InputState &state) {
-    PressedActions result{};
-    for (std::size_t i = 0; i < k_action_count; ++i) {
-      if (state.pressed.test(i)) {
-        result.actions[result.count++] = static_cast<Action>(i);
-      }
+/**
+ * @brief Resets all pressed flags to false.
+ *
+ * @param state Input state to clear.
+ * @pre Call after consuming pressed actions to prevent re-triggering — either before the
+ *      next event-poll cycle or after each fixed-step simulation iteration.
+ */
+inline void clear_pressed(InputState &state) noexcept {
+  state.pressed.reset();
+  state.mouse_click_pressed = false;
+  state.scroll_delta_y = 0.f;
+}
+
+/**
+ * @brief Accumulates freshly-polled input into destination state.
+ *
+ * Copies @p source held state directly (always reflects current key state) and
+ * ORs @p source pressed bits into @p destination so that presses are preserved
+ * across render frames between fixed-step simulation ticks.
+ *
+ * @param[in,out] destination Destination state to accumulate into.
+ * @param[in]     source      Source state from the current event-poll cycle.
+ */
+inline void accumulate_input(InputState &destination, const InputState &source) noexcept {
+  destination.held = source.held;
+  destination.pressed |= source.pressed;
+  destination.mouse_x = source.mouse_x;
+  destination.mouse_y = source.mouse_y;
+  destination.mouse_click_pressed |= source.mouse_click_pressed;
+  destination.scroll_delta_y += source.scroll_delta_y;
+}
+
+/**
+ * @brief Collect all actions that were pressed this frame.
+ *
+ * @param state Current input state to query.
+ * @return Container of every Action whose pressed flag is set.
+ * @note Zero-allocation; result is returned by value.
+ */
+[[nodiscard]] inline PressedActions pressed_actions(const InputState &state) {
+  PressedActions result{};
+  for (std::size_t i = 0; i < k_action_count; ++i) {
+    if (state.pressed.test(i)) {
+      result.actions[result.count++] = static_cast<Action>(i);
     }
-    return result;
   }
+  return result;
+}
 
 } // namespace corundum::input

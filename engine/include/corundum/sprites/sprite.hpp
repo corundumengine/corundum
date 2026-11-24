@@ -13,156 +13,156 @@
 
 namespace corundum::sprites {
 
-  using Id = uint16_t;
-  inline constexpr Id k_null_sheet = 0;
+using Id = uint16_t;
+inline constexpr Id k_null_sheet = 0;
 
-  using SpriteId = uint16_t;
-  inline constexpr SpriteId k_null_sprite_id = 0;
+using SpriteId = uint16_t;
+inline constexpr SpriteId k_null_sprite_id = 0;
 
-  /// Animation clip keys for a sprite sheet: one per screen direction plus a
-  /// non-directional fallback. The directional values are pinned to core::Direction
-  /// so a facing can be used directly as a clip key; the sheet itself determines the
-  /// motion type (walk, idle, attack, ...) — switching sheets switches the motion.
-  enum class AnimId : uint8_t {
-    South = std::to_underlying(core::Direction::South),
-    North = std::to_underlying(core::Direction::North),
-    East = std::to_underlying(core::Direction::East),
-    West = std::to_underlying(core::Direction::West),
-    NorthEast = std::to_underlying(core::Direction::NorthEast),
-    SouthEast = std::to_underlying(core::Direction::SouthEast),
-    SouthWest = std::to_underlying(core::Direction::SouthWest),
-    NorthWest = std::to_underlying(core::Direction::NorthWest),
-    Default = std::to_underlying(core::Direction::Count),
-    Count = core::k_num_directions + 1,
-  };
+/// Animation clip keys for a sprite sheet: one per screen direction plus a
+/// non-directional fallback. The directional values are pinned to core::Direction
+/// so a facing can be used directly as a clip key; the sheet itself determines the
+/// motion type (walk, idle, attack, ...) — switching sheets switches the motion.
+enum class AnimId : uint8_t {
+  South = std::to_underlying(core::Direction::South),
+  North = std::to_underlying(core::Direction::North),
+  East = std::to_underlying(core::Direction::East),
+  West = std::to_underlying(core::Direction::West),
+  NorthEast = std::to_underlying(core::Direction::NorthEast),
+  SouthEast = std::to_underlying(core::Direction::SouthEast),
+  SouthWest = std::to_underlying(core::Direction::SouthWest),
+  NorthWest = std::to_underlying(core::Direction::NorthWest),
+  Default = std::to_underlying(core::Direction::Count),
+  Count = core::k_num_directions + 1,
+};
 
-  /// Total number of named animations; use as array extent.
-  inline constexpr uint8_t k_num_anim_ids = static_cast<uint8_t>(AnimId::Count);
+/// Total number of named animations; use as array extent.
+inline constexpr uint8_t k_num_anim_ids = static_cast<uint8_t>(AnimId::Count);
 
-  /// Clip key for a screen direction. The directional enumerators mirror Direction.
-  /// @pre dir must not be core::Direction::Count.
-  [[nodiscard]] constexpr AnimId to_anim(core::Direction dir) noexcept {
-    assert(dir != core::Direction::Count && "Count is a sentinel, not a facing");
-    return static_cast<AnimId>(std::to_underlying(dir));
+/// Clip key for a screen direction. The directional enumerators mirror Direction.
+/// @pre dir must not be core::Direction::Count.
+[[nodiscard]] constexpr AnimId to_anim(core::Direction dir) noexcept {
+  assert(dir != core::Direction::Count && "Count is a sentinel, not a facing");
+  return static_cast<AnimId>(std::to_underlying(dir));
+}
+
+static_assert(std::to_underlying(AnimId::Default) == core::k_num_directions,
+              "AnimId::Default must immediately follow the directional values");
+
+/// Canonical string names for each AnimId, indexed by AnimId value.
+inline constexpr std::array<std::string_view, k_num_anim_ids> k_anim_names = {
+    "south", "north", "east", "west", "northeast", "southeast", "southwest", "northwest", "default",
+};
+
+/// Resolves an animation name to its AnimId; returns AnimId::Count if unknown.
+/// @note Resolves against k_anim_names so the loader and serializer can never disagree on
+///       which names are valid.
+[[nodiscard]] constexpr AnimId anim_name_to_id(std::string_view name) noexcept {
+  for (uint8_t i = 0; i < k_num_anim_ids; ++i)
+    if (k_anim_names[i] == name)
+      return static_cast<AnimId>(i);
+  return AnimId::Count;
+}
+
+/// Texture atlas packing metadata; geometry fields are read every rendered frame.
+struct SpriteSheet {
+  Id id = k_null_sheet; ///< Unique identifier
+  std::string path;     ///< File path to the sprite sheet JSON (cold; for debugging/reload only)
+  int frame_width = 0;  ///< Width of one grid cell in pixels
+  int frame_height = 0; ///< Height of one grid cell in pixels
+  int offset_x = 0;     ///< Pixel offset from left edge of image to the first frame
+  int offset_y = 0;     ///< Pixel offset from top edge of image to the first frame
+  int spacing_x = 0;    ///< Horizontal gap in pixels between frames
+  int spacing_y = 0;    ///< Vertical gap in pixels between frames
+};
+
+/// Grid location of a single animation frame within a sprite sheet.
+struct FrameCoord {
+  int col = 0; ///< Column index
+  int row = 0; ///< Row index
+};
+
+/// Total rendered pixel width for a sprite occupying col_span grid columns.
+/// @pre col_span >= 1
+[[nodiscard]] constexpr int rendered_frame_width(int col_span, int frame_width, int spacing_x) noexcept {
+  assert(col_span >= 1);
+  return (col_span * frame_width) + ((col_span - 1) * spacing_x);
+}
+
+/// Total rendered pixel height for a sprite occupying row_span grid rows.
+/// @pre row_span >= 1
+[[nodiscard]] constexpr int rendered_frame_height(int row_span, int frame_height, int spacing_y) noexcept {
+  assert(row_span >= 1);
+  return (row_span * frame_height) + ((row_span - 1) * spacing_y);
+}
+
+/** @brief Integer pixel-space point. */
+struct IntPoint {
+  int x = 0;
+  int y = 0;
+};
+
+/** @brief Compute the pixel-space top-left origin of a frame cell within a sprite-sheet grid.
+ *  @param offset_x  Pixel offset from left edge of image to the first frame.
+ *  @param offset_y  Pixel offset from top edge of image to the first frame.
+ *  @param frame_w   Width of one grid cell in pixels.
+ *  @param frame_h   Height of one grid cell in pixels.
+ *  @param spacing_x Horizontal gap between frame cells in pixels.
+ *  @param spacing_y Vertical gap between frame cells in pixels.
+ *  @param col       Frame column index.
+ *  @param row       Frame row index.
+ *  @return The {x, y} origin of the frame cell in image pixel space. */
+[[nodiscard]] constexpr IntPoint frame_origin(int offset_x, int offset_y, int frame_w, int frame_h, int spacing_x,
+                                              int spacing_y, int col, int row) noexcept {
+  return {.x = offset_x + (col * (frame_w + spacing_x)), .y = offset_y + (row * (frame_h + spacing_y))};
+}
+
+/** @brief Compute the pixel-space top-left origin of a frame within the sheet's grid.
+ *  @param sheet The sprite sheet providing grid geometry (offset, frame size, spacing).
+ *  @param fc    Frame coordinate (column, row) within the sheet.
+ *  @return The {x, y} origin of the frame in image pixel space.
+ *  @note Delegates to the raw-parameter overload. */
+[[nodiscard]] constexpr IntPoint frame_origin(const SpriteSheet &sheet, FrameCoord fc) noexcept {
+  return frame_origin(sheet.offset_x, sheet.offset_y, sheet.frame_width, sheet.frame_height, sheet.spacing_x,
+                      sheet.spacing_y, fc.col, fc.row);
+}
+
+/// Footprint a sprite falls back to when its sheet omits one, in tile-grid units. Named
+/// rather than written inline so the load path can report the substitution instead of
+/// leaving a silent default that has nothing to do with the sprite's art.
+inline constexpr float k_default_footprint_col_span = 0.25f;
+
+inline constexpr float k_default_footprint_row_span = 0.5f;
+
+/// Fraction of sprite height at which the feet sit when a sheet omits walk_around_offset.
+inline constexpr float k_default_walk_around_offset = 0.6f;
+
+/// Per-sprite frame data for a character; hot-path access goes through anim_frames.
+struct Frames {
+  Id sheet_id = k_null_sheet; ///< Owning sprite sheet
+  int col_span = 1;           ///< Grid columns the sprite's frame occupies (2 for a two-cell-wide creature)
+  int row_span = 1;           ///< Grid rows the sprite's frame occupies
+  /// Collision footprint in tile-grid units, centred on the entity's feet by the physics
+  /// system. Authored in tiles rather than converted from sprite pixels: the patch of ground
+  /// an entity occupies has nothing to do with how tall its art is, and routing the number
+  /// through the tile diamond and walk_around_offset made it unpredictable from the editor.
+  float footprint_col_span = k_default_footprint_col_span;
+  float footprint_row_span = k_default_footprint_row_span;
+  /// Fraction of sprite height locating the feet; rendering only.
+  float walk_around_offset = k_default_walk_around_offset;
+  float fps = 0.f;                                                 ///< Playback rate override; 0 = use engine default
+  SpriteId sprite_id = k_null_sprite_id;                           ///< Interned identifier for O(1) lookup
+  std::array<std::vector<FrameCoord>, k_num_anim_ids> anim_frames; ///< Hot-path frame layout indexed by AnimId
+};
+
+/** @brief Frame count per AnimId; 0 means the clip is absent. */
+[[nodiscard]] inline std::array<uint8_t, k_num_anim_ids> frame_counts_of(const Frames &frames) noexcept {
+  std::array<uint8_t, k_num_anim_ids> counts{};
+  for (uint8_t i = 0; i < k_num_anim_ids; ++i) {
+    assert(frames.anim_frames[i].size() <= 255); // AnimationTable stores counts in a byte.
+    counts[i] = static_cast<uint8_t>(frames.anim_frames[i].size());
   }
-
-  static_assert(std::to_underlying(AnimId::Default) == core::k_num_directions,
-                "AnimId::Default must immediately follow the directional values");
-
-  /// Canonical string names for each AnimId, indexed by AnimId value.
-  inline constexpr std::array<std::string_view, k_num_anim_ids> k_anim_names = {
-      "south", "north", "east", "west", "northeast", "southeast", "southwest", "northwest", "default",
-  };
-
-  /// Resolves an animation name to its AnimId; returns AnimId::Count if unknown.
-  /// @note Resolves against k_anim_names so the loader and serializer can never disagree on
-  ///       which names are valid.
-  [[nodiscard]] constexpr AnimId anim_name_to_id(std::string_view name) noexcept {
-    for (uint8_t i = 0; i < k_num_anim_ids; ++i)
-      if (k_anim_names[i] == name)
-        return static_cast<AnimId>(i);
-    return AnimId::Count;
-  }
-
-  /// Texture atlas packing metadata; geometry fields are read every rendered frame.
-  struct SpriteSheet {
-    Id id = k_null_sheet; ///< Unique identifier
-    std::string path;     ///< File path to the sprite sheet JSON (cold; for debugging/reload only)
-    int frame_width = 0;  ///< Width of one grid cell in pixels
-    int frame_height = 0; ///< Height of one grid cell in pixels
-    int offset_x = 0;     ///< Pixel offset from left edge of image to the first frame
-    int offset_y = 0;     ///< Pixel offset from top edge of image to the first frame
-    int spacing_x = 0;    ///< Horizontal gap in pixels between frames
-    int spacing_y = 0;    ///< Vertical gap in pixels between frames
-  };
-
-  /// Grid location of a single animation frame within a sprite sheet.
-  struct FrameCoord {
-    int col = 0; ///< Column index
-    int row = 0; ///< Row index
-  };
-
-  /// Total rendered pixel width for a sprite occupying col_span grid columns.
-  /// @pre col_span >= 1
-  [[nodiscard]] constexpr int rendered_frame_width(int col_span, int frame_width, int spacing_x) noexcept {
-    assert(col_span >= 1);
-    return (col_span * frame_width) + ((col_span - 1) * spacing_x);
-  }
-
-  /// Total rendered pixel height for a sprite occupying row_span grid rows.
-  /// @pre row_span >= 1
-  [[nodiscard]] constexpr int rendered_frame_height(int row_span, int frame_height, int spacing_y) noexcept {
-    assert(row_span >= 1);
-    return (row_span * frame_height) + ((row_span - 1) * spacing_y);
-  }
-
-  /** @brief Integer pixel-space point. */
-  struct IntPoint {
-    int x = 0;
-    int y = 0;
-  };
-
-  /** @brief Compute the pixel-space top-left origin of a frame cell within a sprite-sheet grid.
-   *  @param offset_x  Pixel offset from left edge of image to the first frame.
-   *  @param offset_y  Pixel offset from top edge of image to the first frame.
-   *  @param frame_w   Width of one grid cell in pixels.
-   *  @param frame_h   Height of one grid cell in pixels.
-   *  @param spacing_x Horizontal gap between frame cells in pixels.
-   *  @param spacing_y Vertical gap between frame cells in pixels.
-   *  @param col       Frame column index.
-   *  @param row       Frame row index.
-   *  @return The {x, y} origin of the frame cell in image pixel space. */
-  [[nodiscard]] constexpr IntPoint frame_origin(int offset_x, int offset_y, int frame_w, int frame_h, int spacing_x,
-                                                int spacing_y, int col, int row) noexcept {
-    return {.x = offset_x + (col * (frame_w + spacing_x)), .y = offset_y + (row * (frame_h + spacing_y))};
-  }
-
-  /** @brief Compute the pixel-space top-left origin of a frame within the sheet's grid.
-   *  @param sheet The sprite sheet providing grid geometry (offset, frame size, spacing).
-   *  @param fc    Frame coordinate (column, row) within the sheet.
-   *  @return The {x, y} origin of the frame in image pixel space.
-   *  @note Delegates to the raw-parameter overload. */
-  [[nodiscard]] constexpr IntPoint frame_origin(const SpriteSheet &sheet, FrameCoord fc) noexcept {
-    return frame_origin(sheet.offset_x, sheet.offset_y, sheet.frame_width, sheet.frame_height, sheet.spacing_x,
-                        sheet.spacing_y, fc.col, fc.row);
-  }
-
-  /// Footprint a sprite falls back to when its sheet omits one, in tile-grid units. Named
-  /// rather than written inline so the load path can report the substitution instead of
-  /// leaving a silent default that has nothing to do with the sprite's art.
-  inline constexpr float k_default_footprint_col_span = 0.25f;
-
-  inline constexpr float k_default_footprint_row_span = 0.5f;
-
-  /// Fraction of sprite height at which the feet sit when a sheet omits walk_around_offset.
-  inline constexpr float k_default_walk_around_offset = 0.6f;
-
-  /// Per-sprite frame data for a character; hot-path access goes through anim_frames.
-  struct Frames {
-    Id sheet_id = k_null_sheet; ///< Owning sprite sheet
-    int col_span = 1;           ///< Grid columns the sprite's frame occupies (2 for a two-cell-wide creature)
-    int row_span = 1;           ///< Grid rows the sprite's frame occupies
-    /// Collision footprint in tile-grid units, centred on the entity's feet by the physics
-    /// system. Authored in tiles rather than converted from sprite pixels: the patch of ground
-    /// an entity occupies has nothing to do with how tall its art is, and routing the number
-    /// through the tile diamond and walk_around_offset made it unpredictable from the editor.
-    float footprint_col_span = k_default_footprint_col_span;
-    float footprint_row_span = k_default_footprint_row_span;
-    /// Fraction of sprite height locating the feet; rendering only.
-    float walk_around_offset = k_default_walk_around_offset;
-    float fps = 0.f;                                                 ///< Playback rate override; 0 = use engine default
-    SpriteId sprite_id = k_null_sprite_id;                           ///< Interned identifier for O(1) lookup
-    std::array<std::vector<FrameCoord>, k_num_anim_ids> anim_frames; ///< Hot-path frame layout indexed by AnimId
-  };
-
-  /** @brief Frame count per AnimId; 0 means the clip is absent. */
-  [[nodiscard]] inline std::array<uint8_t, k_num_anim_ids> frame_counts_of(const Frames &frames) noexcept {
-    std::array<uint8_t, k_num_anim_ids> counts{};
-    for (uint8_t i = 0; i < k_num_anim_ids; ++i) {
-      assert(frames.anim_frames[i].size() <= 255); // AnimationTable stores counts in a byte.
-      counts[i] = static_cast<uint8_t>(frames.anim_frames[i].size());
-    }
-    return counts;
-  }
+  return counts;
+}
 
 } // namespace corundum::sprites

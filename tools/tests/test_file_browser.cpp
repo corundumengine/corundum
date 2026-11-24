@@ -24,52 +24,52 @@ using corundum::toolkit::widgets::SaveRequest;
 
 namespace {
 
-  /// A throwaway directory holding sub/, a.json, b.txt, c.JSON and sub/inner.json, removed on exit.
-  class ScratchTree {
-  public:
-    ScratchTree() {
-      static int counter = 0;
-      root_ = std::filesystem::temp_directory_path() /
-              std::format("corundum_file_browser_{}_{}", std::random_device{}(), counter++);
-      std::filesystem::create_directories(root_ / "sub");
-      write(root_ / "a.json", "{}");
-      write(root_ / "b.txt", "plain");
-      write(root_ / "c.JSON", "{}");
-      write(root_ / "sub" / "inner.json", "{}");
-    }
-
-    ~ScratchTree() {
-      std::error_code ignored;
-      std::filesystem::remove_all(root_, ignored);
-    }
-
-    ScratchTree(const ScratchTree &) = delete;
-    ScratchTree &operator=(const ScratchTree &) = delete;
-    ScratchTree(ScratchTree &&) = delete;
-    ScratchTree &operator=(ScratchTree &&) = delete;
-
-    [[nodiscard]] const std::filesystem::path &root() const { return root_; }
-
-  private:
-    static void write(const std::filesystem::path &path, std::string_view contents) {
-      std::ofstream out(path);
-      REQUIRE(out.good());
-      out << contents;
-    }
-
-    std::filesystem::path root_;
-  };
-
-  void set_name(FileBrowserState &fb, std::string_view name) {
-    copy_to_buffer(fb.name_buf.data(), fb.name_buf.size(), name);
+/// A throwaway directory holding sub/, a.json, b.txt, c.JSON and sub/inner.json, removed on exit.
+class ScratchTree {
+public:
+  ScratchTree() {
+    static int counter = 0;
+    root_ = std::filesystem::temp_directory_path() /
+            std::format("corundum_file_browser_{}_{}", std::random_device{}(), counter++);
+    std::filesystem::create_directories(root_ / "sub");
+    write(root_ / "a.json", "{}");
+    write(root_ / "b.txt", "plain");
+    write(root_ / "c.JSON", "{}");
+    write(root_ / "sub" / "inner.json", "{}");
   }
 
-  [[nodiscard]] std::optional<std::size_t> find_entry(const FileBrowserState &fb, std::string_view name) {
-    for (std::size_t index = 0; index < fb.entries.size(); ++index)
-      if (fb.entries[index].name == name)
-        return index;
-    return std::nullopt;
+  ~ScratchTree() {
+    std::error_code ignored;
+    std::filesystem::remove_all(root_, ignored);
   }
+
+  ScratchTree(const ScratchTree &) = delete;
+  ScratchTree &operator=(const ScratchTree &) = delete;
+  ScratchTree(ScratchTree &&) = delete;
+  ScratchTree &operator=(ScratchTree &&) = delete;
+
+  [[nodiscard]] const std::filesystem::path &root() const { return root_; }
+
+private:
+  static void write(const std::filesystem::path &path, std::string_view contents) {
+    std::ofstream out(path);
+    REQUIRE(out.good());
+    out << contents;
+  }
+
+  std::filesystem::path root_;
+};
+
+void set_name(FileBrowserState &fb, std::string_view name) {
+  copy_to_buffer(fb.name_buf.data(), fb.name_buf.size(), name);
+}
+
+[[nodiscard]] std::optional<std::size_t> find_entry(const FileBrowserState &fb, std::string_view name) {
+  for (std::size_t index = 0; index < fb.entries.size(); ++index)
+    if (fb.entries[index].name == name)
+      return index;
+  return std::nullopt;
+}
 
 } // namespace
 

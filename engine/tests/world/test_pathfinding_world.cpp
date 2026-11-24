@@ -16,22 +16,22 @@
 
 namespace {
 
-  namespace render_data = corundum::render;
-  using corundum::test::flat_chunk;
-  using corundum::test::init_world;
-  using corundum::test::world_map_view;
-  using corundum::world::find_path;
-  using corundum::world::MapView;
-  using corundum::world::tilemap::Tilemap;
+namespace render_data = corundum::render;
+using corundum::test::flat_chunk;
+using corundum::test::init_world;
+using corundum::test::world_map_view;
+using corundum::world::find_path;
+using corundum::world::MapView;
+using corundum::world::tilemap::Tilemap;
 
-  // Row-major index into a per-cell tilemap array.
-  std::size_t cell_index(int col, int row, int width) {
-    return (static_cast<std::size_t>(row) * static_cast<std::size_t>(width)) + static_cast<std::size_t>(col);
-  }
+// Row-major index into a per-cell tilemap array.
+std::size_t cell_index(int col, int row, int width) {
+  return (static_cast<std::size_t>(row) * static_cast<std::size_t>(width)) + static_cast<std::size_t>(col);
+}
 
-  void set_elev(Tilemap &tm, int col, int row, uint8_t e) {
-    tm.layers[0].elevation[cell_index(col, row, tm.width)] = e;
-  }
+void set_elev(Tilemap &tm, int col, int row, uint8_t e) {
+  tm.layers[0].elevation[cell_index(col, row, tm.width)] = e;
+}
 
 } // namespace
 

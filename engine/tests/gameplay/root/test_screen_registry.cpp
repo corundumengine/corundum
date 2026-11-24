@@ -15,9 +15,9 @@
 
 namespace {
 
-  using corundum::RenderLayer;
-  using corundum::ScreenRegistry;
-  using corundum::ScreenSpec;
+using corundum::RenderLayer;
+using corundum::ScreenRegistry;
+using corundum::ScreenSpec;
 
 } // namespace
 

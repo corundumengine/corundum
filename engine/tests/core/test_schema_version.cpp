@@ -16,7 +16,7 @@ using nlohmann::json;
 
 namespace {
 
-  constexpr int k_current = 3;
+constexpr int k_current = 3;
 
 } // namespace
 

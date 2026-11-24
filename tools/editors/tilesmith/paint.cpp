@@ -9,24 +9,24 @@
 
 namespace tools::tilesmith {
 
-  void paint_or_erase(EditorState &state, int win_x, int win_y, bool erase) {
-    if (state.map.tilesets.empty())
-      return;
-    const auto tc =
-        screen_to_tile(win_x, win_y, 0, k_menu_h, CANVAS_W, CANVAS_H, state.canvas.offset_x, state.canvas.offset_y,
-                       state.canvas.scale, state.elev_step_px, state.map.width, state.map.height,
-                       effective_diamond_w(state.map), effective_diamond_h(state.map), state.map, state.layer_visible);
-    if (!tc)
-      return;
-    set_tile(state, state.active_layer, tc->col, tc->row,
-             erase ? corundum::world::tilemap::k_empty_tile : state.selected_gid, erase ? 0 : state.selected_flip);
-    state.dirty = true;
-  }
+void paint_or_erase(EditorState &state, int win_x, int win_y, bool erase) {
+  if (state.map.tilesets.empty())
+    return;
+  const auto tc =
+      screen_to_tile(win_x, win_y, 0, k_menu_h, CANVAS_W, CANVAS_H, state.canvas.offset_x, state.canvas.offset_y,
+                     state.canvas.scale, state.elev_step_px, state.map.width, state.map.height,
+                     effective_diamond_w(state.map), effective_diamond_h(state.map), state.map, state.layer_visible);
+  if (!tc)
+    return;
+  set_tile(state, state.active_layer, tc->col, tc->row,
+           erase ? corundum::world::tilemap::k_empty_tile : state.selected_gid, erase ? 0 : state.selected_flip);
+  state.dirty = true;
+}
 
-  void erase_rect(EditorState &state, int col_min, int row_min, int col_max, int row_max) {
-    for (int row = row_min; row <= row_max; ++row)
-      for (int col = col_min; col <= col_max; ++col)
-        set_tile(state, state.active_layer, col, row, corundum::world::tilemap::k_empty_tile);
-  }
+void erase_rect(EditorState &state, int col_min, int row_min, int col_max, int row_max) {
+  for (int row = row_min; row <= row_max; ++row)
+    for (int col = col_min; col <= col_max; ++col)
+      set_tile(state, state.active_layer, col, row, corundum::world::tilemap::k_empty_tile);
+}
 
 } // namespace tools::tilesmith

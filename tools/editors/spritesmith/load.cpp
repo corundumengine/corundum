@@ -21,153 +21,153 @@
 
 namespace tools::spritesmith {
 
-  namespace {
+namespace {
 
-    SheetMode detect_mode(const nlohmann::json &j) {
-      if (j.contains("sprites") && j.at("sprites").is_array() && j.contains("schema_version"))
-        return SheetMode::Atlas;
-      if (j.contains("frames") && j.at("frames").is_object())
-        return SheetMode::Character;
-      return SheetMode::SpriteSheet;
-    }
+SheetMode detect_mode(const nlohmann::json &j) {
+  if (j.contains("sprites") && j.at("sprites").is_array() && j.contains("schema_version"))
+    return SheetMode::Atlas;
+  if (j.contains("frames") && j.at("frames").is_object())
+    return SheetMode::Character;
+  return SheetMode::SpriteSheet;
+}
 
-    // Clears every mode's containers so a prior load can't stay reachable through the UI's
-    // Character/Sprite Sheet toggle. Called only after the incoming file validates, so a failed
-    // open leaves the current document intact.
-    void reset_mode_containers(EditorState &state) {
-      state.sprites.clear();
-      state.anim_clips.clear();
-      state.atlas_sprites.clear();
-      state.atlas_name_to_index.clear();
-      state.atlas_clips.clear();
+// Clears every mode's containers so a prior load can't stay reachable through the UI's
+// Character/Sprite Sheet toggle. Called only after the incoming file validates, so a failed
+// open leaves the current document intact.
+void reset_mode_containers(EditorState &state) {
+  state.sprites.clear();
+  state.anim_clips.clear();
+  state.atlas_sprites.clear();
+  state.atlas_name_to_index.clear();
+  state.atlas_clips.clear();
 
-      state.selected_sprite = -1;
-      state.selected_clip = -1;
-      state.selected_atlas_clip = -1;
-      state.selected_atlas_sprite = -1;
-      state.hover_col = -1;
-      state.hover_row = -1;
-      state.hover_sprite = -1;
-    }
+  state.selected_sprite = -1;
+  state.selected_clip = -1;
+  state.selected_atlas_clip = -1;
+  state.selected_atlas_sprite = -1;
+  state.hover_col = -1;
+  state.hover_row = -1;
+  state.hover_sprite = -1;
+}
 
-    void load_character(EditorState &state, const corundum::sprites::CharacterSheetData &data) {
-      using namespace corundum::sprites;
-      reset_mode_containers(state);
-      state.mode = SheetMode::Character;
-      state.sheet_id = data.id;
-      state.image_path = data.path;
-      state.frame_width = data.frame_width;
-      state.frame_height = data.frame_height;
-      state.offset_x = data.offset_x;
-      state.offset_y = data.offset_y;
-      state.spacing_x = data.spacing_x;
-      state.spacing_y = data.spacing_y;
+void load_character(EditorState &state, const corundum::sprites::CharacterSheetData &data) {
+  using namespace corundum::sprites;
+  reset_mode_containers(state);
+  state.mode = SheetMode::Character;
+  state.sheet_id = data.id;
+  state.image_path = data.path;
+  state.frame_width = data.frame_width;
+  state.frame_height = data.frame_height;
+  state.offset_x = data.offset_x;
+  state.offset_y = data.offset_y;
+  state.spacing_x = data.spacing_x;
+  state.spacing_y = data.spacing_y;
 
-      state.sprites.reserve(data.sprites.size());
-      for (const auto &entry : data.sprites) {
-        SpriteDefinition sp;
-        sp.name = entry.name;
-        sp.col_span = entry.col_span;
-        sp.row_span = entry.row_span;
-        sp.footprint_col_span = entry.footprint_col_span;
-        sp.footprint_row_span = entry.footprint_row_span;
-        sp.walk_around_offset = entry.walk_around_offset;
-        sp.fps = entry.fps;
-        sp.anim_frames = entry.anim_frames;
-        state.sprites.push_back(std::move(sp));
-      }
-    }
-
-    void load_sprite_sheet_mode(EditorState &state, const std::filesystem::path &path) {
-      auto result = corundum::sprites::load_sprite_sheet_clips(corundum::core::DirectoryContentSource{}, path);
-      if (!result)
-        throw SheetLoadError(result.error());
-      const auto &data = *result;
-      reset_mode_containers(state);
-      state.mode = SheetMode::SpriteSheet;
-      state.sheet_id = data.id;
-      state.image_path = data.path;
-      state.frame_width = data.frame_width;
-      state.frame_height = data.frame_height;
-      state.columns = data.columns;
-      state.rows = data.rows;
-      state.offset_x = data.offset_x;
-      state.offset_y = data.offset_y;
-      state.spacing_x = data.spacing_x;
-      state.spacing_y = data.spacing_y;
-      state.anim_fps = data.anim_fps;
-      for (const auto &clip : data.clips)
-        state.anim_clips.push_back({clip.name, clip.frames});
-    }
-
-    void load_atlas_mode(EditorState &state, const std::filesystem::path &path) {
-      auto result = corundum::sprites::load_sprite_atlas(corundum::core::DirectoryContentSource{}, path);
-      if (!result)
-        throw SheetLoadError(result.error());
-      const auto &atlas = *result;
-
-      // Validate the sidecar before touching state — it can fail, and a failure must leave the
-      // current document intact rather than half-replaced.
-      corundum::sprites::AtlasClipsData sidecar;
-      const auto sidecar_path = corundum::sprites::atlas_clips_sidecar_path(path);
-      if (std::filesystem::exists(sidecar_path)) {
-        auto clips_result = corundum::sprites::load_atlas_clips(corundum::core::DirectoryContentSource{}, sidecar_path);
-        if (!clips_result)
-          throw SheetLoadError(clips_result.error());
-        sidecar = std::move(*clips_result);
-      }
-
-      reset_mode_containers(state);
-      state.mode = SheetMode::Atlas;
-      state.image_path = atlas.path;
-      state.image_pixel_w = atlas.width;
-      state.image_pixel_h = atlas.height;
-
-      state.atlas_sprites = atlas.sprites;
-      for (int i = 0; i < static_cast<int>(state.atlas_sprites.size()); ++i)
-        state.atlas_name_to_index[state.atlas_sprites[static_cast<std::size_t>(i)].name] = i;
-
-      for (const auto &clip : sidecar.clips) {
-        for (const auto &frame_name : clip.frames) {
-          if (!state.atlas_name_to_index.contains(frame_name))
-            std::println(stderr, "[Spritesmith] Warning: clip '{}' references unknown sprite '{}' (dangling)",
-                         clip.name, frame_name);
-        }
-        state.atlas_clips.push_back({clip.name, clip.fps, clip.frames});
-      }
-
-      state.atlas_undo.clear();
-      state.atlas_undo.push({state.atlas_clips, state.selected_atlas_clip});
-    }
-
-  } // namespace
-
-  void load_sheet(EditorState &state, const std::filesystem::path &path) {
-    std::ifstream f(path);
-    if (!f.is_open())
-      throw std::runtime_error("Cannot open: " + path.string());
-    nlohmann::json j;
-    try {
-      j = nlohmann::json::parse(f, nullptr, true, true);
-    } catch (const nlohmann::json::parse_error &e) {
-      throw SheetLoadError(std::string("JSON parse error: ") + e.what());
-    }
-
-    const SheetMode mode = detect_mode(j);
-    if (mode == SheetMode::Atlas) {
-      load_atlas_mode(state, path);
-    } else if (mode == SheetMode::Character) {
-      auto result = corundum::sprites::load_character_sheet(corundum::core::DirectoryContentSource{}, path);
-      if (!result)
-        throw SheetLoadError(result.error());
-      load_character(state, *result);
-    } else {
-      load_sprite_sheet_mode(state, path);
-    }
-
-    // Only commit json_path once the load has fully succeeded, so a failed open doesn't leave a
-    // later Save pointed at a file that was never actually loaded.
-    state.json_path = path;
+  state.sprites.reserve(data.sprites.size());
+  for (const auto &entry : data.sprites) {
+    SpriteDefinition sp;
+    sp.name = entry.name;
+    sp.col_span = entry.col_span;
+    sp.row_span = entry.row_span;
+    sp.footprint_col_span = entry.footprint_col_span;
+    sp.footprint_row_span = entry.footprint_row_span;
+    sp.walk_around_offset = entry.walk_around_offset;
+    sp.fps = entry.fps;
+    sp.anim_frames = entry.anim_frames;
+    state.sprites.push_back(std::move(sp));
   }
+}
+
+void load_sprite_sheet_mode(EditorState &state, const std::filesystem::path &path) {
+  auto result = corundum::sprites::load_sprite_sheet_clips(corundum::core::DirectoryContentSource{}, path);
+  if (!result)
+    throw SheetLoadError(result.error());
+  const auto &data = *result;
+  reset_mode_containers(state);
+  state.mode = SheetMode::SpriteSheet;
+  state.sheet_id = data.id;
+  state.image_path = data.path;
+  state.frame_width = data.frame_width;
+  state.frame_height = data.frame_height;
+  state.columns = data.columns;
+  state.rows = data.rows;
+  state.offset_x = data.offset_x;
+  state.offset_y = data.offset_y;
+  state.spacing_x = data.spacing_x;
+  state.spacing_y = data.spacing_y;
+  state.anim_fps = data.anim_fps;
+  for (const auto &clip : data.clips)
+    state.anim_clips.push_back({clip.name, clip.frames});
+}
+
+void load_atlas_mode(EditorState &state, const std::filesystem::path &path) {
+  auto result = corundum::sprites::load_sprite_atlas(corundum::core::DirectoryContentSource{}, path);
+  if (!result)
+    throw SheetLoadError(result.error());
+  const auto &atlas = *result;
+
+  // Validate the sidecar before touching state — it can fail, and a failure must leave the
+  // current document intact rather than half-replaced.
+  corundum::sprites::AtlasClipsData sidecar;
+  const auto sidecar_path = corundum::sprites::atlas_clips_sidecar_path(path);
+  if (std::filesystem::exists(sidecar_path)) {
+    auto clips_result = corundum::sprites::load_atlas_clips(corundum::core::DirectoryContentSource{}, sidecar_path);
+    if (!clips_result)
+      throw SheetLoadError(clips_result.error());
+    sidecar = std::move(*clips_result);
+  }
+
+  reset_mode_containers(state);
+  state.mode = SheetMode::Atlas;
+  state.image_path = atlas.path;
+  state.image_pixel_w = atlas.width;
+  state.image_pixel_h = atlas.height;
+
+  state.atlas_sprites = atlas.sprites;
+  for (int i = 0; i < static_cast<int>(state.atlas_sprites.size()); ++i)
+    state.atlas_name_to_index[state.atlas_sprites[static_cast<std::size_t>(i)].name] = i;
+
+  for (const auto &clip : sidecar.clips) {
+    for (const auto &frame_name : clip.frames) {
+      if (!state.atlas_name_to_index.contains(frame_name))
+        std::println(stderr, "[Spritesmith] Warning: clip '{}' references unknown sprite '{}' (dangling)", clip.name,
+                     frame_name);
+    }
+    state.atlas_clips.push_back({clip.name, clip.fps, clip.frames});
+  }
+
+  state.atlas_undo.clear();
+  state.atlas_undo.push({state.atlas_clips, state.selected_atlas_clip});
+}
+
+} // namespace
+
+void load_sheet(EditorState &state, const std::filesystem::path &path) {
+  std::ifstream f(path);
+  if (!f.is_open())
+    throw std::runtime_error("Cannot open: " + path.string());
+  nlohmann::json j;
+  try {
+    j = nlohmann::json::parse(f, nullptr, true, true);
+  } catch (const nlohmann::json::parse_error &e) {
+    throw SheetLoadError(std::string("JSON parse error: ") + e.what());
+  }
+
+  const SheetMode mode = detect_mode(j);
+  if (mode == SheetMode::Atlas) {
+    load_atlas_mode(state, path);
+  } else if (mode == SheetMode::Character) {
+    auto result = corundum::sprites::load_character_sheet(corundum::core::DirectoryContentSource{}, path);
+    if (!result)
+      throw SheetLoadError(result.error());
+    load_character(state, *result);
+  } else {
+    load_sprite_sheet_mode(state, path);
+  }
+
+  // Only commit json_path once the load has fully succeeded, so a failed open doesn't leave a
+  // later Save pointed at a file that was never actually loaded.
+  state.json_path = path;
+}
 
 } // namespace tools::spritesmith

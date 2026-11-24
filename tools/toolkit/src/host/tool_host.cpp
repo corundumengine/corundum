@@ -29,154 +29,154 @@ using namespace corundum::platform;
 
 namespace corundum::toolkit::host {
 
-  struct ToolHost::Impl {
-    Handle<Window> window;
-    std::unique_ptr<GpuContext> gpu_ctx;
-    std::unique_ptr<TextureCache> textures;
-    GLFWwindow *glfw_win{nullptr};
-    bool should_close{false};
-    bool simgui_ready{false};
-    bool glfw_backend_ready{false};
+struct ToolHost::Impl {
+  Handle<Window> window;
+  std::unique_ptr<GpuContext> gpu_ctx;
+  std::unique_ptr<TextureCache> textures;
+  GLFWwindow *glfw_win{nullptr};
+  bool should_close{false};
+  bool simgui_ready{false};
+  bool glfw_backend_ready{false};
+};
+
+ToolHost::ToolHost() : impl_{std::make_unique<Impl>()} {}
+
+ToolHost::~ToolHost() {
+  // create() can fail before either subsystem is up; only tear down what was
+  // actually initialised, in reverse setup order.
+  if (impl_->glfw_backend_ready)
+    ImGui_ImplGlfw_Shutdown();
+  if (impl_->simgui_ready)
+    simgui_shutdown();
+}
+
+std::expected<std::unique_ptr<ToolHost>, std::string> ToolHost::create(const ToolHostDesc &desc) {
+  auto ctx = std::unique_ptr<ToolHost>(new ToolHost());
+
+  auto window_result =
+      platform::create_window(static_cast<unsigned>(desc.width), static_cast<unsigned>(desc.height), desc.title);
+  if (!window_result)
+    return std::unexpected(window_result.error());
+  ctx->impl_->window = std::move(*window_result);
+
+  auto gpu_result = GpuContext::create(*ctx->impl_->window);
+  if (!gpu_result)
+    return std::unexpected(gpu_result.error());
+  ctx->impl_->gpu_ctx = std::move(*gpu_result);
+
+  ctx->impl_->textures = std::make_unique<TextureCache>();
+
+  ctx->impl_->glfw_win = static_cast<GLFWwindow *>(ctx->impl_->window->native_handle());
+  if (ctx->impl_->glfw_win == nullptr)
+    return std::unexpected("ToolHost: window has no GLFW handle");
+
+  simgui_setup(simgui_desc_t{
+      .depth_format = SG_PIXELFORMAT_NONE,
+  });
+  ctx->impl_->simgui_ready = true;
+
+  // Must match the sokol graphics define the toolkit was built with
+  // (corundum::platform_config): GLCore drives ImGui through OpenGL, while
+  // Metal and any custom backend use the API-agnostic "Other" path.
+#ifdef SOKOL_GLCORE
+  const bool backend_ready = ImGui_ImplGlfw_InitForOpenGL(ctx->impl_->glfw_win, true);
+#else
+  const bool backend_ready = ImGui_ImplGlfw_InitForOther(ctx->impl_->glfw_win, true);
+#endif
+  if (!backend_ready)
+    return std::unexpected("ToolHost: ImGui GLFW backend init failed");
+  ctx->impl_->glfw_backend_ready = true;
+
+  return ctx;
+}
+
+void ToolHost::run(const std::function<void()> &frame_fn) {
+  using Clock = std::chrono::steady_clock;
+  auto prev = Clock::now();
+
+  // The window is created hidden; reveal it once a frame has been presented so the tool never
+  // shows a blank window while it finishes setup.
+  bool window_shown = false;
+  const auto reveal = [&] {
+    if (!window_shown) {
+      window_shown = true;
+      impl_->window->show();
+    }
   };
 
-  ToolHost::ToolHost() : impl_{std::make_unique<Impl>()} {}
+  while (!impl_->should_close && glfwWindowShouldClose(impl_->glfw_win) == GLFW_FALSE) {
+    glfwPollEvents();
 
-  ToolHost::~ToolHost() {
-    // create() can fail before either subsystem is up; only tear down what was
-    // actually initialised, in reverse setup order.
-    if (impl_->glfw_backend_ready)
-      ImGui_ImplGlfw_Shutdown();
-    if (impl_->simgui_ready)
-      simgui_shutdown();
-  }
+    const auto now = Clock::now();
+    const float dt = std::chrono::duration<float>(now - prev).count();
+    prev = now;
 
-  std::expected<std::unique_ptr<ToolHost>, std::string> ToolHost::create(const ToolHostDesc &desc) {
-    auto ctx = std::unique_ptr<ToolHost>(new ToolHost());
-
-    auto window_result =
-        platform::create_window(static_cast<unsigned>(desc.width), static_cast<unsigned>(desc.height), desc.title);
-    if (!window_result)
-      return std::unexpected(window_result.error());
-    ctx->impl_->window = std::move(*window_result);
-
-    auto gpu_result = GpuContext::create(*ctx->impl_->window);
-    if (!gpu_result)
-      return std::unexpected(gpu_result.error());
-    ctx->impl_->gpu_ctx = std::move(*gpu_result);
-
-    ctx->impl_->textures = std::make_unique<TextureCache>();
-
-    ctx->impl_->glfw_win = static_cast<GLFWwindow *>(ctx->impl_->window->native_handle());
-    if (ctx->impl_->glfw_win == nullptr)
-      return std::unexpected("ToolHost: window has no GLFW handle");
-
-    simgui_setup(simgui_desc_t{
-        .depth_format = SG_PIXELFORMAT_NONE,
-    });
-    ctx->impl_->simgui_ready = true;
-
-    // Must match the sokol graphics define the toolkit was built with
-    // (corundum::platform_config): GLCore drives ImGui through OpenGL, while
-    // Metal and any custom backend use the API-agnostic "Other" path.
-#ifdef SOKOL_GLCORE
-    const bool backend_ready = ImGui_ImplGlfw_InitForOpenGL(ctx->impl_->glfw_win, true);
-#else
-    const bool backend_ready = ImGui_ImplGlfw_InitForOther(ctx->impl_->glfw_win, true);
-#endif
-    if (!backend_ready)
-      return std::unexpected("ToolHost: ImGui GLFW backend init failed");
-    ctx->impl_->glfw_backend_ready = true;
-
-    return ctx;
-  }
-
-  void ToolHost::run(const std::function<void()> &frame_fn) {
-    using Clock = std::chrono::steady_clock;
-    auto prev = Clock::now();
-
-    // The window is created hidden; reveal it once a frame has been presented so the tool never
-    // shows a blank window while it finishes setup.
-    bool window_shown = false;
-    const auto reveal = [&] {
-      if (!window_shown) {
-        window_shown = true;
-        impl_->window->show();
-      }
-    };
-
-    while (!impl_->should_close && glfwWindowShouldClose(impl_->glfw_win) == GLFW_FALSE) {
-      glfwPollEvents();
-
-      const auto now = Clock::now();
-      const float dt = std::chrono::duration<float>(now - prev).count();
-      prev = now;
-
-      auto [fb_w, fb_h] = impl_->gpu_ctx->framebuffer_size();
-      if (fb_w == 0 || fb_h == 0) {
-        reveal();
-        continue;
-      }
-
-      auto [win_w, win_h] = impl_->gpu_ctx->window_size();
-      const float dpi = win_w > 0 ? static_cast<float>(fb_w) / static_cast<float>(win_w) : 1.f;
-
-      ImGui_ImplGlfw_NewFrame();
-      simgui_new_frame(simgui_frame_desc_t{
-          .width = fb_w,
-          .height = fb_h,
-          .delta_time = dt,
-          .dpi_scale = dpi,
-      });
-
-      frame_fn();
-
-      // simgui_flush() ends the ImGui frame (it calls ImGui::Render()) and must run outside a pass.
-      simgui_flush();
-      if (!impl_->gpu_ctx->begin_default_pass({.r = 30, .g = 30, .b = 35, .a = 255})) {
-        reveal();
-        continue;
-      }
-
-      simgui_draw();
-      impl_->gpu_ctx->end_frame();
+    auto [fb_w, fb_h] = impl_->gpu_ctx->framebuffer_size();
+    if (fb_w == 0 || fb_h == 0) {
       reveal();
+      continue;
     }
-  }
 
-  void ToolHost::request_close() {
-    impl_->should_close = true;
-  }
+    auto [win_w, win_h] = impl_->gpu_ctx->window_size();
+    const float dpi = win_w > 0 ? static_cast<float>(fb_w) / static_cast<float>(win_w) : 1.f;
 
-  void ToolHost::set_title(std::string_view title) {
-    glfwSetWindowTitle(impl_->glfw_win, std::string{title}.c_str());
-  }
+    ImGui_ImplGlfw_NewFrame();
+    simgui_new_frame(simgui_frame_desc_t{
+        .width = fb_w,
+        .height = fb_h,
+        .delta_time = dt,
+        .dpi_scale = dpi,
+    });
 
-  Window &ToolHost::window() {
-    return *impl_->window;
-  }
+    frame_fn();
 
-  TextureCache &ToolHost::textures() {
-    return *impl_->textures;
-  }
+    // simgui_flush() ends the ImGui frame (it calls ImGui::Render()) and must run outside a pass.
+    simgui_flush();
+    if (!impl_->gpu_ctx->begin_default_pass({.r = 30, .g = 30, .b = 35, .a = 255})) {
+      reveal();
+      continue;
+    }
 
-  ImTextureID ToolHost::imgui_id(uint32_t texture_id) {
-    const std::optional<BackendTexture> handles = impl_->textures->backend_handle(texture_id);
-    if (!handles)
-      return ImTextureID_Invalid;
-    return simgui_imtextureid_with_sampler(sg_view{static_cast<uint32_t>(handles->view)},
-                                           sg_sampler{static_cast<uint32_t>(handles->sampler)});
+    simgui_draw();
+    impl_->gpu_ctx->end_frame();
+    reveal();
   }
+}
 
-  std::expected<TextureInfo, std::string> ToolHost::make_checkerboard(unsigned w, unsigned h, unsigned check_size) {
-    std::vector<uint32_t> pixels(static_cast<std::size_t>(w) * h);
-    constexpr uint32_t k_dark = 0xFF787878u;
-    constexpr uint32_t k_light = 0xFFA0A0A0u;
-    for (unsigned y = 0; y < h; ++y)
-      for (unsigned x = 0; x < w; ++x) {
-        const bool even = ((x / check_size) + (y / check_size)) % 2 == 0;
-        pixels[(static_cast<std::size_t>(y) * w) + x] = even ? k_light : k_dark;
-      }
-    return impl_->textures->create(w, h, pixels, WrapMode::Repeat);
-  }
+void ToolHost::request_close() {
+  impl_->should_close = true;
+}
+
+void ToolHost::set_title(std::string_view title) {
+  glfwSetWindowTitle(impl_->glfw_win, std::string{title}.c_str());
+}
+
+Window &ToolHost::window() {
+  return *impl_->window;
+}
+
+TextureCache &ToolHost::textures() {
+  return *impl_->textures;
+}
+
+ImTextureID ToolHost::imgui_id(uint32_t texture_id) {
+  const std::optional<BackendTexture> handles = impl_->textures->backend_handle(texture_id);
+  if (!handles)
+    return ImTextureID_Invalid;
+  return simgui_imtextureid_with_sampler(sg_view{static_cast<uint32_t>(handles->view)},
+                                         sg_sampler{static_cast<uint32_t>(handles->sampler)});
+}
+
+std::expected<TextureInfo, std::string> ToolHost::make_checkerboard(unsigned w, unsigned h, unsigned check_size) {
+  std::vector<uint32_t> pixels(static_cast<std::size_t>(w) * h);
+  constexpr uint32_t k_dark = 0xFF787878u;
+  constexpr uint32_t k_light = 0xFFA0A0A0u;
+  for (unsigned y = 0; y < h; ++y)
+    for (unsigned x = 0; x < w; ++x) {
+      const bool even = ((x / check_size) + (y / check_size)) % 2 == 0;
+      pixels[(static_cast<std::size_t>(y) * w) + x] = even ? k_light : k_dark;
+    }
+  return impl_->textures->create(w, h, pixels, WrapMode::Repeat);
+}
 
 } // namespace corundum::toolkit::host

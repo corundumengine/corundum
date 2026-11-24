@@ -19,27 +19,27 @@ using corundum::ui::wrap_styled;
 
 namespace {
 
-  // Character count proxy for a fixed-width font.
-  float char_count(std::string_view s, FontStyle /*style*/) {
-    return static_cast<float>(s.size());
-  }
+// Character count proxy for a fixed-width font.
+float char_count(std::string_view s, FontStyle /*style*/) {
+  return static_cast<float>(s.size());
+}
 
-  // Bold text is far wider, so a line that fits a bold word must have measured it as bold.
-  float bold_is_wide(std::string_view s, FontStyle style) {
-    return static_cast<float>(s.size()) + (style == FontStyle::Bold ? 100.f : 0.f);
-  }
+// Bold text is far wider, so a line that fits a bold word must have measured it as bold.
+float bold_is_wide(std::string_view s, FontStyle style) {
+  return static_cast<float>(s.size()) + (style == FontStyle::Bold ? 100.f : 0.f);
+}
 
-  StyledRun run(const char *text, FontStyle style) {
-    StyledRun result;
-    result.text = text;
-    result.style = style;
-    return result;
-  }
+StyledRun run(const char *text, FontStyle style) {
+  StyledRun result;
+  result.text = text;
+  result.style = style;
+  return result;
+}
 
-  std::vector<StyledLine> wrap_parsed(std::string_view text, float max_width) {
-    const auto runs = parse_styled(text);
-    return wrap_styled(std::span<const StyledRun>{runs}, max_width, char_count);
-  }
+std::vector<StyledLine> wrap_parsed(std::string_view text, float max_width) {
+  const auto runs = parse_styled(text);
+  return wrap_styled(std::span<const StyledRun>{runs}, max_width, char_count);
+}
 
 } // namespace
 

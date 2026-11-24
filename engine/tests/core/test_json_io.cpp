@@ -24,19 +24,19 @@ using corundum::test::disk;
 
 namespace {
 
-  void write_file(const fs::path &path, std::string_view content) {
-    std::ofstream f(path);
-    f << content;
-  }
+void write_file(const fs::path &path, std::string_view content) {
+  std::ofstream f(path);
+  f << content;
+}
 
-  std::string read_file(const fs::path &path) {
-    std::ifstream f(path);
-    return std::string{std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>()};
-  }
+std::string read_file(const fs::path &path) {
+  std::ifstream f(path);
+  return std::string{std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>()};
+}
 
-  corundum::test::TempDir temp_dir(std::string_view tag) {
-    return corundum::test::TempDir{"crpg_test_json_io_", tag};
-  }
+corundum::test::TempDir temp_dir(std::string_view tag) {
+  return corundum::test::TempDir{"crpg_test_json_io_", tag};
+}
 
 } // namespace
 

@@ -8,9 +8,9 @@
 
 // measure = character count (proxy for fixed-width font)
 namespace {
-  float char_count(std::string_view s) {
-    return static_cast<float>(s.size());
-  }
+float char_count(std::string_view s) {
+  return static_cast<float>(s.size());
+}
 } // namespace
 
 TEST_CASE("wrap_text - basic overflow") {

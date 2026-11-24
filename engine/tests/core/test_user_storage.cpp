@@ -19,9 +19,9 @@ using nlohmann::json;
 
 namespace {
 
-  corundum::test::TempDir temp_dir(std::string_view tag) {
-    return corundum::test::TempDir{"crpg_test_user_storage_", tag};
-  }
+corundum::test::TempDir temp_dir(std::string_view tag) {
+  return corundum::test::TempDir{"crpg_test_user_storage_", tag};
+}
 
 } // namespace
 

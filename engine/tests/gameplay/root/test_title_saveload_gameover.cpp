@@ -44,102 +44,102 @@ namespace fs = std::filesystem;
 
 namespace {
 
-  using corundum::test::adopt_platform;
-  using corundum::test::make_world_config;
-  using corundum::test::RecordingRenderer;
-  using corundum::test::run_one_step;
-  using corundum::world::GameMode;
-  namespace screens = corundum::gameplay::screens;
+using corundum::test::adopt_platform;
+using corundum::test::make_world_config;
+using corundum::test::RecordingRenderer;
+using corundum::test::run_one_step;
+using corundum::world::GameMode;
+namespace screens = corundum::gameplay::screens;
 
-  fs::path fixture_root() {
-    return CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+fs::path fixture_root() {
+  return CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+}
+
+/// The shared fixture world with a title and a non-empty game id, so the saves carry a game id.
+corundum::core::GameConfig make_config(bool show_title) {
+  corundum::core::GameConfig cfg = make_world_config(fixture_root());
+  cfg.show_title = show_title;
+  cfg.game_id = "test_game";
+  cfg.title = "Test Quest";
+  return cfg;
+}
+
+void init_engine(corundum::Engine &engine, bool show_title) {
+  adopt_platform(engine, 320, 240);
+  REQUIRE(engine.initialize(make_config(show_title)).has_value());
+}
+
+/// Route one physical action press through the engine's UI step, exactly as the fixed-step
+/// loop does.
+bool press(corundum::Engine &engine, corundum::input::Action action) {
+  corundum::input::InputState state{};
+  state.pressed.set(static_cast<std::size_t>(action));
+  engine.input_state = state;
+  const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
+  return engine.update_engine_screens(intent);
+}
+
+/// True when the recorded frame contains a DrawText whose text equals @p text.
+bool rendered_text(const RecordingRenderer &r, std::string_view text) {
+  for (const RecordingRenderer::DrawCall &call : r.log) {
+    if (const auto *draw = std::get_if<corundum::platform::DrawText>(&call); draw != nullptr && draw->text == text)
+      return true;
   }
+  return false;
+}
 
-  /// The shared fixture world with a title and a non-empty game id, so the saves carry a game id.
-  corundum::core::GameConfig make_config(bool show_title) {
-    corundum::core::GameConfig cfg = make_world_config(fixture_root());
-    cfg.show_title = show_title;
-    cfg.game_id = "test_game";
-    cfg.title = "Test Quest";
-    return cfg;
+/// True when any recorded DrawText contains @p needle.
+bool rendered_text_contains(const RecordingRenderer &r, std::string_view needle) {
+  for (const RecordingRenderer::DrawCall &call : r.log) {
+    if (const auto *draw = std::get_if<corundum::platform::DrawText>(&call);
+        draw != nullptr && draw->text.contains(needle))
+      return true;
   }
+  return false;
+}
 
-  void init_engine(corundum::Engine &engine, bool show_title) {
-    adopt_platform(engine, 320, 240);
-    REQUIRE(engine.initialize(make_config(show_title)).has_value());
+/// A scratch tree to root the engine's user storage at, standing in for the real user-data dir.
+struct ScratchUserData {
+  corundum::test::TempDir home{"crpg_test_framing_", "user_data"};
+
+  /// Give @p engine a user storage rooted at this scratch tree; call before init_engine().
+  void attach(corundum::Engine &engine) const {
+    engine.user_storage = std::make_unique<corundum::core::DirectoryUserStorage>(home.path());
   }
+};
 
-  /// Route one physical action press through the engine's UI step, exactly as the fixed-step
-  /// loop does.
-  bool press(corundum::Engine &engine, corundum::input::Action action) {
-    corundum::input::InputState state{};
-    state.pressed.set(static_cast<std::size_t>(action));
-    engine.input_state = state;
-    const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
-    return engine.update_engine_screens(intent);
+/// Overwrite a slot with deliberately invalid JSON.
+void write_corrupt_slot(corundum::core::UserStorage &storage, std::string_view slot_id) {
+  REQUIRE(storage.write(corundum::save::slot_name(slot_id), "not json").has_value());
+}
+
+/// Write @p content to @p path, creating parent directories.
+void write_file(const fs::path &path, std::string_view content) {
+  fs::create_directories(path.parent_path());
+  std::ofstream file(path);
+  file << content;
+}
+
+/// Render the Loading overlay as run_frame() would; this is what arms Gameplay::advance_loading().
+void render_loading(corundum::Engine &engine) {
+  const corundum::ScreenSpec *spec = engine.screens.find(screens::Loading);
+  REQUIRE(spec != nullptr);
+  REQUIRE(spec->render);
+  RecordingRenderer renderer;
+  spec->render(engine, renderer, {.x = 320.f, .y = 240.f});
+}
+
+/// A credits document long enough to overflow the 320x240 test viewport, so the scroll offset
+/// has somewhere to move.
+std::string long_credits_json() {
+  std::string lines;
+  for (int i = 0; i < 60; ++i) {
+    if (i > 0)
+      lines += ',';
+    lines += (i == 0) ? "\"First line\"" : std::format("\"Line {}\"", i);
   }
-
-  /// True when the recorded frame contains a DrawText whose text equals @p text.
-  bool rendered_text(const RecordingRenderer &r, std::string_view text) {
-    for (const RecordingRenderer::DrawCall &call : r.log) {
-      if (const auto *draw = std::get_if<corundum::platform::DrawText>(&call); draw != nullptr && draw->text == text)
-        return true;
-    }
-    return false;
-  }
-
-  /// True when any recorded DrawText contains @p needle.
-  bool rendered_text_contains(const RecordingRenderer &r, std::string_view needle) {
-    for (const RecordingRenderer::DrawCall &call : r.log) {
-      if (const auto *draw = std::get_if<corundum::platform::DrawText>(&call);
-          draw != nullptr && draw->text.contains(needle))
-        return true;
-    }
-    return false;
-  }
-
-  /// A scratch tree to root the engine's user storage at, standing in for the real user-data dir.
-  struct ScratchUserData {
-    corundum::test::TempDir home{"crpg_test_framing_", "user_data"};
-
-    /// Give @p engine a user storage rooted at this scratch tree; call before init_engine().
-    void attach(corundum::Engine &engine) const {
-      engine.user_storage = std::make_unique<corundum::core::DirectoryUserStorage>(home.path());
-    }
-  };
-
-  /// Overwrite a slot with deliberately invalid JSON.
-  void write_corrupt_slot(corundum::core::UserStorage &storage, std::string_view slot_id) {
-    REQUIRE(storage.write(corundum::save::slot_name(slot_id), "not json").has_value());
-  }
-
-  /// Write @p content to @p path, creating parent directories.
-  void write_file(const fs::path &path, std::string_view content) {
-    fs::create_directories(path.parent_path());
-    std::ofstream file(path);
-    file << content;
-  }
-
-  /// Render the Loading overlay as run_frame() would; this is what arms Gameplay::advance_loading().
-  void render_loading(corundum::Engine &engine) {
-    const corundum::ScreenSpec *spec = engine.screens.find(screens::Loading);
-    REQUIRE(spec != nullptr);
-    REQUIRE(spec->render);
-    RecordingRenderer renderer;
-    spec->render(engine, renderer, {.x = 320.f, .y = 240.f});
-  }
-
-  /// A credits document long enough to overflow the 320x240 test viewport, so the scroll offset
-  /// has somewhere to move.
-  std::string long_credits_json() {
-    std::string lines;
-    for (int i = 0; i < 60; ++i) {
-      if (i > 0)
-        lines += ',';
-      lines += (i == 0) ? "\"First line\"" : std::format("\"Line {}\"", i);
-    }
-    return std::format(R"({{"sections": [{{"heading": "Design", "lines": [{}]}}]}})", lines);
-  }
+  return std::format(R"({{"sections": [{{"heading": "Design", "lines": [{}]}}]}})", lines);
+}
 
 } // namespace
 

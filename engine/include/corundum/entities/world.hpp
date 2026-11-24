@@ -23,150 +23,150 @@
 
 namespace corundum::entities {
 
-  /// Top-level entity container; owns the entity pool and all component tables.
-  /// Member order is alignment-driven rather than alphabetical: the cache-line-aligned tables stay
-  /// first and contiguous so the smaller members never force padding between them.
-  /// @note Not thread-safe.
-  struct World {
-    CollisionTable collisions;
+/// Top-level entity container; owns the entity pool and all component tables.
+/// Member order is alignment-driven rather than alphabetical: the cache-line-aligned tables stay
+/// first and contiguous so the smaller members never force padding between them.
+/// @note Not thread-safe.
+struct World {
+  CollisionTable collisions;
 
-    TransformTable transforms; ///< Hot: col, row, dc, dr — updated every frame.
+  TransformTable transforms; ///< Hot: col, row, dc, dr — updated every frame.
 
-    AnimationTable animations;
+  AnimationTable animations;
 
-    ClipTable clips;
+  ClipTable clips;
 
-    DialogueTable dialogue_refs;
+  DialogueTable dialogue_refs;
 
-    ActorIdTable actor_ids; ///< Stable authoring ids, read on quest/save resolution.
+  ActorIdTable actor_ids; ///< Stable authoring ids, read on quest/save resolution.
 
-    /// Buffer for deferred deletion — append via mark_for_deletion(), drain via flush_deletions().
-    /// Fixed-size: bounded by k_max_entities, so no heap growth mid-frame.
-    std::array<EntityId, k_max_entities> pending_deletions{};
+  /// Buffer for deferred deletion — append via mark_for_deletion(), drain via flush_deletions().
+  /// Fixed-size: bounded by k_max_entities, so no heap growth mid-frame.
+  std::array<EntityId, k_max_entities> pending_deletions{};
 
-    std::uint32_t pending_deletion_count = 0;
+  std::uint32_t pending_deletion_count = 0;
 
-    EntityManager entities;
+  EntityManager entities;
 
-    FacingTable facings;
+  FacingTable facings;
 
-    SpriteTable sprites;
+  SpriteTable sprites;
 
-    MotionSpriteTable motion_sprites;
-  };
+  MotionSpriteTable motion_sprites;
+};
 
-  /// Spawn a basic entity with position, velocity, and sprite (non-animated NPC).
-  /// @return The new entity, or std::nullopt when the pool already holds k_max_entities.
-  [[nodiscard]] inline std::optional<EntityId> spawn(World &w, Position pos, Velocity vel, Sprite spr) {
-    if (w.entities.full())
-      return std::nullopt;
-    const EntityId e = w.entities.create();
-    w.transforms.insert(e, pos.col, pos.row, vel.dc, vel.dr);
-    w.sprites.insert(e, spr.sprite_id, spr.anim_id, spr.frame_index);
-    return e;
-  }
-
-  /// Spawn a fully animated entity (player). @return std::nullopt when the pool is full.
-  [[nodiscard]] inline std::optional<EntityId> spawn(World &w, Position pos, Velocity vel, Sprite spr, Animation anim) {
-    const std::optional<EntityId> e = spawn(w, pos, vel, spr);
-    if (!e)
-      return std::nullopt;
-    w.animations.insert(*e);
-    w.animations.set_frame_counts(*e, anim.frame_counts);
-    return e;
-  }
-
-  /// Spawn an NPC that triggers a dialogue graph. @return std::nullopt when the pool is full.
-  [[nodiscard]] inline std::optional<EntityId> spawn(World &w, Position pos, Velocity vel, Sprite spr,
-                                                     const DialogueRef &ref) {
-    const std::optional<EntityId> e = spawn(w, pos, vel, spr);
-    if (!e)
-      return std::nullopt;
-    w.dialogue_refs.insert(*e, ref.graph_id);
-    return e;
-  }
-
-  /// @brief Tie all component tables into a tuple for fold-expression iteration.
-  /// Adding a new table means adding one member to World and one entry in this tie, so
-  /// despawn and any future cross-table operation pick it up automatically.
-  /// @pre Every tied table must satisfy GameTable; the static_assert enforces it so despawn()
-  ///      can call has()/remove() on each.
-  [[nodiscard]] inline auto all_tables(World &w) noexcept {
-    static_assert(GameTable<TransformTable> && GameTable<SpriteTable> && GameTable<AnimationTable> &&
-                  GameTable<CollisionTable> && GameTable<DialogueTable> && GameTable<ActorIdTable> &&
-                  GameTable<FacingTable> && GameTable<MotionSpriteTable> && GameTable<ClipTable>);
-    return std::tie(w.transforms, w.sprites, w.animations, w.collisions, w.dialogue_refs, w.actor_ids, w.facings,
-                    w.motion_sprites, w.clips);
-  }
-
-  /// Remove e and all of its components from the world immediately.
-  /// Safe to call between update frames. During an update, prefer mark_for_deletion().
-  /// @pre e must be a live entity.
-  inline void despawn(World &w, EntityId e) {
-    assert(w.entities.is_live(e) && "despawn: not a live entity");
-    const auto remove_if_present = [e](auto &table) {
-      if (table.has(e))
-        table.remove(e);
-    };
-    std::apply([&](auto &...tables) { (remove_if_present(tables), ...); }, all_tables(w));
-    w.entities.destroy(e);
-  }
-
-  /** @brief Queue @p e for removal at the next flush_deletions() call.
-   *
-   * Safe to call mid-iteration — the entity remains live until flush_deletions().
-   * Marking an entity that is already queued is ignored, so double-marking is safe.
-   * Marking a stale handle asserts in debug and is ignored in release.
-   * @param[in,out] w World that owns @p e.
-   * @param[in]     e A live entity to queue for removal.
-   * @pre @p e must be live (returned by EntityManager::create() and not destroyed).
-   */
-  inline void mark_for_deletion(World &w, EntityId e) {
-    assert(w.entities.is_live(e) && "mark_for_deletion: not a live entity");
-    if (!w.entities.is_live(e))
-      return; // release builds: a stale handle is ignored rather than queued
-    core::verify(w.pending_deletion_count < k_max_entities, "pending_deletions full");
-    for (std::uint32_t i = 0; i < w.pending_deletion_count; ++i)
-      if (w.pending_deletions[i] == e)
-        return;
-    w.pending_deletions[w.pending_deletion_count++] = e;
-  }
-
-  /** @brief Despawn all entities queued via mark_for_deletion() and clear the queue.
-   *
-   * Call once per frame, after all system updates are complete, to safely apply
-   * mid-frame deletion requests without invalidating active iterators.
-   * Entries despawned directly since they were marked are skipped.
-   * @param[in,out] w World whose pending_deletions to drain.
-   */
-  inline void flush_deletions(World &w) {
-    for (std::uint32_t i = 0; i < w.pending_deletion_count; ++i)
-      if (w.entities.is_live(w.pending_deletions[i]))
-        despawn(w, w.pending_deletions[i]);
-    w.pending_deletion_count = 0;
-  }
-
-  /** @brief Queue every entity whose ClipEnd::Remove clip has finished for deletion.
-   *  @param[in,out] w World whose clips to read. */
-  inline void mark_finished_clips_for_deletion(World &w) {
-    for (const EntityId e : w.clips.active_entities())
-      if (w.clips.has_finished(e) && w.clips.end_of(e) == ClipEnd::Remove)
-        mark_for_deletion(w, e);
-  }
-
-  /** @brief Find the live entity carrying a stable authoring id.
-   *
-   * Linear scan over the dense actor-id rows — id lookups happen only on
-   * quest/save resolution, never in a per-frame hot loop.
-   * @param[in] w  World to search.
-   * @param[in] id Stable authoring id (as authored in a spawn-points file).
-   * @return The entity handle, or std::nullopt when no live entity has @p id.
-   */
-  [[nodiscard]] inline std::optional<EntityId> find_actor(const World &w, std::string_view id) noexcept {
-    for (const EntityId e : w.actor_ids.active_entities())
-      if (w.actor_ids.get_actor_id(e) == id)
-        return e;
+/// Spawn a basic entity with position, velocity, and sprite (non-animated NPC).
+/// @return The new entity, or std::nullopt when the pool already holds k_max_entities.
+[[nodiscard]] inline std::optional<EntityId> spawn(World &w, Position pos, Velocity vel, Sprite spr) {
+  if (w.entities.full())
     return std::nullopt;
-  }
+  const EntityId e = w.entities.create();
+  w.transforms.insert(e, pos.col, pos.row, vel.dc, vel.dr);
+  w.sprites.insert(e, spr.sprite_id, spr.anim_id, spr.frame_index);
+  return e;
+}
+
+/// Spawn a fully animated entity (player). @return std::nullopt when the pool is full.
+[[nodiscard]] inline std::optional<EntityId> spawn(World &w, Position pos, Velocity vel, Sprite spr, Animation anim) {
+  const std::optional<EntityId> e = spawn(w, pos, vel, spr);
+  if (!e)
+    return std::nullopt;
+  w.animations.insert(*e);
+  w.animations.set_frame_counts(*e, anim.frame_counts);
+  return e;
+}
+
+/// Spawn an NPC that triggers a dialogue graph. @return std::nullopt when the pool is full.
+[[nodiscard]] inline std::optional<EntityId> spawn(World &w, Position pos, Velocity vel, Sprite spr,
+                                                   const DialogueRef &ref) {
+  const std::optional<EntityId> e = spawn(w, pos, vel, spr);
+  if (!e)
+    return std::nullopt;
+  w.dialogue_refs.insert(*e, ref.graph_id);
+  return e;
+}
+
+/// @brief Tie all component tables into a tuple for fold-expression iteration.
+/// Adding a new table means adding one member to World and one entry in this tie, so
+/// despawn and any future cross-table operation pick it up automatically.
+/// @pre Every tied table must satisfy GameTable; the static_assert enforces it so despawn()
+///      can call has()/remove() on each.
+[[nodiscard]] inline auto all_tables(World &w) noexcept {
+  static_assert(GameTable<TransformTable> && GameTable<SpriteTable> && GameTable<AnimationTable> &&
+                GameTable<CollisionTable> && GameTable<DialogueTable> && GameTable<ActorIdTable> &&
+                GameTable<FacingTable> && GameTable<MotionSpriteTable> && GameTable<ClipTable>);
+  return std::tie(w.transforms, w.sprites, w.animations, w.collisions, w.dialogue_refs, w.actor_ids, w.facings,
+                  w.motion_sprites, w.clips);
+}
+
+/// Remove e and all of its components from the world immediately.
+/// Safe to call between update frames. During an update, prefer mark_for_deletion().
+/// @pre e must be a live entity.
+inline void despawn(World &w, EntityId e) {
+  assert(w.entities.is_live(e) && "despawn: not a live entity");
+  const auto remove_if_present = [e](auto &table) {
+    if (table.has(e))
+      table.remove(e);
+  };
+  std::apply([&](auto &...tables) { (remove_if_present(tables), ...); }, all_tables(w));
+  w.entities.destroy(e);
+}
+
+/** @brief Queue @p e for removal at the next flush_deletions() call.
+ *
+ * Safe to call mid-iteration — the entity remains live until flush_deletions().
+ * Marking an entity that is already queued is ignored, so double-marking is safe.
+ * Marking a stale handle asserts in debug and is ignored in release.
+ * @param[in,out] w World that owns @p e.
+ * @param[in]     e A live entity to queue for removal.
+ * @pre @p e must be live (returned by EntityManager::create() and not destroyed).
+ */
+inline void mark_for_deletion(World &w, EntityId e) {
+  assert(w.entities.is_live(e) && "mark_for_deletion: not a live entity");
+  if (!w.entities.is_live(e))
+    return; // release builds: a stale handle is ignored rather than queued
+  core::verify(w.pending_deletion_count < k_max_entities, "pending_deletions full");
+  for (std::uint32_t i = 0; i < w.pending_deletion_count; ++i)
+    if (w.pending_deletions[i] == e)
+      return;
+  w.pending_deletions[w.pending_deletion_count++] = e;
+}
+
+/** @brief Despawn all entities queued via mark_for_deletion() and clear the queue.
+ *
+ * Call once per frame, after all system updates are complete, to safely apply
+ * mid-frame deletion requests without invalidating active iterators.
+ * Entries despawned directly since they were marked are skipped.
+ * @param[in,out] w World whose pending_deletions to drain.
+ */
+inline void flush_deletions(World &w) {
+  for (std::uint32_t i = 0; i < w.pending_deletion_count; ++i)
+    if (w.entities.is_live(w.pending_deletions[i]))
+      despawn(w, w.pending_deletions[i]);
+  w.pending_deletion_count = 0;
+}
+
+/** @brief Queue every entity whose ClipEnd::Remove clip has finished for deletion.
+ *  @param[in,out] w World whose clips to read. */
+inline void mark_finished_clips_for_deletion(World &w) {
+  for (const EntityId e : w.clips.active_entities())
+    if (w.clips.has_finished(e) && w.clips.end_of(e) == ClipEnd::Remove)
+      mark_for_deletion(w, e);
+}
+
+/** @brief Find the live entity carrying a stable authoring id.
+ *
+ * Linear scan over the dense actor-id rows — id lookups happen only on
+ * quest/save resolution, never in a per-frame hot loop.
+ * @param[in] w  World to search.
+ * @param[in] id Stable authoring id (as authored in a spawn-points file).
+ * @return The entity handle, or std::nullopt when no live entity has @p id.
+ */
+[[nodiscard]] inline std::optional<EntityId> find_actor(const World &w, std::string_view id) noexcept {
+  for (const EntityId e : w.actor_ids.active_entities())
+    if (w.actor_ids.get_actor_id(e) == id)
+      return e;
+  return std::nullopt;
+}
 
 } // namespace corundum::entities

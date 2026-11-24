@@ -22,22 +22,22 @@ namespace fs = std::filesystem;
 
 namespace {
 
-  using corundum::test::adopt_platform;
-  using corundum::test::k_frame_time;
-  using corundum::test::make_world_config;
-  using corundum::world::GameMode;
-  namespace screens = corundum::gameplay::screens;
+using corundum::test::adopt_platform;
+using corundum::test::k_frame_time;
+using corundum::test::make_world_config;
+using corundum::world::GameMode;
+namespace screens = corundum::gameplay::screens;
 
-  /// Route one physical action press through the engine's UI step, exactly as the fixed-step
-  /// loop does. Inventory is an engine-owned hub tab, stepped by Engine, not world::update, so
-  /// the shared advance_with() helper cannot drive it.
-  bool press(corundum::Engine &engine, corundum::input::Action action) {
-    corundum::input::InputState state{};
-    state.pressed.set(static_cast<std::size_t>(action));
-    engine.input_state = state;
-    const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
-    return engine.update_engine_screens(intent);
-  }
+/// Route one physical action press through the engine's UI step, exactly as the fixed-step
+/// loop does. Inventory is an engine-owned hub tab, stepped by Engine, not world::update, so
+/// the shared advance_with() helper cannot drive it.
+bool press(corundum::Engine &engine, corundum::input::Action action) {
+  corundum::input::InputState state{};
+  state.pressed.set(static_cast<std::size_t>(action));
+  engine.input_state = state;
+  const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
+  return engine.update_engine_screens(intent);
+}
 
 } // namespace
 

@@ -17,97 +17,97 @@
 
 namespace tools::loom {
 
-  using ShortcutAction = std::function<void()>;
-  using ShortcutMap = std::flat_map<ImGuiKeyChord, ShortcutAction>;
+using ShortcutAction = std::function<void()>;
+using ShortcutMap = std::flat_map<ImGuiKeyChord, ShortcutAction>;
 
-  inline void build_shortcuts(ShortcutMap &map, EditorState &state, corundum::toolkit::host::ToolHost &host,
-                              bool &running) {
-    map.clear();
+inline void build_shortcuts(ShortcutMap &map, EditorState &state, corundum::toolkit::host::ToolHost &host,
+                            bool &running) {
+  map.clear();
 
-    auto apply_undo = [&](const DocSnapshot &snap) {
-      state.graph = snap.graph;
-      state.quest_doc_ = snap.quest;
-      state.item_doc_ = snap.item_doc;
-      state.doc_type_ = snap.doc_type;
-      state.selected_node = snap.selected_node;
-      state.selected_stage_ = snap.selected_stage;
-      state.selected_item_ = snap.selected_item;
-      state.dirty = true;
-      if (snap.doc_type == DocumentKind::Dialogue)
-        recompute_layout(state.graph, state.layout, state.graph_width_);
-    };
+  auto apply_undo = [&](const DocSnapshot &snap) {
+    state.graph = snap.graph;
+    state.quest_doc_ = snap.quest;
+    state.item_doc_ = snap.item_doc;
+    state.doc_type_ = snap.doc_type;
+    state.selected_node = snap.selected_node;
+    state.selected_stage_ = snap.selected_stage;
+    state.selected_item_ = snap.selected_item;
+    state.dirty = true;
+    if (snap.doc_type == DocumentKind::Dialogue)
+      recompute_layout(state.graph, state.layout, state.graph_width_);
+  };
 
-    map[ImGuiMod_Ctrl | ImGuiKey_N] = [&]() {
-      state.doc_type_ = DocumentKind::Dialogue;
-      state.graph = {};
-      state.graph.graph_id = "untitled_dialogue";
-      state.quest_doc_ = {};
-      state.item_doc_.clear();
-      state.selected_item_ = -1;
-      state.layout.clear();
-      state.file_path.clear();
-      state.selected_node = -1;
-      state.selected_stage_ = -1;
-      state.last_scroll_target_ = -1;
-      state.inspector_open = false;
-      state.dirty = false;
-      state.undo_stack.clear();
-      host.set_title("Loom :: Untitled Dialogue");
-    };
+  map[ImGuiMod_Ctrl | ImGuiKey_N] = [&]() {
+    state.doc_type_ = DocumentKind::Dialogue;
+    state.graph = {};
+    state.graph.graph_id = "untitled_dialogue";
+    state.quest_doc_ = {};
+    state.item_doc_.clear();
+    state.selected_item_ = -1;
+    state.layout.clear();
+    state.file_path.clear();
+    state.selected_node = -1;
+    state.selected_stage_ = -1;
+    state.last_scroll_target_ = -1;
+    state.inspector_open = false;
+    state.dirty = false;
+    state.undo_stack.clear();
+    host.set_title("Loom :: Untitled Dialogue");
+  };
 
-    map[ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_N] = [&]() {
-      state.doc_type_ = DocumentKind::Quest;
-      state.graph = {};
-      state.quest_doc_ = {};
-      state.quest_doc_.quest_id = "untitled_quest";
-      state.item_doc_.clear();
-      state.selected_item_ = -1;
-      state.layout.clear();
-      state.file_path.clear();
-      state.selected_node = -1;
-      state.selected_stage_ = -1;
-      state.inspector_open = false;
-      state.dirty = false;
-      state.undo_stack.clear();
-      host.set_title("Loom :: Untitled Quest");
-    };
+  map[ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_N] = [&]() {
+    state.doc_type_ = DocumentKind::Quest;
+    state.graph = {};
+    state.quest_doc_ = {};
+    state.quest_doc_.quest_id = "untitled_quest";
+    state.item_doc_.clear();
+    state.selected_item_ = -1;
+    state.layout.clear();
+    state.file_path.clear();
+    state.selected_node = -1;
+    state.selected_stage_ = -1;
+    state.inspector_open = false;
+    state.dirty = false;
+    state.undo_stack.clear();
+    host.set_title("Loom :: Untitled Quest");
+  };
 
-    map[ImGuiMod_Ctrl | ImGuiKey_O] = [&]() { action_open(state); };
+  map[ImGuiMod_Ctrl | ImGuiKey_O] = [&]() { action_open(state); };
 
-    map[ImGuiMod_Ctrl | ImGuiKey_S] = [&]() { action_save(state, host); };
+  map[ImGuiMod_Ctrl | ImGuiKey_S] = [&]() { action_save(state, host); };
 
-    map[ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S] = [&]() { action_save_as(state); };
+  map[ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S] = [&]() { action_save_as(state); };
 
-    map[ImGuiMod_Ctrl | ImGuiKey_Q] = [&]() {
-      if (state.dirty) {
-        state.popups.show_close_confirm = true;
-      } else {
-        running = false;
-      }
-    };
+  map[ImGuiMod_Ctrl | ImGuiKey_Q] = [&]() {
+    if (state.dirty) {
+      state.popups.show_close_confirm = true;
+    } else {
+      running = false;
+    }
+  };
 
-    map[ImGuiMod_Ctrl | ImGuiKey_Z] = [&]() {
-      DocSnapshot snap;
-      if (state.undo_stack.undo(snap)) {
-        apply_undo(snap);
-      }
-    };
+  map[ImGuiMod_Ctrl | ImGuiKey_Z] = [&]() {
+    DocSnapshot snap;
+    if (state.undo_stack.undo(snap)) {
+      apply_undo(snap);
+    }
+  };
 
-    map[ImGuiMod_Ctrl | ImGuiKey_Y] = [&]() {
-      DocSnapshot snap;
-      if (state.undo_stack.redo(snap)) {
-        apply_undo(snap);
-      }
-    };
-  }
+  map[ImGuiMod_Ctrl | ImGuiKey_Y] = [&]() {
+    DocSnapshot snap;
+    if (state.undo_stack.redo(snap)) {
+      apply_undo(snap);
+    }
+  };
+}
 
-  inline void process_shortcuts(const ShortcutMap &map) {
-    for (const auto &[chord, action] : map) {
-      if (ImGui::IsKeyChordPressed(chord)) {
-        action();
-        break;
-      }
+inline void process_shortcuts(const ShortcutMap &map) {
+  for (const auto &[chord, action] : map) {
+    if (ImGui::IsKeyChordPressed(chord)) {
+      action();
+      break;
     }
   }
+}
 
 } // namespace tools::loom

@@ -20,31 +20,31 @@ using corundum::ui::StyledSegment;
 
 namespace {
 
-  StyledRun run(std::string text, FontStyle style) {
-    StyledRun result;
-    result.text = std::move(text);
-    result.style = style;
-    return result;
-  }
+StyledRun run(std::string text, FontStyle style) {
+  StyledRun result;
+  result.text = std::move(text);
+  result.style = style;
+  return result;
+}
 
-  StyledSegment segment(std::string text, FontStyle style, float x) {
-    StyledSegment result;
-    result.text = std::move(text);
-    result.style = style;
-    result.x = x;
-    return result;
-  }
+StyledSegment segment(std::string text, FontStyle style, float x) {
+  StyledSegment result;
+  result.text = std::move(text);
+  result.style = style;
+  result.x = x;
+  return result;
+}
 
-  std::vector<StyledRun> runs(std::initializer_list<std::pair<const char *, FontStyle>> entries) {
-    std::vector<StyledRun> result;
-    for (const auto &[text, style] : entries)
-      result.push_back(run(text, style));
-    return result;
-  }
+std::vector<StyledRun> runs(std::initializer_list<std::pair<const char *, FontStyle>> entries) {
+  std::vector<StyledRun> result;
+  for (const auto &[text, style] : entries)
+    result.push_back(run(text, style));
+  return result;
+}
 
-  std::vector<StyledSegment> make_segments(std::initializer_list<StyledSegment> entries) {
-    return {entries.begin(), entries.end()};
-  }
+std::vector<StyledSegment> make_segments(std::initializer_list<StyledSegment> entries) {
+  return {entries.begin(), entries.end()};
+}
 
 } // namespace
 

@@ -17,263 +17,263 @@
 #include <vector>
 
 namespace corundum::core {
-  class ContentSource;
+class ContentSource;
 }
 
 namespace corundum::core {
 
-  /// Font sizes and layout parameters for the dialogue panel.
-  struct DialogueRenderConfig {
-    /** @brief Font size for body text. */
-    unsigned font_size_body = 22;
+/// Font sizes and layout parameters for the dialogue panel.
+struct DialogueRenderConfig {
+  /** @brief Font size for body text. */
+  unsigned font_size_body = 22;
 
-    /** @brief Font size for prompt text. */
-    unsigned font_size_prompt = 18;
+  /** @brief Font size for prompt text. */
+  unsigned font_size_prompt = 18;
 
-    /** @brief Font size for speaker text. */
-    unsigned font_size_speaker = 26;
+  /** @brief Font size for speaker text. */
+  unsigned font_size_speaker = 26;
 
-    /** @brief Vertical spacing between lines of text. */
-    float line_spacing = 32.f;
+  /** @brief Vertical spacing between lines of text. */
+  float line_spacing = 32.f;
 
-    /** @brief Margin around the dialogue panel. */
-    float margin = 20.f;
+  /** @brief Margin around the dialogue panel. */
+  float margin = 20.f;
 
-    /** @brief Fraction of window height occupied by the panel; must be in (0, 1). */
-    float panel_height_frac = 0.32f;
-  };
+  /** @brief Fraction of window height occupied by the panel; must be in (0, 1). */
+  float panel_height_frac = 0.32f;
+};
 
-  /// Font sizes for the optional display role. Unlike every other role, whose text shares the
-  /// body sizes, display text is sized per kind: one size for static headings, a larger one for
-  /// transient banners. A game with no display family ignores both.
-  struct DisplayRenderConfig {
-    /** @brief Size of static headings (screen titles, the title screen's game name). */
-    unsigned heading_size{48};
+/// Font sizes for the optional display role. Unlike every other role, whose text shares the
+/// body sizes, display text is sized per kind: one size for static headings, a larger one for
+/// transient banners. A game with no display family ignores both.
+struct DisplayRenderConfig {
+  /** @brief Size of static headings (screen titles, the title screen's game name). */
+  unsigned heading_size{48};
 
-    /** @brief Size of transient banners (location, quest and level-up notices). */
-    unsigned banner_size{64};
-  };
+  /** @brief Size of transient banners (location, quest and level-up notices). */
+  unsigned banner_size{64};
+};
 
-  /** @brief Maximum number of images game.json's "splash_images" may list (a studio logo and an engine logo). */
-  constexpr std::size_t k_max_splash_images{2};
+/** @brief Maximum number of images game.json's "splash_images" may list (a studio logo and an engine logo). */
+constexpr std::size_t k_max_splash_images{2};
 
-  /// Contains all file paths required by the game engine and logic. Directory fields default to
-  /// the standard project layout so a project following convention needs a near-empty game.json;
-  /// only the per-game file names (the "fonts" families and tilemap_path) require explicit values.
-  struct ResourcePaths {
-    /** @brief Directory containing codex lore batch files. Defaults to "data/codex". */
-    std::string codex_dir{"data/codex"};
+/// Contains all file paths required by the game engine and logic. Directory fields default to
+/// the standard project layout so a project following convention needs a near-empty game.json;
+/// only the per-game file names (the "fonts" families and tilemap_path) require explicit values.
+struct ResourcePaths {
+  /** @brief Directory containing codex lore batch files. Defaults to "data/codex". */
+  std::string codex_dir{"data/codex"};
 
-    /** @brief Optional path to the credits JSON file shown by the Credits screen.
-     *
-     *  Empty (the default) means the game has no credits, so the Title hides its Credits row
-     *  and the screen is unreachable. A path that is missing or fails to parse is treated the
-     *  same way, with a warning logged once. */
-    std::string credits_file{};
-
-    /** @brief Directory containing dialogue data files. Defaults to "data/dialogue". */
-    std::string dialogue_dir{"data/dialogue"};
-
-    /** @brief Directory containing all fonts. Defaults to "assets/fonts". */
-    std::string font_dir{"assets/fonts"};
-
-    /** @brief Per-role font families, indexed by ui::FontRole. A family's bold/italic files are
-     *  optional; its regular file is required. The display family is optional and, when absent,
-     *  resolves to the ui family. */
-    std::array<ui::FontFamilyPaths, ui::k_font_role_count> fonts{};
-
-    /** @brief Directory containing item data files. Defaults to "data/items". */
-    std::string items_dir{"data/items"};
-
-    /** @brief Directory containing fast-travel location batch files. Defaults to "data/locations". */
-    std::string locations_dir{"data/locations"};
-
-    /** @brief Directory containing portal definitions. Defaults to "data/portals". */
-    std::string portals_dir{"data/portals"};
-
-    /** @brief Directory containing quest data files. Defaults to "data/quests". */
-    std::string quests_dir{"data/quests"};
-
-    /** @brief Directory containing shop batch files. Defaults to "data/shops". */
-    std::string shops_dir{"data/shops"};
-
-    /** @brief JSON catalog mapping sound names to file paths (relative to sounds_dir).
-     *  Example: {"coin": "sfx/jingle_coin_01.ogg"}. Defaults to "data/sounds.json"; a missing or
-     *  unparseable file logs a warning and names resolve to "{name}.ogg". An explicit empty value
-     *  disables catalog lookup entirely. */
-    std::string sounds_catalog{"data/sounds.json"};
-
-    /** @brief Directory containing sound (OGG) assets. */
-    std::string sounds_dir{"data/sounds"};
-
-    /** @brief Directory containing defined spawn point locations. Defaults to "data/spawn_points". */
-    std::string spawn_points_dir{"data/spawn_points"};
-
-    /** @brief Images the boot splash shows in order; each fades in from black, holds, then fades out to black.
-     *
-     *  At most k_max_splash_images entries. Empty (the default) means no splash; an image that
-     *  fails to load is skipped with a warning. The @c --no-splash flag clears the list. */
-    std::vector<std::string> splash_images{};
-
-    /** @brief Directory containing sprite sheet assets. Defaults to "data/sprite_sheets". */
-    std::string sprites_dir{"data/sprite_sheets"};
-
-    /** @brief Path to the main tilemap asset. */
-    std::string tilemap_path{};
-
-    /** @brief Borders manifest the panel skin is built from. Defaults to "data/sprite_sheets/ui/borders.json". */
-    std::string ui_borders_file{"data/sprite_sheets/ui/borders.json"};
-
-    /** @brief Path to the world manifest JSON. Empty → single-tilemap mode. */
-    std::string world_manifest_path{};
-  };
-
-  /// Player identity and default placement, configurable via game.json "player" block.
-  struct PlayerConfig {
-    /** @brief Default spawn tile column (fractional tile-grid units). */
-    float col = 8.f;
-
-    /** @brief Sprite name for the player's idle animation. */
-    std::string idle_sprite{"player_idle"};
-
-    /** @brief Sprite name for the player's walk animation. */
-    std::string walk_sprite{"player_walk"};
-
-    /** @brief Default spawn tile row (fractional tile-grid units). */
-    float row = 8.f;
-  };
-
-  /** @brief Fixed-update rate applied when game.json omits "simulation_fps", and the rate the engine's
-   *  timer starts at before initialize() applies the configured value. */
-  constexpr unsigned k_default_simulation_fps = 60;
-
-  /** @brief In-game name used when a project sets neither "title" nor "window_title". */
-  constexpr std::string_view k_default_game_title = "Corundum Engine";
-
-  /** @brief Seconds of silence between the end of the title track and its restart, when game.json
-   *  omits "loop_delay_seconds". */
-  constexpr float k_default_title_music_loop_delay_seconds = 5.f;
-
-  /// Music for the framing screens, from game.json's optional "title_music" block. It starts at
-  /// boot, plays under the splash and the Title, and fades out once a playthrough's world loads.
-  struct TitleMusicConfig {
-    /** @brief Seconds of silence between the end of the track and its restart. */
-    float loop_delay_seconds{k_default_title_music_loop_delay_seconds};
-
-    /** @brief Project-relative path to an OGG, MP3 or WAV file. Empty (the default) means no title
-     *  music. */
-    std::string track;
-  };
-
-  /// Full runtime configuration loaded from game.json.
-  struct GameConfig {
-    /** @brief Machine-readable id of the game this config belongs to.
-     *
-     *  Written into saves via `game_id` and compared on load to refuse loading
-     *  a save across games. Absent from game.json → empty string (no guard). */
-    std::string game_id;
-
-    /** @brief Fixed seed for Engine::rng, for reproducible runs. Absent → one draw from
-     *  std::random_device at startup (logged). */
-    std::optional<std::uint64_t> rng_seed{};
-
-    /** @brief Target fixed-update rate for the simulation, in Hz. Rendering is paced independently by
-     *  vsync, so this neither caps nor follows the display rate. */
-    unsigned simulation_fps = k_default_simulation_fps;
-
-    /** @brief Enable vsync for the render loop. */
-    bool vsync = true;
-
-    /** @brief Initial height of the game window in pixels. */
-    unsigned win_h{600};
-
-    /** @brief Initial width of the game window in pixels. */
-    unsigned win_w{800};
-
-    /** @brief Window mode at startup, before any user setting applies ("window_mode" in game.json). */
-    WindowMode window_mode{WindowMode::Windowed};
-
-    /** @brief Game name drawn on the Title screen ("title" in game.json).
-     *
-     *  Distinct from window_title: the OS caption and the in-game name can differ. At parse time
-     *  an unset title falls back to window_title, then to k_default_game_title, so a loaded
-     *  GameConfig always carries a non-empty title. */
-    std::string title;
-
-    /** @brief Window title shown in the OS title bar ("window_title" in game.json).
-     *
-     *  At parse time an unset window_title falls back to `title`, so the two are equal unless a
-     *  project names them differently. */
-    std::string window_title;
-
-    /** @brief Whether the game opens on the Title screen.
-     *
-     *  Setting it to false starts directly in the world, which dev workflows and tests
-     *  use to skip the framing screen. Only the gameplay framework reads it. */
-    bool show_title = true;
-
-    /** @brief Radius in tile-grid units for player interaction detection. */
-    float interact_radius = 2.f;
-
-    /** @brief Base movement speed of the player character. */
-    float player_speed = 200.f;
-
-    /** @brief Scaling factor applied to all character/entity sprites. */
-    float character_scale = 2.f;
-
-    /** @brief Initial Camera::zoom applied at startup, clamped to [min_zoom, max_zoom]. */
-    float default_zoom = 1.f;
-
-    /** @brief Screen pixels a tile is lifted per unit of elevation. */
-    float elevation_step_px = 4.f;
-
-    /** @brief Max elevation delta (same units as TilemapLayer::elevation) an entity can
-     *  step between adjacent tiles without a ramp/stair bridging them. */
-    unsigned int max_step_height = 4;
-
-    /** @brief Maximum allowed Camera::zoom (most zoomed in). */
-    float max_zoom = 3.f;
-
-    /** @brief Minimum allowed Camera::zoom (most zoomed out). */
-    float min_zoom = 0.5f;
-
-    /** @brief Scaling factor applied to all tilemap assets. */
-    float tile_scale = 2.f;
-
-    /** @brief Rendering configuration specific to the dialogue system. */
-    DialogueRenderConfig dialogue_render;
-
-    /** @brief Display-role font sizes, parsed from the optional top-level "display" block. */
-    DisplayRenderConfig display;
-
-    /** @brief Grouped resource file paths for memory locality. */
-    ResourcePaths paths{};
-
-    /** @brief Player identity and default placement. */
-    PlayerConfig player{};
-
-    /** @brief Framing-screen music; an empty track means none. */
-    TitleMusicConfig title_music{};
-
-    /** @brief Flag values seeded into the FlagStore during initialize(), before the first frame.
-     *
-     *  Lets a project author its starting state (gold, reputation, "intro_seen") in data rather
-     *  than code. Absent or empty means no flags are seeded. */
-    std::flat_map<std::string, int> starting_flags{};
-  };
-
-  /// Parses game.json at @p path and returns a validated GameConfig.
-  /// @return std::expected<GameConfig, std::string> containing the validated config on success, or an error message on
-  /// failure.
-  [[nodiscard]] std::expected<GameConfig, std::string> load_game_config(const core::ContentSource &content,
-                                                                        const std::filesystem::path &path);
-
-  /** @brief The game's display name for framing screens.
+  /** @brief Optional path to the credits JSON file shown by the Credits screen.
    *
-   *  A project that sets only one of "title"/"window_title" gets that value for both; a project
-   *  that sets neither gets k_default_game_title. load_game_config() resolves both fields already,
-   *  so this only matters for a GameConfig built by hand (tests, embeddings).
-   */
-  [[nodiscard]] std::string_view game_title(const GameConfig &cfg) noexcept;
+   *  Empty (the default) means the game has no credits, so the Title hides its Credits row
+   *  and the screen is unreachable. A path that is missing or fails to parse is treated the
+   *  same way, with a warning logged once. */
+  std::string credits_file{};
+
+  /** @brief Directory containing dialogue data files. Defaults to "data/dialogue". */
+  std::string dialogue_dir{"data/dialogue"};
+
+  /** @brief Directory containing all fonts. Defaults to "assets/fonts". */
+  std::string font_dir{"assets/fonts"};
+
+  /** @brief Per-role font families, indexed by ui::FontRole. A family's bold/italic files are
+   *  optional; its regular file is required. The display family is optional and, when absent,
+   *  resolves to the ui family. */
+  std::array<ui::FontFamilyPaths, ui::k_font_role_count> fonts{};
+
+  /** @brief Directory containing item data files. Defaults to "data/items". */
+  std::string items_dir{"data/items"};
+
+  /** @brief Directory containing fast-travel location batch files. Defaults to "data/locations". */
+  std::string locations_dir{"data/locations"};
+
+  /** @brief Directory containing portal definitions. Defaults to "data/portals". */
+  std::string portals_dir{"data/portals"};
+
+  /** @brief Directory containing quest data files. Defaults to "data/quests". */
+  std::string quests_dir{"data/quests"};
+
+  /** @brief Directory containing shop batch files. Defaults to "data/shops". */
+  std::string shops_dir{"data/shops"};
+
+  /** @brief JSON catalog mapping sound names to file paths (relative to sounds_dir).
+   *  Example: {"coin": "sfx/jingle_coin_01.ogg"}. Defaults to "data/sounds.json"; a missing or
+   *  unparseable file logs a warning and names resolve to "{name}.ogg". An explicit empty value
+   *  disables catalog lookup entirely. */
+  std::string sounds_catalog{"data/sounds.json"};
+
+  /** @brief Directory containing sound (OGG) assets. */
+  std::string sounds_dir{"data/sounds"};
+
+  /** @brief Directory containing defined spawn point locations. Defaults to "data/spawn_points". */
+  std::string spawn_points_dir{"data/spawn_points"};
+
+  /** @brief Images the boot splash shows in order; each fades in from black, holds, then fades out to black.
+   *
+   *  At most k_max_splash_images entries. Empty (the default) means no splash; an image that
+   *  fails to load is skipped with a warning. The @c --no-splash flag clears the list. */
+  std::vector<std::string> splash_images{};
+
+  /** @brief Directory containing sprite sheet assets. Defaults to "data/sprite_sheets". */
+  std::string sprites_dir{"data/sprite_sheets"};
+
+  /** @brief Path to the main tilemap asset. */
+  std::string tilemap_path{};
+
+  /** @brief Borders manifest the panel skin is built from. Defaults to "data/sprite_sheets/ui/borders.json". */
+  std::string ui_borders_file{"data/sprite_sheets/ui/borders.json"};
+
+  /** @brief Path to the world manifest JSON. Empty → single-tilemap mode. */
+  std::string world_manifest_path{};
+};
+
+/// Player identity and default placement, configurable via game.json "player" block.
+struct PlayerConfig {
+  /** @brief Default spawn tile column (fractional tile-grid units). */
+  float col = 8.f;
+
+  /** @brief Sprite name for the player's idle animation. */
+  std::string idle_sprite{"player_idle"};
+
+  /** @brief Sprite name for the player's walk animation. */
+  std::string walk_sprite{"player_walk"};
+
+  /** @brief Default spawn tile row (fractional tile-grid units). */
+  float row = 8.f;
+};
+
+/** @brief Fixed-update rate applied when game.json omits "simulation_fps", and the rate the engine's
+ *  timer starts at before initialize() applies the configured value. */
+constexpr unsigned k_default_simulation_fps = 60;
+
+/** @brief In-game name used when a project sets neither "title" nor "window_title". */
+constexpr std::string_view k_default_game_title = "Corundum Engine";
+
+/** @brief Seconds of silence between the end of the title track and its restart, when game.json
+ *  omits "loop_delay_seconds". */
+constexpr float k_default_title_music_loop_delay_seconds = 5.f;
+
+/// Music for the framing screens, from game.json's optional "title_music" block. It starts at
+/// boot, plays under the splash and the Title, and fades out once a playthrough's world loads.
+struct TitleMusicConfig {
+  /** @brief Seconds of silence between the end of the track and its restart. */
+  float loop_delay_seconds{k_default_title_music_loop_delay_seconds};
+
+  /** @brief Project-relative path to an OGG, MP3 or WAV file. Empty (the default) means no title
+   *  music. */
+  std::string track;
+};
+
+/// Full runtime configuration loaded from game.json.
+struct GameConfig {
+  /** @brief Machine-readable id of the game this config belongs to.
+   *
+   *  Written into saves via `game_id` and compared on load to refuse loading
+   *  a save across games. Absent from game.json → empty string (no guard). */
+  std::string game_id;
+
+  /** @brief Fixed seed for Engine::rng, for reproducible runs. Absent → one draw from
+   *  std::random_device at startup (logged). */
+  std::optional<std::uint64_t> rng_seed{};
+
+  /** @brief Target fixed-update rate for the simulation, in Hz. Rendering is paced independently by
+   *  vsync, so this neither caps nor follows the display rate. */
+  unsigned simulation_fps = k_default_simulation_fps;
+
+  /** @brief Enable vsync for the render loop. */
+  bool vsync = true;
+
+  /** @brief Initial height of the game window in pixels. */
+  unsigned win_h{600};
+
+  /** @brief Initial width of the game window in pixels. */
+  unsigned win_w{800};
+
+  /** @brief Window mode at startup, before any user setting applies ("window_mode" in game.json). */
+  WindowMode window_mode{WindowMode::Windowed};
+
+  /** @brief Game name drawn on the Title screen ("title" in game.json).
+   *
+   *  Distinct from window_title: the OS caption and the in-game name can differ. At parse time
+   *  an unset title falls back to window_title, then to k_default_game_title, so a loaded
+   *  GameConfig always carries a non-empty title. */
+  std::string title;
+
+  /** @brief Window title shown in the OS title bar ("window_title" in game.json).
+   *
+   *  At parse time an unset window_title falls back to `title`, so the two are equal unless a
+   *  project names them differently. */
+  std::string window_title;
+
+  /** @brief Whether the game opens on the Title screen.
+   *
+   *  Setting it to false starts directly in the world, which dev workflows and tests
+   *  use to skip the framing screen. Only the gameplay framework reads it. */
+  bool show_title = true;
+
+  /** @brief Radius in tile-grid units for player interaction detection. */
+  float interact_radius = 2.f;
+
+  /** @brief Base movement speed of the player character. */
+  float player_speed = 200.f;
+
+  /** @brief Scaling factor applied to all character/entity sprites. */
+  float character_scale = 2.f;
+
+  /** @brief Initial Camera::zoom applied at startup, clamped to [min_zoom, max_zoom]. */
+  float default_zoom = 1.f;
+
+  /** @brief Screen pixels a tile is lifted per unit of elevation. */
+  float elevation_step_px = 4.f;
+
+  /** @brief Max elevation delta (same units as TilemapLayer::elevation) an entity can
+   *  step between adjacent tiles without a ramp/stair bridging them. */
+  unsigned int max_step_height = 4;
+
+  /** @brief Maximum allowed Camera::zoom (most zoomed in). */
+  float max_zoom = 3.f;
+
+  /** @brief Minimum allowed Camera::zoom (most zoomed out). */
+  float min_zoom = 0.5f;
+
+  /** @brief Scaling factor applied to all tilemap assets. */
+  float tile_scale = 2.f;
+
+  /** @brief Rendering configuration specific to the dialogue system. */
+  DialogueRenderConfig dialogue_render;
+
+  /** @brief Display-role font sizes, parsed from the optional top-level "display" block. */
+  DisplayRenderConfig display;
+
+  /** @brief Grouped resource file paths for memory locality. */
+  ResourcePaths paths{};
+
+  /** @brief Player identity and default placement. */
+  PlayerConfig player{};
+
+  /** @brief Framing-screen music; an empty track means none. */
+  TitleMusicConfig title_music{};
+
+  /** @brief Flag values seeded into the FlagStore during initialize(), before the first frame.
+   *
+   *  Lets a project author its starting state (gold, reputation, "intro_seen") in data rather
+   *  than code. Absent or empty means no flags are seeded. */
+  std::flat_map<std::string, int> starting_flags{};
+};
+
+/// Parses game.json at @p path and returns a validated GameConfig.
+/// @return std::expected<GameConfig, std::string> containing the validated config on success, or an error message on
+/// failure.
+[[nodiscard]] std::expected<GameConfig, std::string> load_game_config(const core::ContentSource &content,
+                                                                      const std::filesystem::path &path);
+
+/** @brief The game's display name for framing screens.
+ *
+ *  A project that sets only one of "title"/"window_title" gets that value for both; a project
+ *  that sets neither gets k_default_game_title. load_game_config() resolves both fields already,
+ *  so this only matters for a GameConfig built by hand (tests, embeddings).
+ */
+[[nodiscard]] std::string_view game_title(const GameConfig &cfg) noexcept;
 
 } // namespace corundum::core

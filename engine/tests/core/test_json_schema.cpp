@@ -11,7 +11,7 @@
 
 namespace {
 
-  constexpr std::string_view k_simple_schema = R"({
+constexpr std::string_view k_simple_schema = R"({
     "type": "object",
     "required": ["id"],
     "properties": {

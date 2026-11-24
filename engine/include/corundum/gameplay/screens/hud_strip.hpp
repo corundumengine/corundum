@@ -13,45 +13,45 @@
 
 namespace corundum::gameplay::screens {
 
-  /** @brief FlagStore key holding the player's currency. */
-  inline constexpr std::string_view k_gold_flag = "gold";
+/** @brief FlagStore key holding the player's currency. */
+inline constexpr std::string_view k_gold_flag = "gold";
 
-  /** @brief The persistent one-line HUD's content: gold and the tracked active quest. */
-  struct HudStripData {
-    int gold{};
-    std::string quest_name{};
-    std::string objective{};
-    bool has_quest{false};
-  };
+/** @brief The persistent one-line HUD's content: gold and the tracked active quest. */
+struct HudStripData {
+  int gold{};
+  std::string quest_name{};
+  std::string objective{};
+  bool has_quest{false};
+};
 
-  /** @brief Derive the HUD strip from the flag store and quest registry.
-   *
-   *  Gold is the `gold` flag. The reported quest is the tracked Active quest
-   *  (`quest.<id>.tracked`), falling back to the first Active quest by name when nothing is
-   *  tracked; `objective` is that quest's current-stage first objective. Nothing is reported when
-   *  the tracked quest is no longer Active and no other Active quest exists.
-   *
-   *  @param flags   Active FlagStore.
-   *  @param quests  Loaded quest registry.
-   *  @param zone_id Current zone; `local.<key>` objective conditions resolve against it.
-   */
-  [[nodiscard]] HudStripData build_hud_strip(const world::FlagStore &flags, const gameplay::quest::Registry &quests,
-                                             std::string_view zone_id = {});
+/** @brief Derive the HUD strip from the flag store and quest registry.
+ *
+ *  Gold is the `gold` flag. The reported quest is the tracked Active quest
+ *  (`quest.<id>.tracked`), falling back to the first Active quest by name when nothing is
+ *  tracked; `objective` is that quest's current-stage first objective. Nothing is reported when
+ *  the tracked quest is no longer Active and no other Active quest exists.
+ *
+ *  @param flags   Active FlagStore.
+ *  @param quests  Loaded quest registry.
+ *  @param zone_id Current zone; `local.<key>` objective conditions resolve against it.
+ */
+[[nodiscard]] HudStripData build_hud_strip(const world::FlagStore &flags, const gameplay::quest::Registry &quests,
+                                           std::string_view zone_id = {});
 
-  /** @brief Draw the persistent HUD as a small top-left box: gold plus the active objective.
-   *
-   *  Pure render. The box is drawn as an opaque fill (panel_fill()) plus a nine-patch frame
-   *  (panel_frame()) — separate calls so the fill can be opaque, unlike the modal panels' shared
-   *  translucent style.bg, which would tint the world showing through the always-on HUD. The
-   *  caller skips the HUD while a screen is open.
-   *
-   *  @param r      Platform renderer; receives one DrawRect, the border's DrawSprite commands,
-   *                then one DrawText.
-   *  @param style  Dialog text style (font, size, colour).
-   *  @param border Pre-loaded nine-patch border texture/tile dims; same one used by the dialogue box.
-   *  @param data   Content derived by build_hud_strip().
-   */
-  void hud_strip_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
-                        const HudStripData &data);
+/** @brief Draw the persistent HUD as a small top-left box: gold plus the active objective.
+ *
+ *  Pure render. The box is drawn as an opaque fill (panel_fill()) plus a nine-patch frame
+ *  (panel_frame()) — separate calls so the fill can be opaque, unlike the modal panels' shared
+ *  translucent style.bg, which would tint the world showing through the always-on HUD. The
+ *  caller skips the HUD while a screen is open.
+ *
+ *  @param r      Platform renderer; receives one DrawRect, the border's DrawSprite commands,
+ *                then one DrawText.
+ *  @param style  Dialog text style (font, size, colour).
+ *  @param border Pre-loaded nine-patch border texture/tile dims; same one used by the dialogue box.
+ *  @param data   Content derived by build_hud_strip().
+ */
+void hud_strip_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+                      const HudStripData &data);
 
 } // namespace corundum::gameplay::screens

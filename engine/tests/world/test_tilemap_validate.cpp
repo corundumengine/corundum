@@ -11,38 +11,38 @@ namespace ctt = corundum::world::tilemap;
 
 namespace {
 
-  ctt::TilemapTileset make_tileset(ctt::TileId first_gid, int tile_count) {
-    ctt::TilemapTileset ts;
-    ts.first_gid = first_gid;
-    ts.info.tile_count = tile_count;
-    return ts;
-  }
+ctt::TilemapTileset make_tileset(ctt::TileId first_gid, int tile_count) {
+  ctt::TilemapTileset ts;
+  ts.first_gid = first_gid;
+  ts.info.tile_count = tile_count;
+  return ts;
+}
 
-  ctt::Tilemap make_valid_map() {
-    ctt::Tilemap tm;
-    tm.width = 2;
-    tm.height = 2;
-    tm.tilesets.push_back(make_tileset(0, 4));
+ctt::Tilemap make_valid_map() {
+  ctt::Tilemap tm;
+  tm.width = 2;
+  tm.height = 2;
+  tm.tilesets.push_back(make_tileset(0, 4));
 
-    ctt::TilemapLayer layer;
-    layer.name = "ground";
-    layer.z_index = 0;
-    layer.tiles = {0, 1, 2, 3};
-    tm.layers.push_back(layer);
-    return tm;
-  }
+  ctt::TilemapLayer layer;
+  layer.name = "ground";
+  layer.z_index = 0;
+  layer.tiles = {0, 1, 2, 3};
+  tm.layers.push_back(layer);
+  return tm;
+}
 
-  ctt::Tilemap make_empty_map(int width, int height) {
-    ctt::Tilemap tm;
-    tm.width = width;
-    tm.height = height;
+ctt::Tilemap make_empty_map(int width, int height) {
+  ctt::Tilemap tm;
+  tm.width = width;
+  tm.height = height;
 
-    ctt::TilemapLayer layer;
-    layer.name = "ground";
-    layer.tiles.assign(static_cast<std::size_t>(width) * static_cast<std::size_t>(height), ctt::k_empty_tile);
-    tm.layers.push_back(layer);
-    return tm;
-  }
+  ctt::TilemapLayer layer;
+  layer.name = "ground";
+  layer.tiles.assign(static_cast<std::size_t>(width) * static_cast<std::size_t>(height), ctt::k_empty_tile);
+  tm.layers.push_back(layer);
+  return tm;
+}
 
 } // namespace
 

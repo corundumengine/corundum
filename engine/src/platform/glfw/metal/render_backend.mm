@@ -12,8 +12,8 @@
 
 namespace corundum::platform::glfw::render_backend {
 
-  namespace {
-    constexpr const char *k_vertex_shader = R"(
+namespace {
+constexpr const char *k_vertex_shader = R"(
 #include <metal_stdlib>
 using namespace metal;
 struct Vertex {
@@ -36,7 +36,7 @@ vertex Varyings vs_main(Vertex in [[stage_in]], constant UB& ub [[buffer(0)]]) {
 }
 )";
 
-    constexpr const char *k_fragment_shader = R"(
+constexpr const char *k_fragment_shader = R"(
 #include <metal_stdlib>
 using namespace metal;
 struct Varyings {
@@ -50,28 +50,28 @@ fragment float4 fs_main(Varyings in [[stage_in]],
     return tex.sample(samp, in.texcoord) * in.color;
 }
 )";
-  } // namespace
+} // namespace
 
-  const char *vertex_shader_source() noexcept {
-    return k_vertex_shader;
-  }
+const char *vertex_shader_source() noexcept {
+  return k_vertex_shader;
+}
 
-  const char *fragment_shader_source() noexcept {
-    return k_fragment_shader;
-  }
+const char *fragment_shader_source() noexcept {
+  return k_fragment_shader;
+}
 
-  void configure_shader(sg_shader_desc &desc) noexcept {
-    desc.vertex_func.entry = "vs_main";
-    desc.fragment_func.entry = "fs_main";
-    desc.uniform_blocks[0].msl_buffer_n = 0;
-    desc.views[0].texture.msl_texture_n = 0;
-    desc.samplers[0].msl_sampler_n = 0;
-  }
+void configure_shader(sg_shader_desc &desc) noexcept {
+  desc.vertex_func.entry = "vs_main";
+  desc.fragment_func.entry = "fs_main";
+  desc.uniform_blocks[0].msl_buffer_n = 0;
+  desc.views[0].texture.msl_texture_n = 0;
+  desc.samplers[0].msl_sampler_n = 0;
+}
 
-  float render_scale(int fb_w, int fb_h, int win_w, int win_h) noexcept {
-    // The layer would otherwise up-scale a point-sized drawable with nearest filtering, pixel-doubling
-    // text on Retina; render at the framebuffer size and let compute_render_resolution() clamp per axis.
-    return native_render_scale(fb_w, fb_h, win_w, win_h);
-  }
+float render_scale(int fb_w, int fb_h, int win_w, int win_h) noexcept {
+  // The layer would otherwise up-scale a point-sized drawable with nearest filtering, pixel-doubling
+  // text on Retina; render at the framebuffer size and let compute_render_resolution() clamp per axis.
+  return native_render_scale(fb_w, fb_h, win_w, win_h);
+}
 
 } // namespace corundum::platform::glfw::render_backend

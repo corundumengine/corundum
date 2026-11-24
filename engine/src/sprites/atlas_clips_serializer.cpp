@@ -12,19 +12,19 @@ using nlohmann::json;
 
 namespace corundum::sprites {
 
-  json serialize_atlas_clips(const AtlasClipsData &data) {
-    json j;
-    j["schema_version"] = k_atlas_clips_schema_version;
-    j["clips"] = json::array();
-    for (const auto &clip : data.clips) {
-      json cj;
-      cj["name"] = clip.name;
-      if (clip.fps != k_default_clip_fps)
-        cj["fps"] = clip.fps;
-      cj["frames"] = clip.frames;
-      j["clips"].push_back(std::move(cj));
-    }
-    return j;
+json serialize_atlas_clips(const AtlasClipsData &data) {
+  json j;
+  j["schema_version"] = k_atlas_clips_schema_version;
+  j["clips"] = json::array();
+  for (const auto &clip : data.clips) {
+    json cj;
+    cj["name"] = clip.name;
+    if (clip.fps != k_default_clip_fps)
+      cj["fps"] = clip.fps;
+    cj["frames"] = clip.frames;
+    j["clips"].push_back(std::move(cj));
   }
+  return j;
+}
 
 } // namespace corundum::sprites

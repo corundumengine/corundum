@@ -13,46 +13,46 @@
 #include <string>
 
 namespace corundum::core {
-  class ContentSource;
+class ContentSource;
 }
 
 namespace corundum::render {
-  struct RenderState;
+struct RenderState;
 } // namespace corundum::render
 
 namespace corundum::world::tilemap {
-  struct Tilemap;
+struct Tilemap;
 } // namespace corundum::world::tilemap
 
 namespace corundum::world {
 
-  /**
-   * @brief Spawn the player and all actors into a fresh Scene.
-   *
-   * @param cfg        Game configuration; reads paths.spawn_points_dir and the player sprite/placement fields.
-   * @param registry   Character registry for sprite ID lookups.
-   * @param tilemap    Loaded tilemap; only its path stem names the per-map spawn-points file.
-   * @param player_pos Tile-grid position for the player (col, row). Precedence (most specific
-   *                  wins): explicit argument > per-map spawn_points "player" block >
-   *                  game.json "player" col/row > built-in default (8, 8).
-   * @param spawn_file_actors When false, skip spawning actors from the single-file
-   *                  spawn-points data (world mode streams actors per-chunk instead).
-   * @return Heap-allocated Scene (it embeds the ~0.5 MB entity World) with the populated
-   *         world and player EntityId, or std::unexpected with an error description on failure.
-   */
-  [[nodiscard]] std::expected<std::unique_ptr<Scene>, std::string>
-  spawn_world(const core::ContentSource &content, const core::GameConfig &cfg,
-              const sprites::CharacterRegistry &registry, const tilemap::Tilemap &tilemap,
-              std::optional<entities::Position> player_pos = std::nullopt, bool spawn_file_actors = true);
+/**
+ * @brief Spawn the player and all actors into a fresh Scene.
+ *
+ * @param cfg        Game configuration; reads paths.spawn_points_dir and the player sprite/placement fields.
+ * @param registry   Character registry for sprite ID lookups.
+ * @param tilemap    Loaded tilemap; only its path stem names the per-map spawn-points file.
+ * @param player_pos Tile-grid position for the player (col, row). Precedence (most specific
+ *                  wins): explicit argument > per-map spawn_points "player" block >
+ *                  game.json "player" col/row > built-in default (8, 8).
+ * @param spawn_file_actors When false, skip spawning actors from the single-file
+ *                  spawn-points data (world mode streams actors per-chunk instead).
+ * @return Heap-allocated Scene (it embeds the ~0.5 MB entity World) with the populated
+ *         world and player EntityId, or std::unexpected with an error description on failure.
+ */
+[[nodiscard]] std::expected<std::unique_ptr<Scene>, std::string>
+spawn_world(const core::ContentSource &content, const core::GameConfig &cfg, const sprites::CharacterRegistry &registry,
+            const tilemap::Tilemap &tilemap, std::optional<entities::Position> player_pos = std::nullopt,
+            bool spawn_file_actors = true);
 
-  /**
-   * @brief Reconcile per-chunk actor entities with the render layer's active
-   *        chunk window. World mode only. Spawns actors for newly-resident
-   *        chunks (from data/spawn_points/chunk_<col>_<row>.json, chunk-local
-   *        coords), marks actors of unloaded chunks for deletion. No-op unless
-   *        mode == World, chunks are loaded, and the player is free-roaming.
-   */
-  void sync_chunk_actors(const core::ContentSource &content, Scene &scene, const render::RenderState &render,
-                         const core::GameConfig &cfg, const sprites::CharacterRegistry &registry);
+/**
+ * @brief Reconcile per-chunk actor entities with the render layer's active
+ *        chunk window. World mode only. Spawns actors for newly-resident
+ *        chunks (from data/spawn_points/chunk_<col>_<row>.json, chunk-local
+ *        coords), marks actors of unloaded chunks for deletion. No-op unless
+ *        mode == World, chunks are loaded, and the player is free-roaming.
+ */
+void sync_chunk_actors(const core::ContentSource &content, Scene &scene, const render::RenderState &render,
+                       const core::GameConfig &cfg, const sprites::CharacterRegistry &registry);
 
 } // namespace corundum::world

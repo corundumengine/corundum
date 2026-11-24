@@ -48,252 +48,252 @@
 
 namespace {
 
-  namespace combat = corundum::gameplay::combat;
-  namespace screens = corundum::gameplay::screens;
-  using corundum::entities::EntityId;
-  using corundum::gameplay::dialogue::EventAction;
-  using corundum::input::Action;
-  using corundum::world::TileCoord;
+namespace combat = corundum::gameplay::combat;
+namespace screens = corundum::gameplay::screens;
+using corundum::entities::EntityId;
+using corundum::gameplay::dialogue::EventAction;
+using corundum::input::Action;
+using corundum::world::TileCoord;
 
-  constexpr float k_dt = 1.f / 60.f;
+constexpr float k_dt = 1.f / 60.f;
 
-  /// A booted fixture world with the gameplay framework, the flat combat rules, the protagonist on
-  /// (8, 8) and actor a00 (the foe) moved next to it or further off. Events that reach on_event are
-  /// recorded in `raised`.
-  struct Fight {
-    std::unique_ptr<corundum::Engine> engine{};
+/// A booted fixture world with the gameplay framework, the flat combat rules, the protagonist on
+/// (8, 8) and actor a00 (the foe) moved next to it or further off. Events that reach on_event are
+/// recorded in `raised`.
+struct Fight {
+  std::unique_ptr<corundum::Engine> engine{};
 
-    std::unique_ptr<corundum::gameplay::Gameplay> gameplay{};
+  std::unique_ptr<corundum::gameplay::Gameplay> gameplay{};
 
-    std::shared_ptr<corundum::test::FlatCombat> combat{};
+  std::shared_ptr<corundum::test::FlatCombat> combat{};
 
-    EntityId foe{};
+  EntityId foe{};
 
-    std::vector<EventAction> raised{};
+  std::vector<EventAction> raised{};
+};
+
+void place(corundum::Engine &engine, EntityId entity, TileCoord tile) {
+  auto &transforms = engine.scene.world.transforms;
+  const auto slot = transforms.dense_index(entity);
+  transforms.col[slot] = static_cast<float>(tile.col);
+  transforms.row[slot] = static_cast<float>(tile.row);
+}
+
+std::unique_ptr<Fight> make_fight(TileCoord foe_tile) {
+  auto fight = std::make_unique<Fight>();
+  fight->engine = std::make_unique<corundum::Engine>();
+  corundum::test::adopt_platform(*fight->engine, 320, 240);
+  REQUIRE(corundum::test::initialize_with_world(*fight->engine,
+                                                corundum::test::make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR))
+              .has_value());
+  fight->gameplay = std::make_unique<corundum::gameplay::Gameplay>(*fight->engine);
+  fight->combat = std::make_shared<corundum::test::FlatCombat>();
+  fight->combat->rules = corundum::test::make_flat_combat_rules();
+  fight->gameplay->ruleset.start_fight = corundum::test::make_flat_start_fight(fight->combat);
+  fight->gameplay->on_event = [raised = &fight->raised](corundum::Engine &, const EventAction &event) {
+    raised->push_back(event);
+    return true;
   };
-
-  void place(corundum::Engine &engine, EntityId entity, TileCoord tile) {
-    auto &transforms = engine.scene.world.transforms;
-    const auto slot = transforms.dense_index(entity);
-    transforms.col[slot] = static_cast<float>(tile.col);
-    transforms.row[slot] = static_cast<float>(tile.row);
-  }
-
-  std::unique_ptr<Fight> make_fight(TileCoord foe_tile) {
-    auto fight = std::make_unique<Fight>();
-    fight->engine = std::make_unique<corundum::Engine>();
-    corundum::test::adopt_platform(*fight->engine, 320, 240);
-    REQUIRE(corundum::test::initialize_with_world(
-                *fight->engine, corundum::test::make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR))
-                .has_value());
-    fight->gameplay = std::make_unique<corundum::gameplay::Gameplay>(*fight->engine);
-    fight->combat = std::make_shared<corundum::test::FlatCombat>();
-    fight->combat->rules = corundum::test::make_flat_combat_rules();
-    fight->gameplay->ruleset.start_fight = corundum::test::make_flat_start_fight(fight->combat);
-    fight->gameplay->on_event = [raised = &fight->raised](corundum::Engine &, const EventAction &event) {
-      raised->push_back(event);
-      return true;
-    };
-    const std::optional<EntityId> foe = corundum::entities::find_actor(fight->engine->scene.world, "a00");
-    if (!foe) {
-      FAIL("the fixture world has no actor a00");
-      return fight;
-    }
-    fight->foe = *foe;
-    place(*fight->engine, fight->engine->scene.player, {.col = 8, .row = 8});
-    place(*fight->engine, fight->foe, foe_tile);
+  const std::optional<EntityId> foe = corundum::entities::find_actor(fight->engine->scene.world, "a00");
+  if (!foe) {
+    FAIL("the fixture world has no actor a00");
     return fight;
   }
+  fight->foe = *foe;
+  place(*fight->engine, fight->engine->scene.player, {.col = 8, .row = 8});
+  place(*fight->engine, fight->foe, foe_tile);
+  return fight;
+}
 
-  void step(Fight &fight) {
-    fight.gameplay->fixed_step(k_dt);
-    corundum::entities::flush_deletions(fight.engine->scene.world);
-    fight.engine->input_state = {};
-  }
+void step(Fight &fight) {
+  fight.gameplay->fixed_step(k_dt);
+  corundum::entities::flush_deletions(fight.engine->scene.world);
+  fight.engine->input_state = {};
+}
 
-  void press(Fight &fight, Action action) {
-    fight.engine->input_state.pressed.set(static_cast<std::size_t>(action));
+void press(Fight &fight, Action action) {
+  fight.engine->input_state.pressed.set(static_cast<std::size_t>(action));
+  step(fight);
+}
+
+void click(Fight &fight, TileCoord tile) {
+  fight.engine->scene.hovered_tile = tile;
+  fight.engine->input_state.mouse_click_pressed = true;
+  step(fight);
+}
+
+/// Press and release gamepad @p control through the input mapper, so the last device is the gamepad.
+void press_gamepad(Fight &fight, corundum::input::GamepadControl control) {
+  corundum::input::GamepadState pad{};
+  pad.buttons[static_cast<std::size_t>(control)] = true;
+  fight.engine->input_mapper.begin_poll();
+  fight.engine->input_mapper.gamepad(pad);
+  fight.engine->input_mapper.end_poll(fight.engine->input_state);
+  step(fight);
+  fight.engine->input_mapper.begin_poll();
+  fight.engine->input_mapper.gamepad(corundum::input::GamepadState{});
+  fight.engine->input_mapper.end_poll(fight.engine->input_state);
+  fight.engine->input_state = {};
+}
+
+/// Ask for a fight with these start_encounter arguments, as a dialogue action does, and run the
+/// step that starts it.
+void start_with_args(Fight &fight, std::vector<std::string> args) {
+  fight.gameplay->pending_dialogue_events.push_back({.name = "start_encounter", .args = std::move(args)});
+  step(fight);
+}
+
+/// Ask for a fight with a00 as @p creature, and run the step that starts it.
+void start_fight(Fight &fight, std::string creature = "grunt") {
+  start_with_args(fight, {"a00", std::move(creature)});
+}
+
+/// Ask for a fight with a00 as "first" and a01 as "second", and run the step that starts it.
+void start_pair(Fight &fight) {
+  start_with_args(fight, {"a00", "first", "a01", "second"});
+}
+
+/// Step until the fight ends; capped, so a fight that never ends fails the checks that follow.
+void step_until_over(Fight &fight) {
+  for (int i = 0; i < 40 && fight.gameplay->battle; ++i)
     step(fight);
-  }
+}
 
-  void click(Fight &fight, TileCoord tile) {
-    fight.engine->scene.hovered_tile = tile;
-    fight.engine->input_state.mouse_click_pressed = true;
+const corundum::test::Encounter &encounter_of(const Fight &fight) {
+  if (!fight.gameplay->battle || !fight.combat->encounter)
+    throw std::runtime_error("no fight is running");
+  return *fight.combat->encounter;
+}
+
+const combat::Battle &battle_of(const Fight &fight) {
+  if (!fight.gameplay->battle)
+    throw std::runtime_error("no fight is running");
+  return *fight.gameplay->battle;
+}
+
+/// The rules the next fight starts with; make_fight always installs the flat ruleset.
+corundum::test::CombatRules &combat_rules(const Fight &fight) {
+  return fight.combat->rules;
+}
+
+/// Pass every fight the ruleset starts through @p change before the framework sees it.
+void change_started_fight(Fight &fight, std::function<void(corundum::gameplay::rules::Fight &)> change) {
+  fight.gameplay->ruleset.start_fight = [start = fight.gameplay->ruleset.start_fight, change = std::move(change)](
+                                            const corundum::gameplay::rules::CombatContext &context,
+                                            const corundum::gameplay::rules::FightRequest &request) {
+    std::expected<corundum::gameplay::rules::Fight, std::string> started = start(context, request);
+    if (started)
+      change(*started);
+    return started;
+  };
+}
+
+std::string last_toast(const corundum::Engine &engine) {
+  REQUIRE_FALSE(engine.toasts.empty());
+  return engine.toasts.at(engine.toasts.size() - 1).text;
+}
+
+/// Put @p entity on @p idle_sprite; Battle::start finds its clips from its sprite.
+void dress_as(Fight &fight, EntityId entity, const std::string &idle_sprite) {
+  auto &world = fight.engine->scene.world;
+  const corundum::sprites::Frames *idle = fight.engine->characters.get_sprite(idle_sprite);
+  REQUIRE(idle != nullptr);
+  world.sprites.sprite_id_ref(entity) = idle->sprite_id;
+  world.animations.set_frame_counts(entity, corundum::sprites::frame_counts_of(*idle));
+  world.sprites.frame_index_ref(entity) = 0;
+}
+
+void dress_as_fighter(Fight &fight, EntityId entity) {
+  dress_as(fight, entity, "fighter_idle");
+}
+
+/// Give @p entity a motion row with the fighter's ready sheet, as a spawned fighter would have.
+void give_stance(Fight &fight, EntityId entity) {
+  auto &motion_sprites = fight.engine->scene.world.motion_sprites;
+  const corundum::sprites::Frames *ready = fight.engine->characters.get_sprite("fighter_ready");
+  REQUIRE(ready != nullptr);
+  if (motion_sprites.has(entity))
+    motion_sprites.remove(entity);
+  motion_sprites.insert(entity, corundum::entities::MotionSpriteTable::Config{
+                                    .walk_id = fight.engine->characters.get_sprite_id("player_walk"),
+                                    .idle_id = fight.engine->characters.get_sprite_id("fighter_idle"),
+                                    .ready_id = ready->sprite_id,
+                                    .ready_counts = corundum::sprites::frame_counts_of(*ready),
+                                    .ready_frame_duration = k_dt,
+                                });
+}
+
+[[nodiscard]] bool plays(const Fight &fight, EntityId entity, const std::string &sprite) {
+  const auto &sprites = fight.engine->scene.world.sprites;
+  return sprites.sprite_id[sprites.dense_index(entity)] == fight.engine->characters.get_sprite_id(sprite);
+}
+
+/// Step until @p entity plays @p sprite; capped, so one that never does fails the checks that follow.
+void step_until_playing(Fight &fight, EntityId entity, const std::string &sprite) {
+  for (int i = 0; i < 40 && !plays(fight, entity, sprite); ++i)
     step(fight);
-  }
+}
 
-  /// Press and release gamepad @p control through the input mapper, so the last device is the gamepad.
-  void press_gamepad(Fight &fight, corundum::input::GamepadControl control) {
-    corundum::input::GamepadState pad{};
-    pad.buttons[static_cast<std::size_t>(control)] = true;
-    fight.engine->input_mapper.begin_poll();
-    fight.engine->input_mapper.gamepad(pad);
-    fight.engine->input_mapper.end_poll(fight.engine->input_state);
-    step(fight);
-    fight.engine->input_mapper.begin_poll();
-    fight.engine->input_mapper.gamepad(corundum::input::GamepadState{});
-    fight.engine->input_mapper.end_poll(fight.engine->input_state);
-    fight.engine->input_state = {};
+/// Run the clips for @p steps fixed steps, as the world step does; the tests' step() doesn't.
+void run_clips(Fight &fight, int steps) {
+  auto &world = fight.engine->scene.world;
+  for (int i = 0; i < steps; ++i) {
+    corundum::animation::update_clips(world.sprites, world.transforms, world.animations, world.facings, world.clips,
+                                      k_dt);
+    corundum::entities::mark_finished_clips_for_deletion(world);
+    corundum::entities::flush_deletions(world);
   }
+}
 
-  /// Ask for a fight with these start_encounter arguments, as a dialogue action does, and run the
-  /// step that starts it.
-  void start_with_args(Fight &fight, std::vector<std::string> args) {
-    fight.gameplay->pending_dialogue_events.push_back({.name = "start_encounter", .args = std::move(args)});
-    step(fight);
+/// Spawn another foe, actor @p id, on @p tile. It has no collision box, so only the fight's own
+/// rules keep it off a tile.
+EntityId add_foe(Fight &fight, const std::string &id, TileCoord tile) {
+  corundum::entities::World &world = fight.engine->scene.world;
+  const corundum::entities::Position position{
+      .col = static_cast<float>(tile.col),
+      .row = static_cast<float>(tile.row),
+  };
+  const corundum::entities::Velocity velocity{};
+  const corundum::entities::Sprite sprite{};
+  const std::optional<EntityId> spawned = corundum::entities::spawn(world, position, velocity, sprite);
+  if (!spawned) {
+    FAIL("the entity pool is full");
+    return {};
   }
+  world.actor_ids.insert(*spawned, id);
+  return *spawned;
+}
 
-  /// Ask for a fight with a00 as @p creature, and run the step that starts it.
-  void start_fight(Fight &fight, std::string creature = "grunt") {
-    start_with_args(fight, {"a00", std::move(creature)});
-  }
+/// Let the hero outlast any of these fights: the flat rules subtract this flag from 2 Health.
+void toughen_hero(Fight &fight) {
+  fight.engine->flags["test.hero.damage"] = -1000;
+}
 
-  /// Ask for a fight with a00 as "first" and a01 as "second", and run the step that starts it.
-  void start_pair(Fight &fight) {
-    start_with_args(fight, {"a00", "first", "a01", "second"});
-  }
+/// Make creature @p creature unable to act once the `test.felled` flag is set.
+void fell_on_flag(const Fight &fight, std::string creature) {
+  auto &rules = combat_rules(fight);
+  rules.can_act = [original = rules.can_act,
+                   creature = std::move(creature)](const corundum::gameplay::rules::CombatContext &context,
+                                                   const corundum::test::Combatant &combatant) {
+    if (combatant.creature == creature && context.flags.read("test.felled") > 0)
+      return false;
+    return original(context, combatant);
+  };
+}
 
-  /// Step until the fight ends; capped, so a fight that never ends fails the checks that follow.
-  void step_until_over(Fight &fight) {
-    for (int i = 0; i < 40 && fight.gameplay->battle; ++i)
-      step(fight);
-  }
+/// One step, plus the velocity integration @p walkers get from world::update in the real loop.
+/// follow_path only sets a velocity, and step() runs the gameplay step alone.
+void step_walking(Fight &fight, std::initializer_list<EntityId> walkers) {
+  step(fight);
+  for (const EntityId walker : walkers)
+    corundum::physics::integrate(fight.engine->scene.world.transforms, walker, k_dt);
+}
 
-  const corundum::test::Encounter &encounter_of(const Fight &fight) {
-    if (!fight.gameplay->battle || !fight.combat->encounter)
-      throw std::runtime_error("no fight is running");
-    return *fight.combat->encounter;
-  }
-
-  const combat::Battle &battle_of(const Fight &fight) {
-    if (!fight.gameplay->battle)
-      throw std::runtime_error("no fight is running");
-    return *fight.gameplay->battle;
-  }
-
-  /// The rules the next fight starts with; make_fight always installs the flat ruleset.
-  corundum::test::CombatRules &combat_rules(const Fight &fight) {
-    return fight.combat->rules;
-  }
-
-  /// Pass every fight the ruleset starts through @p change before the framework sees it.
-  void change_started_fight(Fight &fight, std::function<void(corundum::gameplay::rules::Fight &)> change) {
-    fight.gameplay->ruleset.start_fight = [start = fight.gameplay->ruleset.start_fight, change = std::move(change)](
-                                              const corundum::gameplay::rules::CombatContext &context,
-                                              const corundum::gameplay::rules::FightRequest &request) {
-      std::expected<corundum::gameplay::rules::Fight, std::string> started = start(context, request);
-      if (started)
-        change(*started);
-      return started;
-    };
-  }
-
-  std::string last_toast(const corundum::Engine &engine) {
-    REQUIRE_FALSE(engine.toasts.empty());
-    return engine.toasts.at(engine.toasts.size() - 1).text;
-  }
-
-  /// Put @p entity on @p idle_sprite; Battle::start finds its clips from its sprite.
-  void dress_as(Fight &fight, EntityId entity, const std::string &idle_sprite) {
-    auto &world = fight.engine->scene.world;
-    const corundum::sprites::Frames *idle = fight.engine->characters.get_sprite(idle_sprite);
-    REQUIRE(idle != nullptr);
-    world.sprites.sprite_id_ref(entity) = idle->sprite_id;
-    world.animations.set_frame_counts(entity, corundum::sprites::frame_counts_of(*idle));
-    world.sprites.frame_index_ref(entity) = 0;
-  }
-
-  void dress_as_fighter(Fight &fight, EntityId entity) {
-    dress_as(fight, entity, "fighter_idle");
-  }
-
-  /// Give @p entity a motion row with the fighter's ready sheet, as a spawned fighter would have.
-  void give_stance(Fight &fight, EntityId entity) {
-    auto &motion_sprites = fight.engine->scene.world.motion_sprites;
-    const corundum::sprites::Frames *ready = fight.engine->characters.get_sprite("fighter_ready");
-    REQUIRE(ready != nullptr);
-    if (motion_sprites.has(entity))
-      motion_sprites.remove(entity);
-    motion_sprites.insert(entity, corundum::entities::MotionSpriteTable::Config{
-                                      .walk_id = fight.engine->characters.get_sprite_id("player_walk"),
-                                      .idle_id = fight.engine->characters.get_sprite_id("fighter_idle"),
-                                      .ready_id = ready->sprite_id,
-                                      .ready_counts = corundum::sprites::frame_counts_of(*ready),
-                                      .ready_frame_duration = k_dt,
-                                  });
-  }
-
-  [[nodiscard]] bool plays(const Fight &fight, EntityId entity, const std::string &sprite) {
-    const auto &sprites = fight.engine->scene.world.sprites;
-    return sprites.sprite_id[sprites.dense_index(entity)] == fight.engine->characters.get_sprite_id(sprite);
-  }
-
-  /// Step until @p entity plays @p sprite; capped, so one that never does fails the checks that follow.
-  void step_until_playing(Fight &fight, EntityId entity, const std::string &sprite) {
-    for (int i = 0; i < 40 && !plays(fight, entity, sprite); ++i)
-      step(fight);
-  }
-
-  /// Run the clips for @p steps fixed steps, as the world step does; the tests' step() doesn't.
-  void run_clips(Fight &fight, int steps) {
-    auto &world = fight.engine->scene.world;
-    for (int i = 0; i < steps; ++i) {
-      corundum::animation::update_clips(world.sprites, world.transforms, world.animations, world.facings, world.clips,
-                                        k_dt);
-      corundum::entities::mark_finished_clips_for_deletion(world);
-      corundum::entities::flush_deletions(world);
-    }
-  }
-
-  /// Spawn another foe, actor @p id, on @p tile. It has no collision box, so only the fight's own
-  /// rules keep it off a tile.
-  EntityId add_foe(Fight &fight, const std::string &id, TileCoord tile) {
-    corundum::entities::World &world = fight.engine->scene.world;
-    const corundum::entities::Position position{
-        .col = static_cast<float>(tile.col),
-        .row = static_cast<float>(tile.row),
-    };
-    const corundum::entities::Velocity velocity{};
-    const corundum::entities::Sprite sprite{};
-    const std::optional<EntityId> spawned = corundum::entities::spawn(world, position, velocity, sprite);
-    if (!spawned) {
-      FAIL("the entity pool is full");
-      return {};
-    }
-    world.actor_ids.insert(*spawned, id);
-    return *spawned;
-  }
-
-  /// Let the hero outlast any of these fights: the flat rules subtract this flag from 2 Health.
-  void toughen_hero(Fight &fight) {
-    fight.engine->flags["test.hero.damage"] = -1000;
-  }
-
-  /// Make creature @p creature unable to act once the `test.felled` flag is set.
-  void fell_on_flag(const Fight &fight, std::string creature) {
-    auto &rules = combat_rules(fight);
-    rules.can_act = [original = rules.can_act,
-                     creature = std::move(creature)](const corundum::gameplay::rules::CombatContext &context,
-                                                     const corundum::test::Combatant &combatant) {
-      if (combatant.creature == creature && context.flags.read("test.felled") > 0)
-        return false;
-      return original(context, combatant);
-    };
-  }
-
-  /// One step, plus the velocity integration @p walkers get from world::update in the real loop.
-  /// follow_path only sets a velocity, and step() runs the gameplay step alone.
-  void step_walking(Fight &fight, std::initializer_list<EntityId> walkers) {
-    step(fight);
-    for (const EntityId walker : walkers)
-      corundum::physics::integrate(fight.engine->scene.world.transforms, walker, k_dt);
-  }
-
-  /// The tile @p entity stands on.
-  TileCoord standing_tile(const Fight &fight, EntityId entity) {
-    const auto &transforms = fight.engine->scene.world.transforms;
-    return corundum::world::tile_of(transforms.pos_col(entity), transforms.pos_row(entity));
-  }
+/// The tile @p entity stands on.
+TileCoord standing_tile(const Fight &fight, EntityId entity) {
+  const auto &transforms = fight.engine->scene.world.transforms;
+  return corundum::world::tile_of(transforms.pos_col(entity), transforms.pos_row(entity));
+}
 
 } // namespace
 

@@ -14,58 +14,58 @@
 
 namespace corundum::ui {
 
-  /** @brief What the player picked from the pause menu. */
-  enum class MenuCommand : std::uint8_t {
-    Resume,
-    Settings,
-    Save,
-    Load,
-    Quit,
-    Count,
-  };
+/** @brief What the player picked from the pause menu. */
+enum class MenuCommand : std::uint8_t {
+  Resume,
+  Settings,
+  Save,
+  Load,
+  Quit,
+  Count,
+};
 
-  /** @brief Number of pause-menu rows. */
-  inline constexpr int k_menu_command_count = static_cast<int>(MenuCommand::Count);
+/** @brief Number of pause-menu rows. */
+inline constexpr int k_menu_command_count = static_cast<int>(MenuCommand::Count);
 
-  /** @brief Display label for @p command. */
-  [[nodiscard]] std::string_view menu_command_label(MenuCommand command) noexcept;
+/** @brief Display label for @p command. */
+[[nodiscard]] std::string_view menu_command_label(MenuCommand command) noexcept;
 
-  /** @brief The command at row @p row.
-   *  @pre 0 <= @p row < k_menu_command_count. */
-  [[nodiscard]] MenuCommand menu_command_at(int row) noexcept;
+/** @brief The command at row @p row.
+ *  @pre 0 <= @p row < k_menu_command_count. */
+[[nodiscard]] MenuCommand menu_command_at(int row) noexcept;
 
-  /** @brief Pause-menu selection state: the highlighted row only. */
-  struct MenuState {
-    int cursor{};
-  };
+/** @brief Pause-menu selection state: the highlighted row only. */
+struct MenuState {
+  int cursor{};
+};
 
-  /** @brief Screen-space geometry of the pause menu, shared by render and mouse hit-testing. */
-  struct MenuLayout {
-    core::math::Vec2 panel_pos{};
+/** @brief Screen-space geometry of the pause menu, shared by render and mouse hit-testing. */
+struct MenuLayout {
+  core::math::Vec2 panel_pos{};
 
-    core::math::Vec2 panel_size{};
+  core::math::Vec2 panel_size{};
 
-    ListHit rows{};
-  };
+  ListHit rows{};
+};
 
-  /** @brief Compute the pause menu's panel and row geometry for @p viewport. */
-  [[nodiscard]] MenuLayout menu_panel_layout(const platform::Renderer &r, const PanelStyle &style,
-                                             core::math::Vec2 viewport, input::InputDevice last_device);
+/** @brief Compute the pause menu's panel and row geometry for @p viewport. */
+[[nodiscard]] MenuLayout menu_panel_layout(const platform::Renderer &r, const PanelStyle &style,
+                                           core::math::Vec2 viewport, input::InputDevice last_device);
 
-  /** @brief Draw the centered pause menu with Resume / Settings / Save / Load / Quit rows.
-   *
-   *  Pure render, like inventory_panel_render. Only invoked while GameMode::Menu is on top of
-   *  the UI stack.
-   *
-   *  @param r           Platform renderer; receives DrawRect, nine-patch DrawSprite and DrawText commands.
-   *  @param style       Dialog text style; reused so the menu matches dialogue.
-   *  @param border      Pre-loaded nine-patch frame; the same one the dialogue box uses.
-   *  @param state       Highlighted row.
-   *  @param viewport    Screen size in pixels; the panel is centered within this.
-   *  @param last_device Device of the player's most recent press; picks the footer glyphs.
-   */
-  void menu_panel_render(platform::Renderer &r, const PanelStyle &style, const NinePatchBorder &border,
-                         const MenuState &state, core::math::Vec2 viewport,
-                         input::InputDevice last_device = input::InputDevice::Keyboard);
+/** @brief Draw the centered pause menu with Resume / Settings / Save / Load / Quit rows.
+ *
+ *  Pure render, like inventory_panel_render. Only invoked while GameMode::Menu is on top of
+ *  the UI stack.
+ *
+ *  @param r           Platform renderer; receives DrawRect, nine-patch DrawSprite and DrawText commands.
+ *  @param style       Dialog text style; reused so the menu matches dialogue.
+ *  @param border      Pre-loaded nine-patch frame; the same one the dialogue box uses.
+ *  @param state       Highlighted row.
+ *  @param viewport    Screen size in pixels; the panel is centered within this.
+ *  @param last_device Device of the player's most recent press; picks the footer glyphs.
+ */
+void menu_panel_render(platform::Renderer &r, const PanelStyle &style, const NinePatchBorder &border,
+                       const MenuState &state, core::math::Vec2 viewport,
+                       input::InputDevice last_device = input::InputDevice::Keyboard);
 
 } // namespace corundum::ui

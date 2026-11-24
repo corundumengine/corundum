@@ -42,108 +42,108 @@ using corundum::test::disk;
 
 namespace {
 
-  corundum::gameplay::dialogue::Node make_innkeeper_choice_node() {
-    using namespace corundum::gameplay::dialogue;
+corundum::gameplay::dialogue::Node make_innkeeper_choice_node() {
+  using namespace corundum::gameplay::dialogue;
 
+  Node n;
+  n.id = "n1";
+  n.type = NodeType::Choice;
+  n.choices = {
+      {
+          .label = "I need a room.",
+          .target_id = "n_pay",
+          .condition = *compile("gold >= 5 && !paid_innkeeper"),
+          .actions = {"gold -= 5", "paid_innkeeper = true"},
+          .sequence = SequenceMode::Once,
+      },
+      {.label = "I need a room.", .target_id = "n_already_paid", .condition = *compile("paid_innkeeper == true")},
+      {.label = "Just passing through.", .target_id = "n_bye"},
+  };
+  return n;
+}
+
+corundum::gameplay::dialogue::Graph make_innkeeper_graph() {
+  using namespace corundum::gameplay::dialogue;
+
+  Graph g;
+  g.graph_id = "innkeeper_intro";
+  g.speaker = "Innkeeper";
+  g.variables = {{"gold", 10}};
+
+  const auto push = [&g](Node n) {
+    g.id_to_index[n.id] = g.nodes.size();
+    g.nodes.push_back(std::move(n));
+  };
+
+  { // n0 — talk
     Node n;
-    n.id = "n1";
-    n.type = NodeType::Choice;
-    n.choices = {
-        {
-            .label = "I need a room.",
-            .target_id = "n_pay",
-            .condition = *compile("gold >= 5 && !paid_innkeeper"),
-            .actions = {"gold -= 5", "paid_innkeeper = true"},
-            .sequence = SequenceMode::Once,
-        },
-        {.label = "I need a room.", .target_id = "n_already_paid", .condition = *compile("paid_innkeeper == true")},
-        {.label = "Just passing through.", .target_id = "n_bye"},
-    };
-    return n;
+    n.id = "n0";
+    n.type = NodeType::Talk;
+    n.text = "Welcome, traveller. What brings you here?";
+    n.next_id = "n1";
+    push(std::move(n));
+  }
+  push(make_innkeeper_choice_node());
+  { // n_pay — event
+    Node n;
+    n.id = "n_pay";
+    n.type = NodeType::Event;
+    n.next_id = "n2";
+    n.actions = {"play_sound('coin')"};
+    push(std::move(n));
+  }
+  { // n2 — talk
+    Node n;
+    n.id = "n2";
+    n.type = NodeType::Talk;
+    n.text = "That'll be 5 gold pieces. Right this way.";
+    n.next_id = "end";
+    push(std::move(n));
+  }
+  { // n_already_paid — talk
+    Node n;
+    n.id = "n_already_paid";
+    n.type = NodeType::Talk;
+    n.text = "You've already paid. Your room is the last one on the left. Sleep well.";
+    n.next_id = "end";
+    push(std::move(n));
+  }
+  { // n_bye — talk
+    Node n;
+    n.id = "n_bye";
+    n.type = NodeType::Talk;
+    n.text = "Safe travels then. Watch the road south.";
+    n.next_id = "end";
+    push(std::move(n));
   }
 
-  corundum::gameplay::dialogue::Graph make_innkeeper_graph() {
-    using namespace corundum::gameplay::dialogue;
-
-    Graph g;
-    g.graph_id = "innkeeper_intro";
-    g.speaker = "Innkeeper";
-    g.variables = {{"gold", 10}};
-
-    const auto push = [&g](Node n) {
-      g.id_to_index[n.id] = g.nodes.size();
-      g.nodes.push_back(std::move(n));
-    };
-
-    { // n0 — talk
-      Node n;
-      n.id = "n0";
-      n.type = NodeType::Talk;
-      n.text = "Welcome, traveller. What brings you here?";
-      n.next_id = "n1";
-      push(std::move(n));
-    }
-    push(make_innkeeper_choice_node());
-    { // n_pay — event
-      Node n;
-      n.id = "n_pay";
-      n.type = NodeType::Event;
-      n.next_id = "n2";
-      n.actions = {"play_sound('coin')"};
-      push(std::move(n));
-    }
-    { // n2 — talk
-      Node n;
-      n.id = "n2";
-      n.type = NodeType::Talk;
-      n.text = "That'll be 5 gold pieces. Right this way.";
-      n.next_id = "end";
-      push(std::move(n));
-    }
-    { // n_already_paid — talk
-      Node n;
-      n.id = "n_already_paid";
-      n.type = NodeType::Talk;
-      n.text = "You've already paid. Your room is the last one on the left. Sleep well.";
-      n.next_id = "end";
-      push(std::move(n));
-    }
-    { // n_bye — talk
-      Node n;
-      n.id = "n_bye";
-      n.type = NodeType::Talk;
-      n.text = "Safe travels then. Watch the road south.";
-      n.next_id = "end";
-      push(std::move(n));
-    }
-
-    return g;
-  }
+  return g;
+}
 
 } // namespace
 
 namespace {
 
-  /// Pushes a node into a graph, maintaining the id→index map.
-  void push_node(corundum::gameplay::dialogue::Graph &g, corundum::gameplay::dialogue::Node n) {
-    g.id_to_index[n.id] = g.nodes.size();
-    g.nodes.push_back(std::move(n));
-  }
+/// Pushes a node into a graph, maintaining the id→index map.
+void push_node(corundum::gameplay::dialogue::Graph &g, corundum::gameplay::dialogue::Node n) {
+  g.id_to_index[n.id] = g.nodes.size();
+  g.nodes.push_back(std::move(n));
+}
 
-  /// Source text of a compiled choice condition, or empty when the edge has none. The optional
-  /// access lives here behind an early-return guard rather than inside a CHECK, which
-  /// bugprone-unchecked-optional-access cannot reason about through the doctest macro.
-  std::string_view condition_source(const corundum::gameplay::dialogue::ChoiceEdge &edge) {
-    if (!edge.condition.has_value())
-      return {};
-    return edge.condition->source();
-  }
+/// Source text of a compiled choice condition, or empty when the edge has none. The optional
+/// access lives here behind an early-return guard rather than inside a CHECK, which
+/// bugprone-unchecked-optional-access cannot reason about through the doctest macro.
+std::string_view condition_source(const corundum::gameplay::dialogue::ChoiceEdge &edge) {
+  if (!edge.condition.has_value())
+    return {};
+  return edge.condition->source();
+}
 
-  corundum::input::InputIntent select_press() {
-    corundum::input::InputIntent intent{};
-    intent.select = true;
-    return intent;
-  }
+corundum::input::InputIntent select_press() {
+  corundum::input::InputIntent intent{};
+  intent.select = true;
+  return intent;
+}
 
 } // namespace
 
@@ -729,106 +729,106 @@ TEST_CASE("validate_condition_quest_refs flags an unknown stage for a known ques
 
 namespace {
 
-  using corundum::gameplay::dialogue::Graph;
-  using corundum::gameplay::dialogue::Node;
-  using corundum::gameplay::dialogue::NodeType;
+using corundum::gameplay::dialogue::Graph;
+using corundum::gameplay::dialogue::Node;
+using corundum::gameplay::dialogue::NodeType;
 
-  /// Hub graph: a0 (Talk) → a_divert (Event goto_graph) → a1 (Talk) → end.
-  /// The resume point after return_graph() is a1 (the divert node's successor).
-  Graph make_hub_graph(const std::string &spoke, const std::string &spoke_entry) {
-    Graph g;
-    g.graph_id = "hub";
-    g.speaker = "Hub";
-    {
-      Node n;
-      n.id = "a0";
-      n.type = NodeType::Talk;
-      n.text = "Hello.";
-      n.next_id = "a_divert";
-      push_node(g, std::move(n));
-    }
-    {
-      Node n;
-      n.id = "a_divert";
-      n.type = NodeType::Event;
-      n.actions = {std::format("goto_graph('{}', '{}')", spoke, spoke_entry)};
-      n.next_id = "a1";
-      push_node(g, std::move(n));
-    }
-    {
-      Node n;
-      n.id = "a1";
-      n.type = NodeType::Talk;
-      n.text = "Back in the hub.";
-      n.next_id = "end";
-      push_node(g, std::move(n));
-    }
-    return g;
+/// Hub graph: a0 (Talk) → a_divert (Event goto_graph) → a1 (Talk) → end.
+/// The resume point after return_graph() is a1 (the divert node's successor).
+Graph make_hub_graph(const std::string &spoke, const std::string &spoke_entry) {
+  Graph g;
+  g.graph_id = "hub";
+  g.speaker = "Hub";
+  {
+    Node n;
+    n.id = "a0";
+    n.type = NodeType::Talk;
+    n.text = "Hello.";
+    n.next_id = "a_divert";
+    push_node(g, std::move(n));
   }
+  {
+    Node n;
+    n.id = "a_divert";
+    n.type = NodeType::Event;
+    n.actions = {std::format("goto_graph('{}', '{}')", spoke, spoke_entry)};
+    n.next_id = "a1";
+    push_node(g, std::move(n));
+  }
+  {
+    Node n;
+    n.id = "a1";
+    n.type = NodeType::Talk;
+    n.text = "Back in the hub.";
+    n.next_id = "end";
+    push_node(g, std::move(n));
+  }
+  return g;
+}
 
-  /// Spoke graph: b0 (Talk) → b_ret (Event return_graph) → end.
-  Graph make_leaf_graph(const std::string &id, const std::string &entry) {
-    Graph g;
-    g.graph_id = id;
-    g.speaker = id;
-    {
-      Node n;
-      n.id = entry;
-      n.type = NodeType::Talk;
-      n.text = "Spoke.";
-      n.next_id = "b_ret";
-      push_node(g, std::move(n));
-    }
-    {
-      Node n;
-      n.id = "b_ret";
-      n.type = NodeType::Event;
-      n.actions = {"return_graph()"};
-      n.next_id = "end";
-      push_node(g, std::move(n));
-    }
-    return g;
+/// Spoke graph: b0 (Talk) → b_ret (Event return_graph) → end.
+Graph make_leaf_graph(const std::string &id, const std::string &entry) {
+  Graph g;
+  g.graph_id = id;
+  g.speaker = id;
+  {
+    Node n;
+    n.id = entry;
+    n.type = NodeType::Talk;
+    n.text = "Spoke.";
+    n.next_id = "b_ret";
+    push_node(g, std::move(n));
   }
+  {
+    Node n;
+    n.id = "b_ret";
+    n.type = NodeType::Event;
+    n.actions = {"return_graph()"};
+    n.next_id = "end";
+    push_node(g, std::move(n));
+  }
+  return g;
+}
 
-  /// Mid graph: b0 (Talk) → b_divert (Event goto_graph leaf) → b1 (Talk) → b_ret (return).
-  Graph make_mid_graph() {
-    Graph g;
-    g.graph_id = "mid";
-    g.speaker = "Mid";
-    {
-      Node n;
-      n.id = "b0";
-      n.type = NodeType::Talk;
-      n.text = "Mid.";
-      n.next_id = "b_divert";
-      push_node(g, std::move(n));
-    }
-    {
-      Node n;
-      n.id = "b_divert";
-      n.type = NodeType::Event;
-      n.actions = {"goto_graph('leaf', 'c0')"};
-      n.next_id = "b1";
-      push_node(g, std::move(n));
-    }
-    {
-      Node n;
-      n.id = "b1";
-      n.type = NodeType::Talk;
-      n.text = "Mid again.";
-      n.next_id = "b_ret";
-      push_node(g, std::move(n));
-    }
-    {
-      Node n;
-      n.id = "b_ret";
-      n.type = NodeType::Event;
-      n.actions = {"return_graph()"};
-      n.next_id = "end";
-      push_node(g, std::move(n));
-    }
-    return g;
+/// Mid graph: b0 (Talk) → b_divert (Event goto_graph leaf) → b1 (Talk) → b_ret (return).
+Graph make_mid_graph() {
+  Graph g;
+  g.graph_id = "mid";
+  g.speaker = "Mid";
+  {
+    Node n;
+    n.id = "b0";
+    n.type = NodeType::Talk;
+    n.text = "Mid.";
+    n.next_id = "b_divert";
+    push_node(g, std::move(n));
   }
+  {
+    Node n;
+    n.id = "b_divert";
+    n.type = NodeType::Event;
+    n.actions = {"goto_graph('leaf', 'c0')"};
+    n.next_id = "b1";
+    push_node(g, std::move(n));
+  }
+  {
+    Node n;
+    n.id = "b1";
+    n.type = NodeType::Talk;
+    n.text = "Mid again.";
+    n.next_id = "b_ret";
+    push_node(g, std::move(n));
+  }
+  {
+    Node n;
+    n.id = "b_ret";
+    n.type = NodeType::Event;
+    n.actions = {"return_graph()"};
+    n.next_id = "end";
+    push_node(g, std::move(n));
+  }
+  return g;
+}
 
 } // namespace
 

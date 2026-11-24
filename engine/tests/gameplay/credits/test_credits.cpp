@@ -28,35 +28,35 @@ using corundum::test::disk;
 
 namespace {
 
-  void write_file(const fs::path &p, std::string_view content) {
-    fs::create_directories(p.parent_path());
-    std::ofstream f(p);
-    f << content;
-  }
+void write_file(const fs::path &p, std::string_view content) {
+  fs::create_directories(p.parent_path());
+  std::ofstream f(p);
+  f << content;
+}
 
-  corundum::test::TempDir temp_dir(std::string_view tag) {
-    return corundum::test::TempDir{"crpg_test_credits_", tag};
-  }
+corundum::test::TempDir temp_dir(std::string_view tag) {
+  return corundum::test::TempDir{"crpg_test_credits_", tag};
+}
 
-  using corundum::platform::DrawSprite;
-  using corundum::platform::DrawText;
-  using corundum::test::RecordingRenderer;
+using corundum::platform::DrawSprite;
+using corundum::platform::DrawText;
+using corundum::test::RecordingRenderer;
 
-  std::size_t sprite_count(const RecordingRenderer &r) {
-    std::size_t count = 0;
-    for (const RecordingRenderer::DrawCall &call : r.log)
-      if (std::get_if<DrawSprite>(&call) != nullptr)
-        ++count;
-    return count;
-  }
+std::size_t sprite_count(const RecordingRenderer &r) {
+  std::size_t count = 0;
+  for (const RecordingRenderer::DrawCall &call : r.log)
+    if (std::get_if<DrawSprite>(&call) != nullptr)
+      ++count;
+  return count;
+}
 
-  std::optional<corundum::core::math::Colour> text_colour(const RecordingRenderer &r, std::string_view text) {
-    for (const RecordingRenderer::DrawCall &call : r.log) {
-      if (const auto *draw = std::get_if<DrawText>(&call); draw != nullptr && draw->text == text)
-        return draw->colour;
-    }
-    return std::nullopt;
+std::optional<corundum::core::math::Colour> text_colour(const RecordingRenderer &r, std::string_view text) {
+  for (const RecordingRenderer::DrawCall &call : r.log) {
+    if (const auto *draw = std::get_if<DrawText>(&call); draw != nullptr && draw->text == text)
+      return draw->colour;
   }
+  return std::nullopt;
+}
 
 } // namespace
 

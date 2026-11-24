@@ -19,30 +19,30 @@ using corundum::world::FlagStore;
 
 namespace {
 
-  // Compiles then evaluates; CHECKs the compile succeeded so a regression in the
-  // parser surfaces as a test failure rather than a silent false.
-  bool eval_str(std::string_view src, const FlagStore &flags,
-                const corundum::gameplay::quest::Registry *quests = nullptr) {
-    const auto compiled = dialogue::compile(src);
-    REQUIRE(compiled.has_value());
-    return dialogue::evaluate(*compiled, flags, quests);
-  }
+// Compiles then evaluates; CHECKs the compile succeeded so a regression in the
+// parser surfaces as a test failure rather than a silent false.
+bool eval_str(std::string_view src, const FlagStore &flags,
+              const corundum::gameplay::quest::Registry *quests = nullptr) {
+  const auto compiled = dialogue::compile(src);
+  REQUIRE(compiled.has_value());
+  return dialogue::evaluate(*compiled, flags, quests);
+}
 
-  struct MalformedCase {
-    std::string source{};
-    std::string expected_message{};
-  };
+struct MalformedCase {
+  std::string source{};
+  std::string expected_message{};
+};
 
-  corundum::gameplay::quest::Registry make_quest_registry() {
-    corundum::gameplay::quest::Registry quests;
-    corundum::gameplay::quest::Quest q;
-    q.quest_id = "tq";
-    q.name = "TQ";
-    q.stages.push_back({.name = "start", .sequence = 1});
-    q.stages.push_back({.name = "complete", .resolved = true, .sequence = 2});
-    quests.add(std::move(q));
-    return quests;
-  }
+corundum::gameplay::quest::Registry make_quest_registry() {
+  corundum::gameplay::quest::Registry quests;
+  corundum::gameplay::quest::Quest q;
+  q.quest_id = "tq";
+  q.name = "TQ";
+  q.stages.push_back({.name = "start", .sequence = 1});
+  q.stages.push_back({.name = "complete", .resolved = true, .sequence = 2});
+  quests.add(std::move(q));
+  return quests;
+}
 
 } // namespace
 

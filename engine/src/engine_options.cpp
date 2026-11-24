@@ -8,18 +8,18 @@
 
 namespace corundum {
 
-  EngineOptions parse_engine_args(std::span<const char *const> args) {
-    EngineOptions options{};
-    for (const char *const arg : args) {
-      if (arg == nullptr)
-        continue;
-      const std::string_view flag{arg};
-      if (flag == "--debug")
-        options.show_debug_hud = true;
-      else if (flag == "--no-splash")
-        options.show_splash = false;
-    }
-    return options;
+EngineOptions parse_engine_args(std::span<const char *const> args) {
+  EngineOptions options{};
+  for (const char *const arg : args) {
+    if (arg == nullptr)
+      continue;
+    const std::string_view flag{arg};
+    if (flag == "--debug")
+      options.show_debug_hud = true;
+    else if (flag == "--no-splash")
+      options.show_splash = false;
   }
+  return options;
+}
 
 } // namespace corundum

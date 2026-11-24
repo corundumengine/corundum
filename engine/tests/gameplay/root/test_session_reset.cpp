@@ -21,31 +21,31 @@
 
 namespace {
 
-  using corundum::test::adopt_platform;
-  using corundum::test::make_world_config;
-  namespace screens = corundum::gameplay::screens;
+using corundum::test::adopt_platform;
+using corundum::test::make_world_config;
+namespace screens = corundum::gameplay::screens;
 
-  corundum::gameplay::dialogue::Graph make_talk_graph() {
-    using namespace corundum::gameplay::dialogue;
-    Graph graph;
-    graph.graph_id = "session_reset";
-    graph.speaker = "NPC";
+corundum::gameplay::dialogue::Graph make_talk_graph() {
+  using namespace corundum::gameplay::dialogue;
+  Graph graph;
+  graph.graph_id = "session_reset";
+  graph.speaker = "NPC";
 
-    Node node;
-    node.id = "n0";
-    node.type = NodeType::Talk;
-    node.text = "Hello";
-    node.next_id = "end";
-    graph.id_to_index[node.id] = graph.nodes.size();
-    graph.nodes.push_back(std::move(node));
-    return graph;
-  }
+  Node node;
+  node.id = "n0";
+  node.type = NodeType::Talk;
+  node.text = "Hello";
+  node.next_id = "end";
+  graph.id_to_index[node.id] = graph.nodes.size();
+  graph.nodes.push_back(std::move(node));
+  return graph;
+}
 
-  void init_engine(corundum::Engine &engine) {
-    adopt_platform(engine, 320, 240);
-    const std::filesystem::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-    REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
-  }
+void init_engine(corundum::Engine &engine) {
+  adopt_platform(engine, 320, 240);
+  const std::filesystem::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+}
 
 } // namespace
 

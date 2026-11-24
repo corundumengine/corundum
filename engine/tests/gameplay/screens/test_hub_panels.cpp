@@ -31,43 +31,43 @@
 
 namespace {
 
-  using corundum::core::math::Vec2;
-  using corundum::gameplay::screens::InventoryLayout;
-  using corundum::gameplay::screens::JournalEntry;
-  using corundum::gameplay::screens::JournalLayout;
-  using corundum::gameplay::screens::JournalState;
-  using corundum::gameplay::screens::MapEntry;
-  using corundum::gameplay::screens::MapLayout;
-  using corundum::test::RecordingRenderer;
+using corundum::core::math::Vec2;
+using corundum::gameplay::screens::InventoryLayout;
+using corundum::gameplay::screens::JournalEntry;
+using corundum::gameplay::screens::JournalLayout;
+using corundum::gameplay::screens::JournalState;
+using corundum::gameplay::screens::MapEntry;
+using corundum::gameplay::screens::MapLayout;
+using corundum::test::RecordingRenderer;
 
-  namespace screens = corundum::gameplay::screens;
+namespace screens = corundum::gameplay::screens;
 
-  std::vector<JournalEntry> make_journal_entries(int count) {
-    std::vector<JournalEntry> entries;
-    entries.reserve(static_cast<std::size_t>(count));
-    for (int i = 0; i < count; ++i) {
-      entries.push_back(JournalEntry{
-          .id = "q" + std::to_string(i),
-          .name = "Quest " + std::to_string(i),
-          .objective = "Objective",
-          .lifecycle = corundum::gameplay::quest::Lifecycle::Active,
-      });
-    }
-    return entries;
+std::vector<JournalEntry> make_journal_entries(int count) {
+  std::vector<JournalEntry> entries;
+  entries.reserve(static_cast<std::size_t>(count));
+  for (int i = 0; i < count; ++i) {
+    entries.push_back(JournalEntry{
+        .id = "q" + std::to_string(i),
+        .name = "Quest " + std::to_string(i),
+        .objective = "Objective",
+        .lifecycle = corundum::gameplay::quest::Lifecycle::Active,
+    });
   }
+  return entries;
+}
 
-  std::vector<MapEntry> make_map_entries(int count) {
-    std::vector<MapEntry> entries;
-    entries.reserve(static_cast<std::size_t>(count));
-    for (int i = 0; i < count; ++i)
-      entries.push_back(MapEntry{.id = "l" + std::to_string(i), .name = "Location " + std::to_string(i)});
-    return entries;
-  }
+std::vector<MapEntry> make_map_entries(int count) {
+  std::vector<MapEntry> entries;
+  entries.reserve(static_cast<std::size_t>(count));
+  for (int i = 0; i < count; ++i)
+    entries.push_back(MapEntry{.id = "l" + std::to_string(i), .name = "Location " + std::to_string(i)});
+  return entries;
+}
 
-  bool within_panel(const corundum::ui::RowRect &row, Vec2 panel_pos, Vec2 panel_size) {
-    return row.pos.y >= panel_pos.y && row.pos.y + row.height <= panel_pos.y + panel_size.y + 0.5f &&
-           row.pos.x >= panel_pos.x && row.pos.x + row.width <= panel_pos.x + panel_size.x + 0.5f;
-  }
+bool within_panel(const corundum::ui::RowRect &row, Vec2 panel_pos, Vec2 panel_size) {
+  return row.pos.y >= panel_pos.y && row.pos.y + row.height <= panel_pos.y + panel_size.y + 0.5f &&
+         row.pos.x >= panel_pos.x && row.pos.x + row.width <= panel_pos.x + panel_size.x + 0.5f;
+}
 
 } // namespace
 

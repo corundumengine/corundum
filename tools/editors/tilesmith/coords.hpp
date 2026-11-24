@@ -24,411 +24,409 @@
 
 namespace tools::tilesmith {
 
-  // Number of half-diamonds of margin added to the computed virtual canvas
-  // extent so the outermost tile diamond footprints aren't clipped by the
-  // scroll region edge.
-  inline constexpr float k_content_margin = 2.f;
+// Number of half-diamonds of margin added to the computed virtual canvas
+// extent so the outermost tile diamond footprints aren't clipped by the
+// scroll region edge.
+inline constexpr float k_content_margin = 2.f;
 
-  namespace detail {
-    /// Projection a canvas picker uses, with the same diamond fallback both pixel pickers need.
-    [[nodiscard]] inline corundum::core::math::IsometricParams canvas_iso(int tw, int diamond_h, int map_h,
-                                                                          float tile_scale, float elev_step) noexcept {
-      return corundum::core::math::compute_isometric_params(tw, diamond_h > 0 ? diamond_h : tw / 2, map_h, tile_scale,
-                                                            elev_step);
-    }
+namespace detail {
+/// Projection a canvas picker uses, with the same diamond fallback both pixel pickers need.
+[[nodiscard]] inline corundum::core::math::IsometricParams canvas_iso(int tw, int diamond_h, int map_h,
+                                                                      float tile_scale, float elev_step) noexcept {
+  return corundum::core::math::compute_isometric_params(tw, diamond_h > 0 ? diamond_h : tw / 2, map_h, tile_scale,
+                                                        elev_step);
+}
 
-    /// A window pixel, clamped to the canvas interior and undoing the renderer's origin shift, in
-    /// the world space world_to_tile() reads.
-    [[nodiscard]] inline corundum::core::math::Vec2
-    canvas_pixel_to_world(int px, int py, int canvas_left, int canvas_top, int canvas_w, int canvas_h, float camera_x,
-                          float camera_y, const corundum::core::math::IsometricParams &iso) noexcept {
-      const int clamped_px = std::clamp(px, canvas_left, canvas_left + std::max(canvas_w, 1) - 1);
-      const int clamped_py = std::clamp(py, canvas_top, canvas_top + std::max(canvas_h, 1) - 1);
-      const float origin_shift_x = k_content_margin * iso.half_tw;
-      const float origin_shift_y = iso.half_th;
-      const float world_x = static_cast<float>(clamped_px - canvas_left) + camera_x - origin_shift_x;
-      const float world_y = static_cast<float>(clamped_py - canvas_top) + camera_y - origin_shift_y;
-      return {.x = world_x, .y = world_y};
-    }
+/// A window pixel, clamped to the canvas interior and undoing the renderer's origin shift, in
+/// the world space world_to_tile() reads.
+[[nodiscard]] inline corundum::core::math::Vec2
+canvas_pixel_to_world(int px, int py, int canvas_left, int canvas_top, int canvas_w, int canvas_h, float camera_x,
+                      float camera_y, const corundum::core::math::IsometricParams &iso) noexcept {
+  const int clamped_px = std::clamp(px, canvas_left, canvas_left + std::max(canvas_w, 1) - 1);
+  const int clamped_py = std::clamp(py, canvas_top, canvas_top + std::max(canvas_h, 1) - 1);
+  const float origin_shift_x = k_content_margin * iso.half_tw;
+  const float origin_shift_y = iso.half_th;
+  const float world_x = static_cast<float>(clamped_px - canvas_left) + camera_x - origin_shift_x;
+  const float world_y = static_cast<float>(clamped_py - canvas_top) + camera_y - origin_shift_y;
+  return {.x = world_x, .y = world_y};
+}
 
-    /// The tile-grid collision rect spanning two fractional drag endpoints, at least one diamond
-    /// wide and tall.
-    [[nodiscard]] inline corundum::world::tilemap::CollisionRect tiled_rect(corundum::core::math::TilePos from,
-                                                                            corundum::core::math::TilePos to,
-                                                                            int diamond_w, int diamond_h) noexcept {
-      const float min_col = std::min(from.col, to.col);
-      const float min_row = std::min(from.row, to.row);
-      const float max_col = std::max(from.col, to.col);
-      const float max_row = std::max(from.row, to.row);
-      const float inv_dw = 1.f / static_cast<float>(diamond_w);
-      const float inv_dh = 1.f / static_cast<float>(diamond_h);
-      return {
-          .col = min_col,
-          .row = min_row,
-          .col_span = std::max(inv_dw, max_col - min_col),
-          .row_span = std::max(inv_dh, max_row - min_row),
-      };
-    }
-  } // namespace detail
-
-  /**
-   * @brief Tile-grid coordinate (column, row).
-   */
-  struct TileCoord {
-    int col;
-    int row;
+/// The tile-grid collision rect spanning two fractional drag endpoints, at least one diamond
+/// wide and tall.
+[[nodiscard]] inline corundum::world::tilemap::CollisionRect tiled_rect(corundum::core::math::TilePos from,
+                                                                        corundum::core::math::TilePos to, int diamond_w,
+                                                                        int diamond_h) noexcept {
+  const float min_col = std::min(from.col, to.col);
+  const float min_row = std::min(from.row, to.row);
+  const float max_col = std::max(from.col, to.col);
+  const float max_row = std::max(from.row, to.row);
+  const float inv_dw = 1.f / static_cast<float>(diamond_w);
+  const float inv_dh = 1.f / static_cast<float>(diamond_h);
+  return {
+      .col = min_col,
+      .row = min_row,
+      .col_span = std::max(inv_dw, max_col - min_col),
+      .row_span = std::max(inv_dh, max_row - min_row),
   };
+}
+} // namespace detail
 
-  /**
-   * @brief Convert a window pixel position to a fractional (unfloored) tile-grid coordinate,
-   * applying the isometric inverse projection the canvas renderer uses.
-   *
-   * Clamps @p px and @p py to the canvas interior first, so off-canvas pixels still produce a
-   * valid in-canvas tile coord (no `nullopt`). This lets `pixel_to_tiled_rect()` build a
-   * `CollisionRect` from two `TilePos` values without ever handling `optional`.
-   *
-   * Shared kernel between `screen_to_tile()` (whole-tile pick) and `pixel_to_tiled_rect()`
-   * (sub-tile drag) so the two paths can never drift apart.
-   *
-   * @param px             Window-space X pixel position (will be clamped to canvas interior).
-   * @param py             Window-space Y pixel position (will be clamped to canvas interior).
-   * @param canvas_left     Left edge of the canvas region in window space.
-   * @param canvas_top      Top edge of the canvas region in window space.
-   * @param canvas_w        Width of the canvas in pixels.
-   * @param canvas_h        Height of the canvas in pixels.
-   * @param camera_x        Current camera horizontal scroll offset.
-   * @param camera_y        Current camera vertical scroll offset.
-   * @param tile_scale      Display scale factor.
-   * @param elev_step       Screen pixels lifted per unit of elevation.
-   * @param map_h           Map height in tiles (used to compute x_origin).
-   * @param tw              Tilemap::diamond_w() — the isometric grid-step width.
-   * @param diamond_h       Tilemap::diamond_h() — the isometric grid-step height.
-   * @return Fractional {col, row}; floor() each component to get the containing cell.
-   */
-  [[nodiscard]] inline corundum::core::math::TilePos
-  pixel_to_fractional_tile(int px, int py, int canvas_left, int canvas_top, int canvas_w, int canvas_h, float camera_x,
-                           float camera_y, float tile_scale, float elev_step, int map_h, int tw,
-                           int diamond_h) noexcept {
-    const auto iso = detail::canvas_iso(tw, diamond_h, map_h, tile_scale, elev_step);
-    const corundum::core::math::Vec2 world =
-        detail::canvas_pixel_to_world(px, py, canvas_left, canvas_top, canvas_w, canvas_h, camera_x, camera_y, iso);
-    return corundum::core::math::world_to_tile(world, 0, iso);
+/**
+ * @brief Tile-grid coordinate (column, row).
+ */
+struct TileCoord {
+  int col;
+  int row;
+};
+
+/**
+ * @brief Convert a window pixel position to a fractional (unfloored) tile-grid coordinate,
+ * applying the isometric inverse projection the canvas renderer uses.
+ *
+ * Clamps @p px and @p py to the canvas interior first, so off-canvas pixels still produce a
+ * valid in-canvas tile coord (no `nullopt`). This lets `pixel_to_tiled_rect()` build a
+ * `CollisionRect` from two `TilePos` values without ever handling `optional`.
+ *
+ * Shared kernel between `screen_to_tile()` (whole-tile pick) and `pixel_to_tiled_rect()`
+ * (sub-tile drag) so the two paths can never drift apart.
+ *
+ * @param px             Window-space X pixel position (will be clamped to canvas interior).
+ * @param py             Window-space Y pixel position (will be clamped to canvas interior).
+ * @param canvas_left     Left edge of the canvas region in window space.
+ * @param canvas_top      Top edge of the canvas region in window space.
+ * @param canvas_w        Width of the canvas in pixels.
+ * @param canvas_h        Height of the canvas in pixels.
+ * @param camera_x        Current camera horizontal scroll offset.
+ * @param camera_y        Current camera vertical scroll offset.
+ * @param tile_scale      Display scale factor.
+ * @param elev_step       Screen pixels lifted per unit of elevation.
+ * @param map_h           Map height in tiles (used to compute x_origin).
+ * @param tw              Tilemap::diamond_w() — the isometric grid-step width.
+ * @param diamond_h       Tilemap::diamond_h() — the isometric grid-step height.
+ * @return Fractional {col, row}; floor() each component to get the containing cell.
+ */
+[[nodiscard]] inline corundum::core::math::TilePos
+pixel_to_fractional_tile(int px, int py, int canvas_left, int canvas_top, int canvas_w, int canvas_h, float camera_x,
+                         float camera_y, float tile_scale, float elev_step, int map_h, int tw, int diamond_h) noexcept {
+  const auto iso = detail::canvas_iso(tw, diamond_h, map_h, tile_scale, elev_step);
+  const corundum::core::math::Vec2 world =
+      detail::canvas_pixel_to_world(px, py, canvas_left, canvas_top, canvas_w, canvas_h, camera_x, camera_y, iso);
+  return corundum::core::math::world_to_tile(world, 0, iso);
+}
+
+/**
+ * @brief Elevation-aware overload of pixel_to_fractional_tile — same as above but
+ * iterates the tilemap's elevations top-down so an elevated cell picks itself
+ * instead of the cell whose flat projection is under the click.
+ *
+ * Mirrors the runtime picker's strategy (picking.cpp): for each candidate elevation
+ * (max down to 0), project the click position back to tile-grid coords and check
+ * whether the resulting cell has that exact elevation. The first match wins (topmost
+ * painted cell under the click). Falls back to elev=0 if no elev matches (e.g., click
+ * outside the map) so off-canvas picks still return *some* tile coord — same as the
+ * elev=0-only behavior.
+ *
+ * Plan §1f: editors previously hardcoded elev=0 here, so clicking a visible diamond
+ * on raised terrain selected the cell behind/below it.
+ *
+ * @param map   Tilemap providing per-cell elevations (only z_index==0 layers read).
+ * @param layer_visible  Per-layer visibility; layers hidden here neither raise the search ceiling nor
+ *                 catch the click.
+ * @pre layer_visible.size() == map.layers.size().
+ */
+[[nodiscard]] inline corundum::core::math::TilePos
+pixel_to_fractional_tile(int px, int py, int canvas_left, int canvas_top, int canvas_w, int canvas_h, float camera_x,
+                         float camera_y, float tile_scale, float elev_step, int map_h, int tw, int diamond_h,
+                         const corundum::world::tilemap::Tilemap &map, const LayerVisibility &layer_visible) noexcept {
+  corundum::core::verify(layer_visible.size() == map.layers.size(),
+                         "pixel_to_fractional_tile: layer visibility is out of step with the map");
+  const auto iso = detail::canvas_iso(tw, diamond_h, map_h, tile_scale, elev_step);
+  const corundum::core::math::Vec2 world =
+      detail::canvas_pixel_to_world(px, py, canvas_left, canvas_top, canvas_w, canvas_h, camera_x, camera_y, iso);
+
+  const auto layer_is_visible = [&layer_visible](std::size_t layer_index) { return layer_visible[layer_index]; };
+  // Find the topmost elevation authored on any visible z_index==0 layer with a tile.
+  int max_elev = 0;
+  for (std::size_t layer_index = 0; layer_index < map.layers.size(); ++layer_index) {
+    const corundum::world::tilemap::TilemapLayer &layer = map.layers[layer_index];
+    if (layer.z_index != 0 || !layer_is_visible(layer_index))
+      continue;
+    for (const uint8_t elevation : layer.elevation)
+      max_elev = std::max(max_elev, static_cast<int>(elevation));
   }
 
-  /**
-   * @brief Elevation-aware overload of pixel_to_fractional_tile — same as above but
-   * iterates the tilemap's elevations top-down so an elevated cell picks itself
-   * instead of the cell whose flat projection is under the click.
-   *
-   * Mirrors the runtime picker's strategy (picking.cpp): for each candidate elevation
-   * (max down to 0), project the click position back to tile-grid coords and check
-   * whether the resulting cell has that exact elevation. The first match wins (topmost
-   * painted cell under the click). Falls back to elev=0 if no elev matches (e.g., click
-   * outside the map) so off-canvas picks still return *some* tile coord — same as the
-   * elev=0-only behavior.
-   *
-   * Plan §1f: editors previously hardcoded elev=0 here, so clicking a visible diamond
-   * on raised terrain selected the cell behind/below it.
-   *
-   * @param map   Tilemap providing per-cell elevations (only z_index==0 layers read).
-   * @param layer_visible  Per-layer visibility; layers hidden here neither raise the search ceiling nor
-   *                 catch the click.
-   * @pre layer_visible.size() == map.layers.size().
-   */
-  [[nodiscard]] inline corundum::core::math::TilePos
-  pixel_to_fractional_tile(int px, int py, int canvas_left, int canvas_top, int canvas_w, int canvas_h, float camera_x,
-                           float camera_y, float tile_scale, float elev_step, int map_h, int tw, int diamond_h,
-                           const corundum::world::tilemap::Tilemap &map,
-                           const LayerVisibility &layer_visible) noexcept {
-    corundum::core::verify(layer_visible.size() == map.layers.size(),
-                           "pixel_to_fractional_tile: layer visibility is out of step with the map");
-    const auto iso = detail::canvas_iso(tw, diamond_h, map_h, tile_scale, elev_step);
-    const corundum::core::math::Vec2 world =
-        detail::canvas_pixel_to_world(px, py, canvas_left, canvas_top, canvas_w, canvas_h, camera_x, camera_y, iso);
-
-    const auto layer_is_visible = [&layer_visible](std::size_t layer_index) { return layer_visible[layer_index]; };
-    // Find the topmost elevation authored on any visible z_index==0 layer with a tile.
-    int max_elev = 0;
-    for (std::size_t layer_index = 0; layer_index < map.layers.size(); ++layer_index) {
-      const corundum::world::tilemap::TilemapLayer &layer = map.layers[layer_index];
-      if (layer.z_index != 0 || !layer_is_visible(layer_index))
-        continue;
-      for (const uint8_t elevation : layer.elevation)
-        max_elev = std::max(max_elev, static_cast<int>(elevation));
-    }
-
-    // Iterate elevations top-down so the topmost painted cell under the click wins.
-    for (int elev = max_elev; elev >= 0; --elev) {
-      const corundum::core::math::TilePos frac = corundum::core::math::world_to_tile(world, elev, iso);
-      const int col = static_cast<int>(std::floor(frac.col));
-      const int row = static_cast<int>(std::floor(frac.row));
-      if (col < 0 || col >= map.width || row < 0 || row >= map.height)
-        continue;
-      if (corundum::world::tilemap::elevation_at(map, col, row, layer_is_visible) == elev)
-        return frac;
-    }
-    // No elev matched — fall back to elev=0 (preserves the original behavior for clicks
-    // outside the map or in edge cases).
-    return corundum::core::math::world_to_tile(world, 0, iso);
-  }
-
-  /**
-   * @brief Convert a window pixel position to a map tile coordinate.
-   *
-   * @param px             Window-space X pixel position.
-   * @param py             Window-space Y pixel position.
-   * @param canvas_left     Left edge of the canvas region in window space.
-   * @param canvas_top      Top edge of the canvas region in window space.
-   * @param canvas_w        Width of the canvas in pixels.
-   * @param canvas_h        Height of the canvas in pixels.
-   * @param camera_x        Current camera horizontal scroll offset.
-   * @param camera_y        Current camera vertical scroll offset.
-   * @param tile_scale      Display scale factor.
-   * @param map_w           Map width in tiles.
-   * @param map_h           Map height in tiles.
-   * @param tw              Tile width in Tiled pixel space.
-   * @param diamond_h       Tile height in Tiled pixel space.
-   * @return Tile coordinate, or nullopt if outside the canvas or map bounds.
-   */
-  [[nodiscard]] inline std::optional<TileCoord> screen_to_tile(int px, int py, int canvas_left, int canvas_top,
-                                                               int canvas_w, int canvas_h, float camera_x,
-                                                               float camera_y, float tile_scale, float elev_step,
-                                                               int map_w, int map_h, int tw, int diamond_h) noexcept {
-    if (px < canvas_left || px >= canvas_left + canvas_w)
-      return std::nullopt;
-    if (py < canvas_top || py >= canvas_top + canvas_h)
-      return std::nullopt;
-
-    const corundum::core::math::TilePos frac =
-        pixel_to_fractional_tile(px, py, canvas_left, canvas_top, canvas_w, canvas_h, camera_x, camera_y, tile_scale,
-                                 elev_step, map_h, tw, diamond_h);
-
+  // Iterate elevations top-down so the topmost painted cell under the click wins.
+  for (int elev = max_elev; elev >= 0; --elev) {
+    const corundum::core::math::TilePos frac = corundum::core::math::world_to_tile(world, elev, iso);
     const int col = static_cast<int>(std::floor(frac.col));
     const int row = static_cast<int>(std::floor(frac.row));
-
-    if (col < 0 || col >= map_w || row < 0 || row >= map_h)
-      return std::nullopt;
-    return TileCoord{.col = col, .row = row};
+    if (col < 0 || col >= map.width || row < 0 || row >= map.height)
+      continue;
+    if (corundum::world::tilemap::elevation_at(map, col, row, layer_is_visible) == elev)
+      return frac;
   }
+  // No elev matched — fall back to elev=0 (preserves the original behavior for clicks
+  // outside the map or in edge cases).
+  return corundum::core::math::world_to_tile(world, 0, iso);
+}
 
-  /**
-   * @brief Elevation-aware overload of screen_to_tile — same contract as above but
-   * uses the elev-aware pixel_to_fractional_tile so a click on an elevated cell
-   * returns that cell rather than the cell whose flat projection sits below it.
-   *
-   * @param map  Tilemap for elevation lookup (must match the map_w/map_h bounds).
-   * @param layer_visible  Per-layer visibility; hidden layers do not catch the click.
-   */
-  [[nodiscard]] inline std::optional<TileCoord>
-  screen_to_tile(int px, int py, int canvas_left, int canvas_top, int canvas_w, int canvas_h, float camera_x,
-                 float camera_y, float tile_scale, float elev_step, int map_w, int map_h, int tw, int diamond_h,
-                 const corundum::world::tilemap::Tilemap &map, const LayerVisibility &layer_visible) noexcept {
-    if (px < canvas_left || px >= canvas_left + canvas_w)
-      return std::nullopt;
-    if (py < canvas_top || py >= canvas_top + canvas_h)
-      return std::nullopt;
-
-    const corundum::core::math::TilePos frac =
-        pixel_to_fractional_tile(px, py, canvas_left, canvas_top, canvas_w, canvas_h, camera_x, camera_y, tile_scale,
-                                 elev_step, map_h, tw, diamond_h, map, layer_visible);
-
-    const int col = static_cast<int>(std::floor(frac.col));
-    const int row = static_cast<int>(std::floor(frac.row));
-
-    if (col < 0 || col >= map_w || row < 0 || row >= map_h)
-      return std::nullopt;
-    return TileCoord{.col = col, .row = row};
-  }
-
-  /**
-   * @brief One tile's placement within the palette panel's flow layout, in unscrolled panel-local
-   * pixels (top-left origin at the panel's top-left, before palette_scroll_y is subtracted).
-   */
-  struct PaletteCell {
-    int local_id;
-    int x, y;
-    int w, h;
-  };
-
-  /// Padding in pixels between adjacent palette cells, both horizontally and between rows.
-  inline constexpr int k_palette_cell_padding = 2;
-
-  /// Clamp range for EditorState::palette_tile_scale (user zoom via Ctrl+scroll; see input.cpp).
-  inline constexpr float k_palette_min_scale = 0.25f;
-  inline constexpr float k_palette_max_scale = 4.f;
-
-  /**
-   * @brief Lays out every tile in @p ts as a left-to-right, top-to-bottom flow (wrapping to a new
-   * row when a tile would exceed @p available_w), since a MaxRects-packed tileset has no uniform
-   * cell size or column count to lay out as a fixed grid. Each row's height is its tallest tile.
-   *
-   * Shared between rendering (render_tile_grid.cpp) and click hit-testing (this function's
-   * palette_click_to_gid below), so the two can never drift out of sync with each other.
-   *
-   * @param ts          Tileset whose tiles are displayed in the palette.
-   * @param available_w Panel width in pixels to wrap within.
-   * @param tile_scale  Display scale factor.
-   * @return One PaletteCell per tile, in local_id order.
-   */
-  [[nodiscard]] inline std::vector<PaletteCell>
-  compute_palette_layout(const corundum::world::tilemap::TilemapTileset &ts, int available_w, float tile_scale) {
-    std::vector<PaletteCell> cells;
-    cells.reserve(static_cast<std::size_t>(std::max(0, ts.info.tile_count)));
-    int cursor_x = 0;
-    int cursor_y = 0;
-    int row_h = 0;
-    for (int i = 0; i < ts.info.tile_count; ++i) {
-      const auto &rect = ts.info.tile_rects[static_cast<std::size_t>(i)];
-      const int w = std::max(1, static_cast<int>(static_cast<float>(rect.width) * tile_scale));
-      const int h = std::max(1, static_cast<int>(static_cast<float>(rect.height) * tile_scale));
-      if (cursor_x > 0 && cursor_x + w > available_w) {
-        cursor_x = 0;
-        cursor_y += row_h + k_palette_cell_padding;
-        row_h = 0;
-      }
-      cells.push_back(PaletteCell{.local_id = i, .x = cursor_x, .y = cursor_y, .w = w, .h = h});
-      cursor_x += w + k_palette_cell_padding;
-      row_h = std::max(row_h, h);
-    }
-    return cells;
-  }
-
-  /**
-   * @brief Convert a palette panel click to an absolute tile GID, using the same flow layout
-   * compute_palette_layout() produces (and render_tile_grid.cpp draws).
-   *
-   * Callers should compute the layout once (via compute_palette_layout()) and pass it in via @p cells
-   * rather than recomputing on every click.
-   *
-   * @param panel_local_x  Position relative to the left edge of the palette panel.
-   * @param panel_local_y  Position relative to the top edge of the palette panel.
-   * @param ts            Tileset whose tiles are displayed in the panel.
-   * @param scroll_y      Vertical scroll offset in pixels (EditorState::palette_scroll_y).
-   * @param cells         Precomputed palette layout — see compute_palette_layout().
-   * @return Absolute GID, or nullopt if the click doesn't land on a tile.
-   */
-  [[nodiscard]] inline std::optional<corundum::world::tilemap::TileId>
-  palette_click_to_gid(int panel_local_x, int panel_local_y, const corundum::world::tilemap::TilemapTileset &ts,
-                       float scroll_y, std::span<const PaletteCell> cells) noexcept {
-    const int content_y = panel_local_y + static_cast<int>(scroll_y);
-    for (const auto &cell : cells) {
-      if (panel_local_x >= cell.x && panel_local_x < cell.x + cell.w && content_y >= cell.y &&
-          content_y < cell.y + cell.h)
-        return static_cast<corundum::world::tilemap::TileId>(static_cast<int>(ts.first_gid) + cell.local_id);
-    }
+/**
+ * @brief Convert a window pixel position to a map tile coordinate.
+ *
+ * @param px             Window-space X pixel position.
+ * @param py             Window-space Y pixel position.
+ * @param canvas_left     Left edge of the canvas region in window space.
+ * @param canvas_top      Top edge of the canvas region in window space.
+ * @param canvas_w        Width of the canvas in pixels.
+ * @param canvas_h        Height of the canvas in pixels.
+ * @param camera_x        Current camera horizontal scroll offset.
+ * @param camera_y        Current camera vertical scroll offset.
+ * @param tile_scale      Display scale factor.
+ * @param map_w           Map width in tiles.
+ * @param map_h           Map height in tiles.
+ * @param tw              Tile width in Tiled pixel space.
+ * @param diamond_h       Tile height in Tiled pixel space.
+ * @return Tile coordinate, or nullopt if outside the canvas or map bounds.
+ */
+[[nodiscard]] inline std::optional<TileCoord> screen_to_tile(int px, int py, int canvas_left, int canvas_top,
+                                                             int canvas_w, int canvas_h, float camera_x, float camera_y,
+                                                             float tile_scale, float elev_step, int map_w, int map_h,
+                                                             int tw, int diamond_h) noexcept {
+  if (px < canvas_left || px >= canvas_left + canvas_w)
     return std::nullopt;
-  }
+  if (py < canvas_top || py >= canvas_top + canvas_h)
+    return std::nullopt;
 
-  /**
-   * @brief Convert two tile-grid corners to a CollisionRect in Tiled pixel space.
-   *
-   * Normalizes drag direction so w/h are always positive. A single-tile click
-   * (col_a == col_b, row_a == row_b) produces a rect exactly one tile wide/tall.
-   *
-   * @param col_a  Drag anchor tile column.
-   * @param row_a  Drag anchor tile row.
-   * @param col_b  Current (or release) tile column.
-   * @param row_b  Current (or release) tile row.
-   * @return CollisionRect with positive w/h.
-   */
-  [[nodiscard]] inline corundum::world::tilemap::CollisionRect snap_to_tile_rect(int col_a, int row_a, int col_b,
-                                                                                 int row_b) noexcept {
-    const int min_col = std::min(col_a, col_b);
-    const int min_row = std::min(row_a, row_b);
-    const int max_col = std::max(col_a, col_b);
-    const int max_row = std::max(row_a, row_b);
-    return {
-        .col = static_cast<float>(min_col),
-        .row = static_cast<float>(min_row),
-        .col_span = static_cast<float>(max_col - min_col + 1),
-        .row_span = static_cast<float>(max_row - min_row + 1),
-    };
-  }
+  const corundum::core::math::TilePos frac =
+      pixel_to_fractional_tile(px, py, canvas_left, canvas_top, canvas_w, canvas_h, camera_x, camera_y, tile_scale,
+                               elev_step, map_h, tw, diamond_h);
 
-  /**
-   * @brief Convert two window pixel drag positions to a CollisionRect in tile-grid space.
-   *
-   * Used for sub-tile precision collision rect placement (Shift-drag). Both endpoints go through
-   * the same isometric pixel→tile kernel as `screen_to_tile()` so the live preview rhombus
-   * tracks the cursor exactly and the committed rect matches the preview.
-   *
-   * @param win_x_a       Window-space X position at drag anchor (clamped to canvas interior).
-   * @param win_y_a       Window-space Y position at drag anchor (clamped to canvas interior).
-   * @param win_x_b       Window-space X position at drag release (or current cursor).
-   * @param win_y_b       Window-space Y position at drag release (or current cursor).
-   * @param canvas_left     Left edge of the canvas region in window space.
-   * @param canvas_top      Top edge of the canvas region in window space.
-   * @param canvas_w        Width of the canvas in pixels.
-   * @param canvas_h        Height of the canvas in pixels.
-   * @param camera_x        Current camera horizontal scroll offset.
-   * @param camera_y        Current camera vertical scroll offset.
-   * @param tile_scale      Display scale factor.
-   * @param elev_step       Screen pixels lifted per unit of elevation.
-   * @param map_h           Map height in tiles (used to compute x_origin).
-   * @param diamond_w       Tilemap::diamond_w() — the isometric grid-step width.
-   * @param diamond_h       Tilemap::diamond_h() — the isometric grid-step height.
-   * @return CollisionRect in tile-grid space with col_span/row_span >= 1/diamond_w, 1/diamond_h.
-   */
-  [[nodiscard]] inline corundum::world::tilemap::CollisionRect
-  pixel_to_tiled_rect(int win_x_a, int win_y_a, int win_x_b, int win_y_b, int canvas_left, int canvas_top, int canvas_w,
-                      int canvas_h, float camera_x, float camera_y, float tile_scale, float elev_step, int map_h,
-                      int diamond_w, int diamond_h) noexcept {
-    const auto ta = pixel_to_fractional_tile(win_x_a, win_y_a, canvas_left, canvas_top, canvas_w, canvas_h, camera_x,
-                                             camera_y, tile_scale, elev_step, map_h, diamond_w, diamond_h);
-    const auto tb = pixel_to_fractional_tile(win_x_b, win_y_b, canvas_left, canvas_top, canvas_w, canvas_h, camera_x,
-                                             camera_y, tile_scale, elev_step, map_h, diamond_w, diamond_h);
-    return detail::tiled_rect(ta, tb, diamond_w, diamond_h);
-  }
+  const int col = static_cast<int>(std::floor(frac.col));
+  const int row = static_cast<int>(std::floor(frac.row));
 
-  /**
-   * @brief Elevation-aware overload of pixel_to_tiled_rect — sub-tile drag must use the
-   * same elev-aware kernel as screen_to_tile so the live preview tracks the cursor on
-   * raised terrain.
-   *
-   * @param map  Tilemap for elevation lookup (sub-tile precision on raised cells).
-   * @param layer_visible  Per-layer visibility; hidden layers do not catch the click.
-   */
-  [[nodiscard]] inline corundum::world::tilemap::CollisionRect
-  pixel_to_tiled_rect(int win_x_a, int win_y_a, int win_x_b, int win_y_b, int canvas_left, int canvas_top, int canvas_w,
-                      int canvas_h, float camera_x, float camera_y, float tile_scale, float elev_step, int map_h,
-                      int diamond_w, int diamond_h, const corundum::world::tilemap::Tilemap &map,
-                      const LayerVisibility &layer_visible) noexcept {
-    const auto ta =
-        pixel_to_fractional_tile(win_x_a, win_y_a, canvas_left, canvas_top, canvas_w, canvas_h, camera_x, camera_y,
-                                 tile_scale, elev_step, map_h, diamond_w, diamond_h, map, layer_visible);
-    const auto tb =
-        pixel_to_fractional_tile(win_x_b, win_y_b, canvas_left, canvas_top, canvas_w, canvas_h, camera_x, camera_y,
-                                 tile_scale, elev_step, map_h, diamond_w, diamond_h, map, layer_visible);
-    return detail::tiled_rect(ta, tb, diamond_w, diamond_h);
-  }
+  if (col < 0 || col >= map_w || row < 0 || row >= map_h)
+    return std::nullopt;
+  return TileCoord{.col = col, .row = row};
+}
 
-  /**
-   * @brief Clamp a camera position so it cannot scroll past the map boundary.
-   *
-   * Allows negative values so maps smaller than the canvas can be centered.
-   *
-   * @param offset_x   Camera horizontal offset to clamp (passed by value).
-   * @param offset_y   Camera vertical offset to clamp (passed by value).
-   * @param tile_scale Display scale factor.
-   * @param map_w      Map width in tiles.
-   * @param map_h      Map height in tiles.
-   * @param tw         Tile width in pixels.
-   * @param diamond_h  Tile height in pixels.
-   * @param canvas_w   Canvas width in pixels.
-   * @param canvas_h   Canvas height in pixels.
-   * @return Clamped camera.
-   */
-  [[nodiscard]] inline std::pair<float, float> clamp_camera(float offset_x, float offset_y, float tile_scale, int map_w,
-                                                            int map_h, int tw, int diamond_h, int canvas_w,
-                                                            int canvas_h) noexcept {
-    const float half_tw = static_cast<float>(tw) * tile_scale * 0.5f;
-    const float half_th = static_cast<float>(diamond_h > 0 ? diamond_h : tw / 2) * tile_scale * 0.5f;
-    const float map_px_w = (static_cast<float>(map_w + map_h) * half_tw) + (k_content_margin * half_tw);
-    const float map_px_h = (static_cast<float>(map_w + map_h) * half_th) + (k_content_margin * half_th);
-    const float min_x = std::min(0.f, (map_px_w - static_cast<float>(canvas_w)) * 0.5f);
-    const float min_y = std::min(0.f, (map_px_h - static_cast<float>(canvas_h)) * 0.5f);
-    return {std::clamp(offset_x, min_x, std::max(0.f, map_px_w - static_cast<float>(canvas_w))),
-            std::clamp(offset_y, min_y, std::max(0.f, map_px_h - static_cast<float>(canvas_h)))};
+/**
+ * @brief Elevation-aware overload of screen_to_tile — same contract as above but
+ * uses the elev-aware pixel_to_fractional_tile so a click on an elevated cell
+ * returns that cell rather than the cell whose flat projection sits below it.
+ *
+ * @param map  Tilemap for elevation lookup (must match the map_w/map_h bounds).
+ * @param layer_visible  Per-layer visibility; hidden layers do not catch the click.
+ */
+[[nodiscard]] inline std::optional<TileCoord>
+screen_to_tile(int px, int py, int canvas_left, int canvas_top, int canvas_w, int canvas_h, float camera_x,
+               float camera_y, float tile_scale, float elev_step, int map_w, int map_h, int tw, int diamond_h,
+               const corundum::world::tilemap::Tilemap &map, const LayerVisibility &layer_visible) noexcept {
+  if (px < canvas_left || px >= canvas_left + canvas_w)
+    return std::nullopt;
+  if (py < canvas_top || py >= canvas_top + canvas_h)
+    return std::nullopt;
+
+  const corundum::core::math::TilePos frac =
+      pixel_to_fractional_tile(px, py, canvas_left, canvas_top, canvas_w, canvas_h, camera_x, camera_y, tile_scale,
+                               elev_step, map_h, tw, diamond_h, map, layer_visible);
+
+  const int col = static_cast<int>(std::floor(frac.col));
+  const int row = static_cast<int>(std::floor(frac.row));
+
+  if (col < 0 || col >= map_w || row < 0 || row >= map_h)
+    return std::nullopt;
+  return TileCoord{.col = col, .row = row};
+}
+
+/**
+ * @brief One tile's placement within the palette panel's flow layout, in unscrolled panel-local
+ * pixels (top-left origin at the panel's top-left, before palette_scroll_y is subtracted).
+ */
+struct PaletteCell {
+  int local_id;
+  int x, y;
+  int w, h;
+};
+
+/// Padding in pixels between adjacent palette cells, both horizontally and between rows.
+inline constexpr int k_palette_cell_padding = 2;
+
+/// Clamp range for EditorState::palette_tile_scale (user zoom via Ctrl+scroll; see input.cpp).
+inline constexpr float k_palette_min_scale = 0.25f;
+inline constexpr float k_palette_max_scale = 4.f;
+
+/**
+ * @brief Lays out every tile in @p ts as a left-to-right, top-to-bottom flow (wrapping to a new
+ * row when a tile would exceed @p available_w), since a MaxRects-packed tileset has no uniform
+ * cell size or column count to lay out as a fixed grid. Each row's height is its tallest tile.
+ *
+ * Shared between rendering (render_tile_grid.cpp) and click hit-testing (this function's
+ * palette_click_to_gid below), so the two can never drift out of sync with each other.
+ *
+ * @param ts          Tileset whose tiles are displayed in the palette.
+ * @param available_w Panel width in pixels to wrap within.
+ * @param tile_scale  Display scale factor.
+ * @return One PaletteCell per tile, in local_id order.
+ */
+[[nodiscard]] inline std::vector<PaletteCell> compute_palette_layout(const corundum::world::tilemap::TilemapTileset &ts,
+                                                                     int available_w, float tile_scale) {
+  std::vector<PaletteCell> cells;
+  cells.reserve(static_cast<std::size_t>(std::max(0, ts.info.tile_count)));
+  int cursor_x = 0;
+  int cursor_y = 0;
+  int row_h = 0;
+  for (int i = 0; i < ts.info.tile_count; ++i) {
+    const auto &rect = ts.info.tile_rects[static_cast<std::size_t>(i)];
+    const int w = std::max(1, static_cast<int>(static_cast<float>(rect.width) * tile_scale));
+    const int h = std::max(1, static_cast<int>(static_cast<float>(rect.height) * tile_scale));
+    if (cursor_x > 0 && cursor_x + w > available_w) {
+      cursor_x = 0;
+      cursor_y += row_h + k_palette_cell_padding;
+      row_h = 0;
+    }
+    cells.push_back(PaletteCell{.local_id = i, .x = cursor_x, .y = cursor_y, .w = w, .h = h});
+    cursor_x += w + k_palette_cell_padding;
+    row_h = std::max(row_h, h);
   }
+  return cells;
+}
+
+/**
+ * @brief Convert a palette panel click to an absolute tile GID, using the same flow layout
+ * compute_palette_layout() produces (and render_tile_grid.cpp draws).
+ *
+ * Callers should compute the layout once (via compute_palette_layout()) and pass it in via @p cells
+ * rather than recomputing on every click.
+ *
+ * @param panel_local_x  Position relative to the left edge of the palette panel.
+ * @param panel_local_y  Position relative to the top edge of the palette panel.
+ * @param ts            Tileset whose tiles are displayed in the panel.
+ * @param scroll_y      Vertical scroll offset in pixels (EditorState::palette_scroll_y).
+ * @param cells         Precomputed palette layout — see compute_palette_layout().
+ * @return Absolute GID, or nullopt if the click doesn't land on a tile.
+ */
+[[nodiscard]] inline std::optional<corundum::world::tilemap::TileId>
+palette_click_to_gid(int panel_local_x, int panel_local_y, const corundum::world::tilemap::TilemapTileset &ts,
+                     float scroll_y, std::span<const PaletteCell> cells) noexcept {
+  const int content_y = panel_local_y + static_cast<int>(scroll_y);
+  for (const auto &cell : cells) {
+    if (panel_local_x >= cell.x && panel_local_x < cell.x + cell.w && content_y >= cell.y &&
+        content_y < cell.y + cell.h)
+      return static_cast<corundum::world::tilemap::TileId>(static_cast<int>(ts.first_gid) + cell.local_id);
+  }
+  return std::nullopt;
+}
+
+/**
+ * @brief Convert two tile-grid corners to a CollisionRect in Tiled pixel space.
+ *
+ * Normalizes drag direction so w/h are always positive. A single-tile click
+ * (col_a == col_b, row_a == row_b) produces a rect exactly one tile wide/tall.
+ *
+ * @param col_a  Drag anchor tile column.
+ * @param row_a  Drag anchor tile row.
+ * @param col_b  Current (or release) tile column.
+ * @param row_b  Current (or release) tile row.
+ * @return CollisionRect with positive w/h.
+ */
+[[nodiscard]] inline corundum::world::tilemap::CollisionRect snap_to_tile_rect(int col_a, int row_a, int col_b,
+                                                                               int row_b) noexcept {
+  const int min_col = std::min(col_a, col_b);
+  const int min_row = std::min(row_a, row_b);
+  const int max_col = std::max(col_a, col_b);
+  const int max_row = std::max(row_a, row_b);
+  return {
+      .col = static_cast<float>(min_col),
+      .row = static_cast<float>(min_row),
+      .col_span = static_cast<float>(max_col - min_col + 1),
+      .row_span = static_cast<float>(max_row - min_row + 1),
+  };
+}
+
+/**
+ * @brief Convert two window pixel drag positions to a CollisionRect in tile-grid space.
+ *
+ * Used for sub-tile precision collision rect placement (Shift-drag). Both endpoints go through
+ * the same isometric pixel→tile kernel as `screen_to_tile()` so the live preview rhombus
+ * tracks the cursor exactly and the committed rect matches the preview.
+ *
+ * @param win_x_a       Window-space X position at drag anchor (clamped to canvas interior).
+ * @param win_y_a       Window-space Y position at drag anchor (clamped to canvas interior).
+ * @param win_x_b       Window-space X position at drag release (or current cursor).
+ * @param win_y_b       Window-space Y position at drag release (or current cursor).
+ * @param canvas_left     Left edge of the canvas region in window space.
+ * @param canvas_top      Top edge of the canvas region in window space.
+ * @param canvas_w        Width of the canvas in pixels.
+ * @param canvas_h        Height of the canvas in pixels.
+ * @param camera_x        Current camera horizontal scroll offset.
+ * @param camera_y        Current camera vertical scroll offset.
+ * @param tile_scale      Display scale factor.
+ * @param elev_step       Screen pixels lifted per unit of elevation.
+ * @param map_h           Map height in tiles (used to compute x_origin).
+ * @param diamond_w       Tilemap::diamond_w() — the isometric grid-step width.
+ * @param diamond_h       Tilemap::diamond_h() — the isometric grid-step height.
+ * @return CollisionRect in tile-grid space with col_span/row_span >= 1/diamond_w, 1/diamond_h.
+ */
+[[nodiscard]] inline corundum::world::tilemap::CollisionRect
+pixel_to_tiled_rect(int win_x_a, int win_y_a, int win_x_b, int win_y_b, int canvas_left, int canvas_top, int canvas_w,
+                    int canvas_h, float camera_x, float camera_y, float tile_scale, float elev_step, int map_h,
+                    int diamond_w, int diamond_h) noexcept {
+  const auto ta = pixel_to_fractional_tile(win_x_a, win_y_a, canvas_left, canvas_top, canvas_w, canvas_h, camera_x,
+                                           camera_y, tile_scale, elev_step, map_h, diamond_w, diamond_h);
+  const auto tb = pixel_to_fractional_tile(win_x_b, win_y_b, canvas_left, canvas_top, canvas_w, canvas_h, camera_x,
+                                           camera_y, tile_scale, elev_step, map_h, diamond_w, diamond_h);
+  return detail::tiled_rect(ta, tb, diamond_w, diamond_h);
+}
+
+/**
+ * @brief Elevation-aware overload of pixel_to_tiled_rect — sub-tile drag must use the
+ * same elev-aware kernel as screen_to_tile so the live preview tracks the cursor on
+ * raised terrain.
+ *
+ * @param map  Tilemap for elevation lookup (sub-tile precision on raised cells).
+ * @param layer_visible  Per-layer visibility; hidden layers do not catch the click.
+ */
+[[nodiscard]] inline corundum::world::tilemap::CollisionRect
+pixel_to_tiled_rect(int win_x_a, int win_y_a, int win_x_b, int win_y_b, int canvas_left, int canvas_top, int canvas_w,
+                    int canvas_h, float camera_x, float camera_y, float tile_scale, float elev_step, int map_h,
+                    int diamond_w, int diamond_h, const corundum::world::tilemap::Tilemap &map,
+                    const LayerVisibility &layer_visible) noexcept {
+  const auto ta =
+      pixel_to_fractional_tile(win_x_a, win_y_a, canvas_left, canvas_top, canvas_w, canvas_h, camera_x, camera_y,
+                               tile_scale, elev_step, map_h, diamond_w, diamond_h, map, layer_visible);
+  const auto tb =
+      pixel_to_fractional_tile(win_x_b, win_y_b, canvas_left, canvas_top, canvas_w, canvas_h, camera_x, camera_y,
+                               tile_scale, elev_step, map_h, diamond_w, diamond_h, map, layer_visible);
+  return detail::tiled_rect(ta, tb, diamond_w, diamond_h);
+}
+
+/**
+ * @brief Clamp a camera position so it cannot scroll past the map boundary.
+ *
+ * Allows negative values so maps smaller than the canvas can be centered.
+ *
+ * @param offset_x   Camera horizontal offset to clamp (passed by value).
+ * @param offset_y   Camera vertical offset to clamp (passed by value).
+ * @param tile_scale Display scale factor.
+ * @param map_w      Map width in tiles.
+ * @param map_h      Map height in tiles.
+ * @param tw         Tile width in pixels.
+ * @param diamond_h  Tile height in pixels.
+ * @param canvas_w   Canvas width in pixels.
+ * @param canvas_h   Canvas height in pixels.
+ * @return Clamped camera.
+ */
+[[nodiscard]] inline std::pair<float, float> clamp_camera(float offset_x, float offset_y, float tile_scale, int map_w,
+                                                          int map_h, int tw, int diamond_h, int canvas_w,
+                                                          int canvas_h) noexcept {
+  const float half_tw = static_cast<float>(tw) * tile_scale * 0.5f;
+  const float half_th = static_cast<float>(diamond_h > 0 ? diamond_h : tw / 2) * tile_scale * 0.5f;
+  const float map_px_w = (static_cast<float>(map_w + map_h) * half_tw) + (k_content_margin * half_tw);
+  const float map_px_h = (static_cast<float>(map_w + map_h) * half_th) + (k_content_margin * half_th);
+  const float min_x = std::min(0.f, (map_px_w - static_cast<float>(canvas_w)) * 0.5f);
+  const float min_y = std::min(0.f, (map_px_h - static_cast<float>(canvas_h)) * 0.5f);
+  return {std::clamp(offset_x, min_x, std::max(0.f, map_px_w - static_cast<float>(canvas_w))),
+          std::clamp(offset_y, min_y, std::max(0.f, map_px_h - static_cast<float>(canvas_h)))};
+}
 
 } // namespace tools::tilesmith

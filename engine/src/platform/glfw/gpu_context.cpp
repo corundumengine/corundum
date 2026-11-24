@@ -17,184 +17,184 @@
 
 namespace corundum::platform {
 
-  namespace gpu_backend = glfw::gpu_backend;
+namespace gpu_backend = glfw::gpu_backend;
 
-  namespace {
+namespace {
 
-    /// sokol_gfx's device is process-global: sg_setup() asserts when one is already live and
-    /// sg_shutdown() tears the device down for the whole process. Track ownership so a second
-    /// context is rejected instead of asserting.
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): TU-local, must stay mutable.
-    bool s_gpu_device_live = false;
+/// sokol_gfx's device is process-global: sg_setup() asserts when one is already live and
+/// sg_shutdown() tears the device down for the whole process. Track ownership so a second
+/// context is rejected instead of asserting.
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): TU-local, must stay mutable.
+bool s_gpu_device_live = false;
 
-    /// sokol log levels: 0 = panic, 1 = error, 2 = warn, 3 = info, 4 = debug. Surface failures
-    /// only; routine warnings would be noise on the game's stderr.
-    constexpr uint32_t k_max_reported_log_level = 1;
+/// sokol log levels: 0 = panic, 1 = error, 2 = warn, 3 = info, 4 = debug. Surface failures
+/// only; routine warnings would be noise on the game's stderr.
+constexpr uint32_t k_max_reported_log_level = 1;
 
-    /// Supported range for the internal render scale, so a caller cannot ask for a zero-size target
-    /// or an absurd supersample. The upper bound is generous enough for a 3x panel.
-    constexpr float k_min_render_scale = 0.125f;
-    constexpr float k_max_render_scale = 4.f;
+/// Supported range for the internal render scale, so a caller cannot ask for a zero-size target
+/// or an absurd supersample. The upper bound is generous enough for a 3x panel.
+constexpr float k_min_render_scale = 0.125f;
+constexpr float k_max_render_scale = 4.f;
 
-    /// The window's GLFW handle, or an error naming why it cannot back a GPU context.
-    std::expected<::GLFWwindow *, std::string> glfw_handle_of(Window &window) {
-      const auto *glfw_window = dynamic_cast<glfw::GLFWWindow *>(&window);
-      if (glfw_window == nullptr)
-        return std::unexpected("GpuContext::create: window is not a GLFW window");
-      auto *handle = static_cast<::GLFWwindow *>(glfw_window->native_handle());
-      if (handle == nullptr)
-        return std::unexpected("GpuContext::create: window has no GLFW handle");
-      return handle;
-    }
+/// The window's GLFW handle, or an error naming why it cannot back a GPU context.
+std::expected<::GLFWwindow *, std::string> glfw_handle_of(Window &window) {
+  const auto *glfw_window = dynamic_cast<glfw::GLFWWindow *>(&window);
+  if (glfw_window == nullptr)
+    return std::unexpected("GpuContext::create: window is not a GLFW window");
+  auto *handle = static_cast<::GLFWwindow *>(glfw_window->native_handle());
+  if (handle == nullptr)
+    return std::unexpected("GpuContext::create: window has no GLFW handle");
+  return handle;
+}
 
-    /// sokol's log hook: surface its failures only; routine warnings would be noise on the game's
-    /// stderr.
-    void log_sokol_message(const char *tag, uint32_t level, uint32_t item_id, const char *msg, uint32_t line,
-                           const char *file, void * /*user_data*/) {
-      if (level > k_max_reported_log_level)
-        return;
-      corundum::detail::warn_log("[{}] item={} ({}:{}) {}", tag != nullptr ? tag : "sg", item_id,
-                                 file != nullptr ? file : "?", line, msg != nullptr ? msg : "");
-    }
+/// sokol's log hook: surface its failures only; routine warnings would be noise on the game's
+/// stderr.
+void log_sokol_message(const char *tag, uint32_t level, uint32_t item_id, const char *msg, uint32_t line,
+                       const char *file, void * /*user_data*/) {
+  if (level > k_max_reported_log_level)
+    return;
+  corundum::detail::warn_log("[{}] item={} ({}:{}) {}", tag != nullptr ? tag : "sg", item_id,
+                             file != nullptr ? file : "?", line, msg != nullptr ? msg : "");
+}
 
-    /// Configure and start the process-wide sokol device over @p backend.
-    std::expected<void, std::string> start_sokol_device(const gpu_backend::Context *backend) {
-      sg_desc sdesc{};
-      if (auto configured = gpu_backend::configure_sokol(sdesc, backend); !configured)
-        return std::unexpected(std::format("GpuContext::create: {}", configured.error()));
-      sdesc.logger.func = log_sokol_message;
-      sg_setup(&sdesc);
-      if (!sg_isvalid())
-        return std::unexpected("GpuContext::create: sg_setup failed");
-      return {};
-    }
+/// Configure and start the process-wide sokol device over @p backend.
+std::expected<void, std::string> start_sokol_device(const gpu_backend::Context *backend) {
+  sg_desc sdesc{};
+  if (auto configured = gpu_backend::configure_sokol(sdesc, backend); !configured)
+    return std::unexpected(std::format("GpuContext::create: {}", configured.error()));
+  sdesc.logger.func = log_sokol_message;
+  sg_setup(&sdesc);
+  if (!sg_isvalid())
+    return std::unexpected("GpuContext::create: sg_setup failed");
+  return {};
+}
 
-  } // namespace
+} // namespace
 
-  struct GpuContext::Impl {
-    GLFWwindow *window{nullptr};
+struct GpuContext::Impl {
+  GLFWwindow *window{nullptr};
 
-    /// Backend device/swapchain state; empty when the backend needs none. Freed when Impl is destroyed,
-    /// after ~GpuContext() has shut the sokol device down, as the backend requires.
-    gpu_backend::ContextHandle backend{};
+  /// Backend device/swapchain state; empty when the backend needs none. Freed when Impl is destroyed,
+  /// after ~GpuContext() has shut the sokol device down, as the backend requires.
+  gpu_backend::ContextHandle backend{};
 
-    float render_scale{1.f};
+  float render_scale{1.f};
 
-    bool pass_active{false};
+  bool pass_active{false};
+};
+
+GpuContext::GpuContext() : impl_{std::make_unique<Impl>()} {}
+
+std::expected<std::unique_ptr<GpuContext>, std::string> GpuContext::create(Window &window) {
+  if (s_gpu_device_live)
+    return std::unexpected("GpuContext::create: a GPU context already owns the process-wide sokol device");
+
+  auto raw = glfw_handle_of(window);
+  if (!raw)
+    return std::unexpected(std::move(raw).error());
+
+  auto ctx = std::unique_ptr<GpuContext>(new GpuContext());
+  ctx->impl_->window = *raw;
+  // Default to native resolution: tools drive begin_default_pass() directly and keep it. The game
+  // renderer lowers itself to the logical resolution (SokolRenderer's constructor).
+  ctx->impl_->render_scale = ctx->dpi_scale();
+
+  auto backend = gpu_backend::create(*raw);
+  if (!backend)
+    return std::unexpected(std::format("GpuContext::create: {}", backend.error()));
+  ctx->impl_->backend = std::move(*backend);
+
+  if (auto started = start_sokol_device(ctx->impl_->backend.get()); !started)
+    return std::unexpected(std::move(started).error());
+
+  s_gpu_device_live = true;
+  return ctx;
+}
+
+GpuContext::~GpuContext() {
+  if (s_gpu_device_live) {
+    s_gpu_device_live = false;
+    if (sg_isvalid())
+      sg_shutdown();
+  }
+}
+
+bool GpuContext::begin_default_pass(core::math::Colour clear) {
+  const core::math::IntSize render_target = render_size();
+  if (render_target.width <= 0 || render_target.height <= 0) {
+    // Minimized or otherwise zero-sized window: no render target this frame.
+    impl_->pass_active = false;
+    return false;
+  }
+
+  sg_pass_action action{};
+  action.colors[0].load_action = SG_LOADACTION_CLEAR;
+  action.colors[0].clear_value = {
+      .r = static_cast<float>(clear.r) / 255.f,
+      .g = static_cast<float>(clear.g) / 255.f,
+      .b = static_cast<float>(clear.b) / 255.f,
+      .a = static_cast<float>(clear.a) / 255.f,
   };
 
-  GpuContext::GpuContext() : impl_{std::make_unique<Impl>()} {}
+  sg_swapchain swapchain{};
+  swapchain.width = render_target.width;
+  swapchain.height = render_target.height;
+  swapchain.sample_count = 1;
+  swapchain.depth_format = SG_PIXELFORMAT_NONE;
 
-  std::expected<std::unique_ptr<GpuContext>, std::string> GpuContext::create(Window &window) {
-    if (s_gpu_device_live)
-      return std::unexpected("GpuContext::create: a GPU context already owns the process-wide sokol device");
-
-    auto raw = glfw_handle_of(window);
-    if (!raw)
-      return std::unexpected(std::move(raw).error());
-
-    auto ctx = std::unique_ptr<GpuContext>(new GpuContext());
-    ctx->impl_->window = *raw;
-    // Default to native resolution: tools drive begin_default_pass() directly and keep it. The game
-    // renderer lowers itself to the logical resolution (SokolRenderer's constructor).
-    ctx->impl_->render_scale = ctx->dpi_scale();
-
-    auto backend = gpu_backend::create(*raw);
-    if (!backend)
-      return std::unexpected(std::format("GpuContext::create: {}", backend.error()));
-    ctx->impl_->backend = std::move(*backend);
-
-    if (auto started = start_sokol_device(ctx->impl_->backend.get()); !started)
-      return std::unexpected(std::move(started).error());
-
-    s_gpu_device_live = true;
-    return ctx;
-  }
-
-  GpuContext::~GpuContext() {
-    if (s_gpu_device_live) {
-      s_gpu_device_live = false;
-      if (sg_isvalid())
-        sg_shutdown();
-    }
-  }
-
-  bool GpuContext::begin_default_pass(core::math::Colour clear) {
-    const core::math::IntSize render_target = render_size();
-    if (render_target.width <= 0 || render_target.height <= 0) {
-      // Minimized or otherwise zero-sized window: no render target this frame.
-      impl_->pass_active = false;
-      return false;
-    }
-
-    sg_pass_action action{};
-    action.colors[0].load_action = SG_LOADACTION_CLEAR;
-    action.colors[0].clear_value = {
-        .r = static_cast<float>(clear.r) / 255.f,
-        .g = static_cast<float>(clear.g) / 255.f,
-        .b = static_cast<float>(clear.b) / 255.f,
-        .a = static_cast<float>(clear.a) / 255.f,
-    };
-
-    sg_swapchain swapchain{};
-    swapchain.width = render_target.width;
-    swapchain.height = render_target.height;
-    swapchain.sample_count = 1;
-    swapchain.depth_format = SG_PIXELFORMAT_NONE;
-
-    if (!gpu_backend::begin_pass(swapchain, impl_->backend.get(), render_target.width, render_target.height)) {
-      impl_->pass_active = false;
-      return false;
-    }
-
-    sg_pass pass{};
-    pass.action = action;
-    pass.swapchain = swapchain;
-    sg_begin_pass(&pass);
-    impl_->pass_active = true;
-    return true;
-  }
-
-  void GpuContext::end_frame() {
-    if (!impl_->pass_active)
-      return;
+  if (!gpu_backend::begin_pass(swapchain, impl_->backend.get(), render_target.width, render_target.height)) {
     impl_->pass_active = false;
-    sg_end_pass();
-    sg_commit();
-    gpu_backend::end_pass(impl_->backend.get(), impl_->window);
+    return false;
   }
 
-  core::math::IntSize GpuContext::window_size() const noexcept {
-    int width{};
-    int height{};
-    glfwGetWindowSize(impl_->window, &width, &height);
-    return {.width = width, .height = height};
-  }
+  sg_pass pass{};
+  pass.action = action;
+  pass.swapchain = swapchain;
+  sg_begin_pass(&pass);
+  impl_->pass_active = true;
+  return true;
+}
 
-  core::math::IntSize GpuContext::framebuffer_size() const noexcept {
-    int width{};
-    int height{};
-    glfwGetFramebufferSize(impl_->window, &width, &height);
-    return {.width = width, .height = height};
-  }
+void GpuContext::end_frame() {
+  if (!impl_->pass_active)
+    return;
+  impl_->pass_active = false;
+  sg_end_pass();
+  sg_commit();
+  gpu_backend::end_pass(impl_->backend.get(), impl_->window);
+}
 
-  void GpuContext::set_render_scale(float scale) noexcept {
-    impl_->render_scale = std::clamp(scale, k_min_render_scale, k_max_render_scale);
-  }
+core::math::IntSize GpuContext::window_size() const noexcept {
+  int width{};
+  int height{};
+  glfwGetWindowSize(impl_->window, &width, &height);
+  return {.width = width, .height = height};
+}
 
-  core::math::IntSize GpuContext::render_size() const noexcept {
-    const core::math::IntSize window = window_size();
-    const core::math::IntSize framebuffer = framebuffer_size();
-    const core::RenderResolution resolution = core::compute_render_resolution(
-        window.width, window.height, framebuffer.width, framebuffer.height, impl_->render_scale);
-    return {.width = resolution.width, .height = resolution.height};
-  }
+core::math::IntSize GpuContext::framebuffer_size() const noexcept {
+  int width{};
+  int height{};
+  glfwGetFramebufferSize(impl_->window, &width, &height);
+  return {.width = width, .height = height};
+}
 
-  float GpuContext::dpi_scale() const noexcept {
-    float xscale{};
-    float yscale{};
-    glfwGetWindowContentScale(impl_->window, &xscale, &yscale);
-    return xscale > 0.f ? xscale : 1.f;
-  }
+void GpuContext::set_render_scale(float scale) noexcept {
+  impl_->render_scale = std::clamp(scale, k_min_render_scale, k_max_render_scale);
+}
+
+core::math::IntSize GpuContext::render_size() const noexcept {
+  const core::math::IntSize window = window_size();
+  const core::math::IntSize framebuffer = framebuffer_size();
+  const core::RenderResolution resolution = core::compute_render_resolution(
+      window.width, window.height, framebuffer.width, framebuffer.height, impl_->render_scale);
+  return {.width = resolution.width, .height = resolution.height};
+}
+
+float GpuContext::dpi_scale() const noexcept {
+  float xscale{};
+  float yscale{};
+  glfwGetWindowContentScale(impl_->window, &xscale, &yscale);
+  return xscale > 0.f ? xscale : 1.f;
+}
 
 } // namespace corundum::platform

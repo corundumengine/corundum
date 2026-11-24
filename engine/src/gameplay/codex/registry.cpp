@@ -15,42 +15,42 @@
 
 namespace corundum::gameplay::codex {
 
-  int Registry::load_all(const core::ContentSource &content, const std::filesystem::path &dir) {
-    const auto entries = content.list(dir, {.extensions = {"json"}});
-    if (!entries) {
-      corundum::detail::warn_log("[codex] cannot read codex directory '{}': {}", dir.string(), entries.error());
-      return 0;
-    }
-
-    int loaded = 0;
-    const Loader loader;
-    for (const auto &entry : *entries) {
-      if (entry.is_dir)
-        continue;
-
-      auto result = loader.load(content, entry.path);
-      if (!result) {
-        corundum::detail::warn_log("[codex] skipping '{}': {}", entry.name, result.error());
-        continue;
-      }
-
-      for (auto &codex_entry : *result) {
-        const std::string id = codex_entry.id;
-        if (entries_.contains(id)) {
-          corundum::detail::warn_log("[codex] duplicate entry id '{}' — '{}' is shadowed", id, entry.name);
-        } else {
-          entries_.emplace(id, std::move(codex_entry));
-          ++loaded;
-        }
-      }
-    }
-
-    return loaded;
+int Registry::load_all(const core::ContentSource &content, const std::filesystem::path &dir) {
+  const auto entries = content.list(dir, {.extensions = {"json"}});
+  if (!entries) {
+    corundum::detail::warn_log("[codex] cannot read codex directory '{}': {}", dir.string(), entries.error());
+    return 0;
   }
 
-  const CodexEntry *Registry::find(std::string_view id) const {
-    const auto it = entries_.find(id);
-    return it != entries_.end() ? &it->second : nullptr;
+  int loaded = 0;
+  const Loader loader;
+  for (const auto &entry : *entries) {
+    if (entry.is_dir)
+      continue;
+
+    auto result = loader.load(content, entry.path);
+    if (!result) {
+      corundum::detail::warn_log("[codex] skipping '{}': {}", entry.name, result.error());
+      continue;
+    }
+
+    for (auto &codex_entry : *result) {
+      const std::string id = codex_entry.id;
+      if (entries_.contains(id)) {
+        corundum::detail::warn_log("[codex] duplicate entry id '{}' — '{}' is shadowed", id, entry.name);
+      } else {
+        entries_.emplace(id, std::move(codex_entry));
+        ++loaded;
+      }
+    }
   }
+
+  return loaded;
+}
+
+const CodexEntry *Registry::find(std::string_view id) const {
+  const auto it = entries_.find(id);
+  return it != entries_.end() ? &it->second : nullptr;
+}
 
 } // namespace corundum::gameplay::codex

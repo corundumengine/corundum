@@ -44,59 +44,59 @@ using nlohmann::json;
 
 namespace {
 
-  using corundum::save::slot_name;
-  using corundum::test::initialize_with_world;
-  using corundum::test::MemoryUserStorage;
+using corundum::save::slot_name;
+using corundum::test::initialize_with_world;
+using corundum::test::MemoryUserStorage;
 
-  // An arbitrary instant with a non-zero seconds digit, distinct from the 1'700'000'000 the
-  // serialize/parse cases use.
-  constexpr std::int64_t k_saved_at_unix = 1'700'000'123;
-  constexpr std::chrono::sys_seconds k_saved_at{std::chrono::seconds{k_saved_at_unix}};
+// An arbitrary instant with a non-zero seconds digit, distinct from the 1'700'000'000 the
+// serialize/parse cases use.
+constexpr std::int64_t k_saved_at_unix = 1'700'000'123;
+constexpr std::chrono::sys_seconds k_saved_at{std::chrono::seconds{k_saved_at_unix}};
 
-  /// The fixture root every save case boots from; fails the case when the fixtures are missing.
-  [[nodiscard]] fs::path fixture_root() {
-    const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-    REQUIRE(fs::is_directory(fixtures));
-    return fixtures;
-  }
+/// The fixture root every save case boots from; fails the case when the fixtures are missing.
+[[nodiscard]] fs::path fixture_root() {
+  const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(fs::is_directory(fixtures));
+  return fixtures;
+}
 
-  corundum::core::GameConfig make_world_config(const fs::path &fixtures) {
-    corundum::core::GameConfig cfg{};
-    cfg.window_title = "save_test";
-    cfg.win_w = 320;
-    cfg.win_h = 240;
-    cfg.show_title = false;
-    cfg.paths.sprites_dir = (fixtures / "sprites").string();
-    cfg.paths.font_dir = (fixtures / "fonts").string();
-    corundum::test::set_missing_fonts(cfg.paths);
-    cfg.paths.world_manifest_path = (fixtures / "worlds/transition/manifest.json").string();
-    cfg.paths.spawn_points_dir = (fixtures / "spawn_points").string();
-    cfg.paths.portals_dir = (fixtures / "portals").string();
-    cfg.paths.dialogue_dir.clear();
-    cfg.paths.quests_dir.clear();
-    cfg.paths.sounds_dir.clear();
-    cfg.game_id = "test_game";
-    return cfg;
-  }
+corundum::core::GameConfig make_world_config(const fs::path &fixtures) {
+  corundum::core::GameConfig cfg{};
+  cfg.window_title = "save_test";
+  cfg.win_w = 320;
+  cfg.win_h = 240;
+  cfg.show_title = false;
+  cfg.paths.sprites_dir = (fixtures / "sprites").string();
+  cfg.paths.font_dir = (fixtures / "fonts").string();
+  corundum::test::set_missing_fonts(cfg.paths);
+  cfg.paths.world_manifest_path = (fixtures / "worlds/transition/manifest.json").string();
+  cfg.paths.spawn_points_dir = (fixtures / "spawn_points").string();
+  cfg.paths.portals_dir = (fixtures / "portals").string();
+  cfg.paths.dialogue_dir.clear();
+  cfg.paths.quests_dir.clear();
+  cfg.paths.sounds_dir.clear();
+  cfg.game_id = "test_game";
+  return cfg;
+}
 
-  /// A scratch directory with user storage rooted at it, for tests that check real files.
-  /// TempDir and DirectoryUserStorage are neither movable nor copyable, so declare one as a local.
-  struct ScratchStorage {
-    corundum::test::TempDir dir{"crpg_test_save_", "scratch"};
-    corundum::core::DirectoryUserStorage storage{dir.path()};
-  };
+/// A scratch directory with user storage rooted at it, for tests that check real files.
+/// TempDir and DirectoryUserStorage are neither movable nor copyable, so declare one as a local.
+struct ScratchStorage {
+  corundum::test::TempDir dir{"crpg_test_save_", "scratch"};
+  corundum::core::DirectoryUserStorage storage{dir.path()};
+};
 
-  void adopt_platform(corundum::Engine &engine, unsigned w, unsigned h) {
-    corundum::platform::null::NullPlatform platform = corundum::platform::null::make_null_platform(w, h);
-    corundum::platform::null::adopt_null_platform(engine, platform);
-  }
+void adopt_platform(corundum::Engine &engine, unsigned w, unsigned h) {
+  corundum::platform::null::NullPlatform platform = corundum::platform::null::make_null_platform(w, h);
+  corundum::platform::null::adopt_null_platform(engine, platform);
+}
 
-  /// Boot @p engine on the null platform with the fixture world loaded, for the cases that only
-  /// need a player in a world to save.
-  void boot_fixture_world(corundum::Engine &engine) {
-    adopt_platform(engine, 320, 240);
-    REQUIRE(initialize_with_world(engine, make_world_config(fixture_root())).has_value());
-  }
+/// Boot @p engine on the null platform with the fixture world loaded, for the cases that only
+/// need a player in a world to save.
+void boot_fixture_world(corundum::Engine &engine) {
+  adopt_platform(engine, 320, 240);
+  REQUIRE(initialize_with_world(engine, make_world_config(fixture_root())).has_value());
+}
 
 } // namespace
 

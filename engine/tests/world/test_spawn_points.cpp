@@ -37,32 +37,32 @@ namespace fs = std::filesystem;
 
 namespace {
 
-  void write_file(const fs::path &p, std::string_view content) {
-    fs::create_directories(p.parent_path());
-    std::ofstream f(p);
-    f << content;
-  }
+void write_file(const fs::path &p, std::string_view content) {
+  fs::create_directories(p.parent_path());
+  std::ofstream f(p);
+  f << content;
+}
 
-  corundum::test::TempDir temp_dir(std::string_view tag) {
-    return corundum::test::TempDir{"crpg_test_spawn_points_", tag};
-  }
+corundum::test::TempDir temp_dir(std::string_view tag) {
+  return corundum::test::TempDir{"crpg_test_spawn_points_", tag};
+}
 
-  corundum::core::GameConfig make_world_config(const fs::path &fixtures) {
-    corundum::core::GameConfig cfg{};
-    cfg.window_title = "spawn_points_test";
-    cfg.win_w = 320;
-    cfg.win_h = 240;
-    cfg.paths.sprites_dir = (fixtures / "sprites").string();
-    cfg.paths.font_dir = (fixtures / "fonts").string();
-    corundum::test::set_missing_fonts(cfg.paths);
-    cfg.paths.world_manifest_path = (fixtures / "worlds/transition/manifest.json").string();
-    cfg.paths.spawn_points_dir = (fixtures / "spawn_points").string();
-    cfg.paths.portals_dir = (fixtures / "portals").string();
-    cfg.paths.dialogue_dir.clear();
-    cfg.paths.quests_dir.clear();
-    cfg.paths.sounds_dir.clear();
-    return cfg;
-  }
+corundum::core::GameConfig make_world_config(const fs::path &fixtures) {
+  corundum::core::GameConfig cfg{};
+  cfg.window_title = "spawn_points_test";
+  cfg.win_w = 320;
+  cfg.win_h = 240;
+  cfg.paths.sprites_dir = (fixtures / "sprites").string();
+  cfg.paths.font_dir = (fixtures / "fonts").string();
+  corundum::test::set_missing_fonts(cfg.paths);
+  cfg.paths.world_manifest_path = (fixtures / "worlds/transition/manifest.json").string();
+  cfg.paths.spawn_points_dir = (fixtures / "spawn_points").string();
+  cfg.paths.portals_dir = (fixtures / "portals").string();
+  cfg.paths.dialogue_dir.clear();
+  cfg.paths.quests_dir.clear();
+  cfg.paths.sounds_dir.clear();
+  return cfg;
+}
 
 } // namespace
 
@@ -295,61 +295,61 @@ TEST_CASE("find_actor - world boot populates actor_ids from spawn points") {
 
 namespace {
 
-  /// Minimal character sheet exposing the two sprites the spawn code resolves by name.
-  std::string_view two_sprite_sheet_json() {
-    return R"({"id":"heroes","path":"game/assets/heroes.png","frame_width":32,"frame_height":32,"frames":{)"
-           R"("hero_walk":{"col_span":1,"row_span":2,"footprint_col_span":0.25,"footprint_row_span":0.75,)"
-           R"("south":[{"col":0,"row":0},{"col":1,"row":0}]},)"
-           R"("hero_idle":{"col_span":1,"row_span":2,"footprint_col_span":0.25,"footprint_row_span":0.75,)"
-           R"("south":[{"col":0,"row":0}]}}})";
-  }
+/// Minimal character sheet exposing the two sprites the spawn code resolves by name.
+std::string_view two_sprite_sheet_json() {
+  return R"({"id":"heroes","path":"game/assets/heroes.png","frame_width":32,"frame_height":32,"frames":{)"
+         R"("hero_walk":{"col_span":1,"row_span":2,"footprint_col_span":0.25,"footprint_row_span":0.75,)"
+         R"("south":[{"col":0,"row":0},{"col":1,"row":0}]},)"
+         R"("hero_idle":{"col_span":1,"row_span":2,"footprint_col_span":0.25,"footprint_row_span":0.75,)"
+         R"("south":[{"col":0,"row":0}]}}})";
+}
 
-  corundum::core::GameConfig make_player_config(const fs::path &spawn_points_dir) {
-    corundum::core::GameConfig cfg{};
-    cfg.player.walk_sprite = "hero_walk";
-    cfg.player.idle_sprite = "hero_idle";
-    cfg.player.col = 9.f;
-    cfg.player.row = 9.f;
-    cfg.paths.spawn_points_dir = spawn_points_dir.string();
-    return cfg;
-  }
+corundum::core::GameConfig make_player_config(const fs::path &spawn_points_dir) {
+  corundum::core::GameConfig cfg{};
+  cfg.player.walk_sprite = "hero_walk";
+  cfg.player.idle_sprite = "hero_idle";
+  cfg.player.col = 9.f;
+  cfg.player.row = 9.f;
+  cfg.paths.spawn_points_dir = spawn_points_dir.string();
+  return cfg;
+}
 
-  corundum::world::tilemap::Tilemap make_tilemap(const fs::path &map_path) {
-    corundum::world::tilemap::Tilemap tilemap;
-    tilemap.path = map_path.string();
-    return tilemap;
-  }
+corundum::world::tilemap::Tilemap make_tilemap(const fs::path &map_path) {
+  corundum::world::tilemap::Tilemap tilemap;
+  tilemap.path = map_path.string();
+  return tilemap;
+}
 
-  corundum::sprites::CharacterRegistry make_registry(const fs::path &dir) {
-    write_file(dir / "characters" / "heroes.json", two_sprite_sheet_json());
-    corundum::sprites::CharacterRegistry registry;
-    REQUIRE(registry.load_all(disk(), dir).has_value());
-    return registry;
-  }
+corundum::sprites::CharacterRegistry make_registry(const fs::path &dir) {
+  write_file(dir / "characters" / "heroes.json", two_sprite_sheet_json());
+  corundum::sprites::CharacterRegistry registry;
+  REQUIRE(registry.load_all(disk(), dir).has_value());
+  return registry;
+}
 
-  /// The entity of actor @p id; fails the case when there is none.
-  corundum::entities::EntityId require_actor(const corundum::entities::World &world, std::string_view id) {
-    const std::optional<corundum::entities::EntityId> actor = corundum::entities::find_actor(world, id);
-    if (!actor) {
-      FAIL("the actor did not spawn");
-      return {};
-    }
-    return *actor;
+/// The entity of actor @p id; fails the case when there is none.
+corundum::entities::EntityId require_actor(const corundum::entities::World &world, std::string_view id) {
+  const std::optional<corundum::entities::EntityId> actor = corundum::entities::find_actor(world, id);
+  if (!actor) {
+    FAIL("the actor did not spawn");
+    return {};
   }
+  return *actor;
+}
 
-  /// A World-mode render state with @p coords resident and @p chunk_size tiles per chunk side.
-  corundum::render::RenderState make_world_render(std::initializer_list<corundum::world::tilemap::ChunkCoord> coords,
-                                                  int chunk_size) {
-    corundum::render::RenderState render;
-    auto &world_area = corundum::test::emplace_world_area(render);
-    world_area.manifest.chunk_size = chunk_size;
-    for (const auto coord : coords) {
-      corundum::render::ChunkEntry entry;
-      entry.coord = coord;
-      world_area.chunks.add_active(std::move(entry));
-    }
-    return render;
+/// A World-mode render state with @p coords resident and @p chunk_size tiles per chunk side.
+corundum::render::RenderState make_world_render(std::initializer_list<corundum::world::tilemap::ChunkCoord> coords,
+                                                int chunk_size) {
+  corundum::render::RenderState render;
+  auto &world_area = corundum::test::emplace_world_area(render);
+  world_area.manifest.chunk_size = chunk_size;
+  for (const auto coord : coords) {
+    corundum::render::ChunkEntry entry;
+    entry.coord = coord;
+    world_area.chunks.add_active(std::move(entry));
   }
+  return render;
+}
 
 } // namespace
 

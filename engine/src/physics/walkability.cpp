@@ -11,39 +11,39 @@
 
 namespace corundum::physics {
 
-  namespace {
+namespace {
 
-    /// Step one axis back to @p axis_prev when @p graph disconnects the crossing, and leave
-    /// it untouched otherwise — the axis-separated slide resolve_collisions uses.
-    [[nodiscard]] float resolve_axis(float axis_pos, float axis_prev, int from_col, int from_row, int to_col,
-                                     int to_row, const corundum::world::tilemap::WalkabilityGraph &graph) noexcept {
-      if (from_col == to_col && from_row == to_row)
-        return axis_pos;
-      return graph.can_move(from_col, from_row, to_col, to_row) ? axis_pos : axis_prev;
-    }
+/// Step one axis back to @p axis_prev when @p graph disconnects the crossing, and leave
+/// it untouched otherwise — the axis-separated slide resolve_collisions uses.
+[[nodiscard]] float resolve_axis(float axis_pos, float axis_prev, int from_col, int from_row, int to_col, int to_row,
+                                 const corundum::world::tilemap::WalkabilityGraph &graph) noexcept {
+  if (from_col == to_col && from_row == to_row)
+    return axis_pos;
+  return graph.can_move(from_col, from_row, to_col, to_row) ? axis_pos : axis_prev;
+}
 
-  } // namespace
+} // namespace
 
-  void resolve_walkability(
-      corundum::entities::Position &pos, corundum::entities::Position prev_pos,
-      std::optional<std::reference_wrapper<const corundum::world::tilemap::WalkabilityGraph>> graph) noexcept {
-    if (!graph)
-      return;
-    const corundum::world::tilemap::WalkabilityGraph &walkability = graph->get();
+void resolve_walkability(
+    corundum::entities::Position &pos, corundum::entities::Position prev_pos,
+    std::optional<std::reference_wrapper<const corundum::world::tilemap::WalkabilityGraph>> graph) noexcept {
+  if (!graph)
+    return;
+  const corundum::world::tilemap::WalkabilityGraph &walkability = graph->get();
 
-    const int prev_col = static_cast<int>(std::floor(prev_pos.col));
-    const int prev_row = static_cast<int>(std::floor(prev_pos.row));
+  const int prev_col = static_cast<int>(std::floor(prev_pos.col));
+  const int prev_row = static_cast<int>(std::floor(prev_pos.row));
 
-    const int to_col = static_cast<int>(std::floor(pos.col));
-    pos.col = resolve_axis(pos.col, prev_pos.col, prev_col, prev_row, to_col, prev_row, walkability);
+  const int to_col = static_cast<int>(std::floor(pos.col));
+  pos.col = resolve_axis(pos.col, prev_pos.col, prev_col, prev_row, to_col, prev_row, walkability);
 
-    // Row resolves last, against the cell the column pass settled on. A step crossing both
-    // axes is therefore a diagonal from the frame-start cell, so it is gated by the graph's
-    // diagonal edge, not the two cardinal edges — both cardinals can be open across a corner
-    // whose own elevation step still exceeds max_step_height.
-    const int resolved_col = static_cast<int>(std::floor(pos.col));
-    const int to_row = static_cast<int>(std::floor(pos.row));
-    pos.row = resolve_axis(pos.row, prev_pos.row, prev_col, prev_row, resolved_col, to_row, walkability);
-  }
+  // Row resolves last, against the cell the column pass settled on. A step crossing both
+  // axes is therefore a diagonal from the frame-start cell, so it is gated by the graph's
+  // diagonal edge, not the two cardinal edges — both cardinals can be open across a corner
+  // whose own elevation step still exceeds max_step_height.
+  const int resolved_col = static_cast<int>(std::floor(pos.col));
+  const int to_row = static_cast<int>(std::floor(pos.row));
+  pos.row = resolve_axis(pos.row, prev_pos.row, prev_col, prev_row, resolved_col, to_row, walkability);
+}
 
 } // namespace corundum::physics

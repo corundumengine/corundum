@@ -19,58 +19,56 @@
 
 namespace {
 
-  using corundum::input::Action;
-  using corundum::input::InputMapper;
-  using corundum::input::InputState;
-  using corundum::input::Key;
-  using corundum::platform::PlatformEvents;
+using corundum::input::Action;
+using corundum::input::InputMapper;
+using corundum::input::InputState;
+using corundum::input::Key;
+using corundum::platform::PlatformEvents;
 
-  /// Window double that records polls and feeds scripted physical input through the mapper,
-  /// mirroring how the GLFW backend reports physical input to it.
-  class RecordingWindow final : public corundum::platform::Window {
-  public:
-    int poll_count{};
-    float scripted_scroll{};
-    std::vector<std::pair<Key, bool>> scripted_keys;
-    PlatformEvents scripted_events{};
+/// Window double that records polls and feeds scripted physical input through the mapper,
+/// mirroring how the GLFW backend reports physical input to it.
+class RecordingWindow final : public corundum::platform::Window {
+public:
+  int poll_count{};
+  float scripted_scroll{};
+  std::vector<std::pair<Key, bool>> scripted_keys;
+  PlatformEvents scripted_events{};
 
-    [[nodiscard]] bool is_open() const override { return true; }
+  [[nodiscard]] bool is_open() const override { return true; }
 
-    void close() override {}
+  void close() override {}
 
-    void show() override {}
+  void show() override {}
 
-    void poll_game_input(InputMapper &mapper, PlatformEvents &events) override {
-      ++poll_count;
-      for (const auto &[key, down] : scripted_keys)
-        mapper.key(key, down);
-      scripted_keys.clear();
+  void poll_game_input(InputMapper &mapper, PlatformEvents &events) override {
+    ++poll_count;
+    for (const auto &[key, down] : scripted_keys)
+      mapper.key(key, down);
+    scripted_keys.clear();
 
-      if (scripted_scroll != 0.f) {
-        mapper.scroll(scripted_scroll);
-        scripted_scroll = 0.f;
-      }
-
-      merge_events(events, scripted_events);
-      scripted_events = {};
+    if (scripted_scroll != 0.f) {
+      mapper.scroll(scripted_scroll);
+      scripted_scroll = 0.f;
     }
 
-    [[nodiscard]] corundum::core::math::IntSize size() const override { return {}; }
+    merge_events(events, scripted_events);
+    scripted_events = {};
+  }
 
-    void set_vsync(bool /*enabled*/) override {}
+  [[nodiscard]] corundum::core::math::IntSize size() const override { return {}; }
 
-    void set_window_mode(corundum::core::WindowMode /*mode*/) override {}
+  void set_vsync(bool /*enabled*/) override {}
 
-    [[nodiscard]] corundum::core::WindowMode window_mode() const override {
-      return corundum::core::WindowMode::Windowed;
-    }
+  void set_window_mode(corundum::core::WindowMode /*mode*/) override {}
 
-    [[nodiscard]] std::string input_label(corundum::input::PhysicalInput input) const override {
-      return std::string{corundum::input::name_of(input)};
-    }
+  [[nodiscard]] corundum::core::WindowMode window_mode() const override { return corundum::core::WindowMode::Windowed; }
 
-    [[nodiscard]] void *native_handle() const override { return nullptr; }
-  };
+  [[nodiscard]] std::string input_label(corundum::input::PhysicalInput input) const override {
+    return std::string{corundum::input::name_of(input)};
+  }
+
+  [[nodiscard]] void *native_handle() const override { return nullptr; }
+};
 
 } // namespace
 

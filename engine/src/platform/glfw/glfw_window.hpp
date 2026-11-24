@@ -17,54 +17,54 @@
 struct GLFWwindow;
 
 namespace corundum::platform::glfw {
-  /// @brief Why GLFWWindow::create() failed.
-  enum class WindowError : std::uint8_t {
-    InitializationFailed, ///< glfwInit() could not bring GLFW up.
-    CreationFailed,       ///< GLFW could not create the window.
-  };
+/// @brief Why GLFWWindow::create() failed.
+enum class WindowError : std::uint8_t {
+  InitializationFailed, ///< glfwInit() could not bring GLFW up.
+  CreationFailed,       ///< GLFW could not create the window.
+};
 
-  /// @brief Human-readable form of @p error, for diagnostics.
-  [[nodiscard]] std::string_view to_string(WindowError error) noexcept;
+/// @brief Human-readable form of @p error, for diagnostics.
+[[nodiscard]] std::string_view to_string(WindowError error) noexcept;
 
-  class GLFWWindow final : public corundum::platform::Window {
-  public:
-    /// Factory method to safely create a window.
-    [[nodiscard]] static std::expected<std::unique_ptr<GLFWWindow>, WindowError>
-    create(unsigned width = 1920, unsigned height = 1080, std::string_view title = "Corundum");
+class GLFWWindow final : public corundum::platform::Window {
+public:
+  /// Factory method to safely create a window.
+  [[nodiscard]] static std::expected<std::unique_ptr<GLFWWindow>, WindowError>
+  create(unsigned width = 1920, unsigned height = 1080, std::string_view title = "Corundum");
 
-    ~GLFWWindow() override;
+  ~GLFWWindow() override;
 
-    GLFWWindow(const GLFWWindow &) = delete;
-    GLFWWindow &operator=(const GLFWWindow &) = delete;
+  GLFWWindow(const GLFWWindow &) = delete;
+  GLFWWindow &operator=(const GLFWWindow &) = delete;
 
-    GLFWWindow(GLFWWindow &&) noexcept;
-    GLFWWindow &operator=(GLFWWindow &&) noexcept = delete;
+  GLFWWindow(GLFWWindow &&) noexcept;
+  GLFWWindow &operator=(GLFWWindow &&) noexcept = delete;
 
-    [[nodiscard]] bool is_open() const override;
+  [[nodiscard]] bool is_open() const override;
 
-    void close() override;
-    void show() override;
-    void poll_game_input(corundum::input::InputMapper &mapper, corundum::platform::PlatformEvents &events) override;
+  void close() override;
+  void show() override;
+  void poll_game_input(corundum::input::InputMapper &mapper, corundum::platform::PlatformEvents &events) override;
 
-    /// @return {0, 0} once the underlying GLFW window no longer exists.
-    [[nodiscard]] corundum::core::math::IntSize size() const override;
+  /// @return {0, 0} once the underlying GLFW window no longer exists.
+  [[nodiscard]] corundum::core::math::IntSize size() const override;
 
-    void set_vsync(bool enabled) override;
+  void set_vsync(bool enabled) override;
 
-    void set_window_mode(corundum::core::WindowMode mode) override;
+  void set_window_mode(corundum::core::WindowMode mode) override;
 
-    [[nodiscard]] corundum::core::WindowMode window_mode() const override;
+  [[nodiscard]] corundum::core::WindowMode window_mode() const override;
 
-    [[nodiscard]] std::string input_label(corundum::input::PhysicalInput input) const override;
+  [[nodiscard]] std::string input_label(corundum::input::PhysicalInput input) const override;
 
-    [[nodiscard]] void *native_handle() const noexcept override;
+  [[nodiscard]] void *native_handle() const noexcept override;
 
-  private:
-    /// Private constructor to force usage of the factory method.
-    GLFWWindow(unsigned width, unsigned height, std::string_view title);
+private:
+  /// Private constructor to force usage of the factory method.
+  GLFWWindow(unsigned width, unsigned height, std::string_view title);
 
-    struct Impl;
-    std::unique_ptr<Impl> impl_;
-  };
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
+};
 
 } // namespace corundum::platform::glfw

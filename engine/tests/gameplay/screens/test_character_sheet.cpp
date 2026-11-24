@@ -25,52 +25,52 @@
 
 namespace {
 
-  using corundum::gameplay::rules::Ruleset;
-  using corundum::gameplay::rules::StatRow;
-  using corundum::gameplay::screens::CharacterInfo;
-  using corundum::test::make_border;
-  using corundum::test::RecordingRenderer;
-  using corundum::world::FlagStore;
+using corundum::gameplay::rules::Ruleset;
+using corundum::gameplay::rules::StatRow;
+using corundum::gameplay::screens::CharacterInfo;
+using corundum::test::make_border;
+using corundum::test::RecordingRenderer;
+using corundum::world::FlagStore;
 
-  namespace screens = corundum::gameplay::screens;
+namespace screens = corundum::gameplay::screens;
 
-  /// A registry holding one equippable apparel item (`cloak`, slot `body`) and one weapon (`sword`).
-  corundum::gameplay::item::Registry make_equipment_registry() {
-    using corundum::gameplay::item::ApparelData;
-    using corundum::gameplay::item::Item;
-    using corundum::gameplay::item::ItemCategory;
-    using corundum::gameplay::item::Registry;
-    using corundum::gameplay::item::WeaponData;
+/// A registry holding one equippable apparel item (`cloak`, slot `body`) and one weapon (`sword`).
+corundum::gameplay::item::Registry make_equipment_registry() {
+  using corundum::gameplay::item::ApparelData;
+  using corundum::gameplay::item::Item;
+  using corundum::gameplay::item::ItemCategory;
+  using corundum::gameplay::item::Registry;
+  using corundum::gameplay::item::WeaponData;
 
-    Registry items;
-    items.add(Item{
-        .apparel = ApparelData{.slot = "body"},
-        .category = ItemCategory::Apparel,
-        .id = "cloak",
-        .name = "Cloak",
-    });
-    items.add(Item{.category = ItemCategory::Weapon, .id = "sword", .name = "Sword", .weapon = WeaponData{}});
-    return items;
+  Registry items;
+  items.add(Item{
+      .apparel = ApparelData{.slot = "body"},
+      .category = ItemCategory::Apparel,
+      .id = "cloak",
+      .name = "Cloak",
+  });
+  items.add(Item{.category = ItemCategory::Weapon, .id = "sword", .name = "Sword", .weapon = WeaponData{}});
+  return items;
+}
+
+/// The recorded DrawText with exactly @p text, or nullptr.
+const corundum::platform::DrawText *find_text(const RecordingRenderer &r, std::string_view text) {
+  for (const auto &call : r.log) {
+    if (const auto *drawn = std::get_if<corundum::platform::DrawText>(&call); drawn != nullptr && drawn->text == text)
+      return drawn;
   }
+  return nullptr;
+}
 
-  /// The recorded DrawText with exactly @p text, or nullptr.
-  const corundum::platform::DrawText *find_text(const RecordingRenderer &r, std::string_view text) {
-    for (const auto &call : r.log) {
-      if (const auto *drawn = std::get_if<corundum::platform::DrawText>(&call); drawn != nullptr && drawn->text == text)
-        return drawn;
-    }
-    return nullptr;
+/// True when some recorded DrawText contains @p fragment.
+bool has_text_containing(const RecordingRenderer &r, std::string_view fragment) {
+  for (const auto &call : r.log) {
+    if (const auto *drawn = std::get_if<corundum::platform::DrawText>(&call);
+        drawn != nullptr && drawn->text.contains(fragment))
+      return true;
   }
-
-  /// True when some recorded DrawText contains @p fragment.
-  bool has_text_containing(const RecordingRenderer &r, std::string_view fragment) {
-    for (const auto &call : r.log) {
-      if (const auto *drawn = std::get_if<corundum::platform::DrawText>(&call);
-          drawn != nullptr && drawn->text.contains(fragment))
-        return true;
-    }
-    return false;
-  }
+  return false;
+}
 
 } // namespace
 

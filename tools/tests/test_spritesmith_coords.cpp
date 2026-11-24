@@ -21,21 +21,21 @@ using tools::spritesmith::sprite_at_point;
 
 namespace {
 
-  AtlasSprite make_sprite(int x, int y, int w, int h) {
-    AtlasSprite sprite;
-    sprite.x = x;
-    sprite.y = y;
-    sprite.w = w;
-    sprite.h = h;
-    return sprite;
-  }
+AtlasSprite make_sprite(int x, int y, int w, int h) {
+  AtlasSprite sprite;
+  sprite.x = x;
+  sprite.y = y;
+  sprite.w = w;
+  sprite.h = h;
+  return sprite;
+}
 
-  // A 4x4 grid of 16x16 frames, no offsets or spacing, unit zoom, no camera.
-  [[nodiscard]] std::optional<FrameCoord> frame_4x4(int px, int py) {
-    return screen_to_frame(px, py, /*canvas_w=*/100, /*canvas_h=*/100, /*camera_x=*/0.f, /*camera_y=*/0.f,
-                           /*zoom=*/1.f, /*frame_w=*/16, /*frame_h=*/16, /*offset_x=*/0, /*offset_y=*/0,
-                           /*spacing_x=*/0, /*spacing_y=*/0, /*img_cols=*/4, /*img_rows=*/4);
-  }
+// A 4x4 grid of 16x16 frames, no offsets or spacing, unit zoom, no camera.
+[[nodiscard]] std::optional<FrameCoord> frame_4x4(int px, int py) {
+  return screen_to_frame(px, py, /*canvas_w=*/100, /*canvas_h=*/100, /*camera_x=*/0.f, /*camera_y=*/0.f,
+                         /*zoom=*/1.f, /*frame_w=*/16, /*frame_h=*/16, /*offset_x=*/0, /*offset_y=*/0,
+                         /*spacing_x=*/0, /*spacing_y=*/0, /*img_cols=*/4, /*img_rows=*/4);
+}
 
 } // namespace
 

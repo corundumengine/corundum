@@ -12,21 +12,21 @@
 // a ruleset needs it. A ruleset's own progression keys stay under its prefix instead.
 namespace corundum::gameplay {
 
-  /** @brief Equipment slot every weapon occupies. Apparel names its own slot; weapons carry no
-   *  slot field, so they all share this one. */
-  inline constexpr std::string_view k_weapon_slot = "weapon";
+/** @brief Equipment slot every weapon occupies. Apparel names its own slot; weapons carry no
+ *  slot field, so they all share this one. */
+inline constexpr std::string_view k_weapon_slot = "weapon";
 
-  /** @brief FlagStore key marking @p item_id equipped in @p slot: `equip.<slot>.<item id>`. */
-  [[nodiscard]] inline std::string equip_flag_key(std::string_view slot, std::string_view item_id) {
-    return std::format("equip.{}.{}", slot, item_id);
-  }
+/** @brief FlagStore key marking @p item_id equipped in @p slot: `equip.<slot>.<item id>`. */
+[[nodiscard]] inline std::string equip_flag_key(std::string_view slot, std::string_view item_id) {
+  return std::format("equip.{}.{}", slot, item_id);
+}
 
-  /** @brief FlagStore key prefix of a held item's count. */
-  inline constexpr std::string_view k_item_flag_prefix = "item.";
+/** @brief FlagStore key prefix of a held item's count. */
+inline constexpr std::string_view k_item_flag_prefix = "item.";
 
-  /** @brief FlagStore key holding how many of @p item_id the player holds: `item.<item id>`. */
-  [[nodiscard]] inline std::string item_count_key(std::string_view item_id) {
-    return std::format("{}{}", k_item_flag_prefix, item_id);
-  }
+/** @brief FlagStore key holding how many of @p item_id the player holds: `item.<item id>`. */
+[[nodiscard]] inline std::string item_count_key(std::string_view item_id) {
+  return std::format("{}{}", k_item_flag_prefix, item_id);
+}
 
 } // namespace corundum::gameplay

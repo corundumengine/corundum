@@ -22,24 +22,20 @@ find_program(LLVM_CLANG_FORMAT clang-format
     DOC "clang-format from LLVM")
 
 # Reformat every first-party source in place: `cmake --build --preset format`.
-# Only built when at least one consumer (tools or tests) is enabled, matching
-# the old root-level guard.
+# Everything under engine/ and tools/ is first-party. Under GLOB_RECURSE,
+# "engine/*.cpp" matches at every depth below engine/, whereas a
+# "engine/src/**/*.cpp" pattern skips files directly in engine/src/.
+# Only built when at least one consumer (tools or tests) is enabled.
 if(CORUNDUM_BUILD_TOOLS OR CORUNDUM_BUILD_TESTS)
   file(GLOB_RECURSE FORMAT_SOURCES
-        "engine/src/**/*.cpp"
-        "engine/include/corundum/**/*.hpp"
-        "engine/rules_interface/include/corundum/**/*.hpp"
-        "engine/rules_interface/*.cpp"
-        "engine/tests/**/*.cpp"
-        "tools/toolkit/**/*.cpp"
-        "tools/toolkit/**/*.hpp"
-        "tools/editors/**/*.cpp"
-        "tools/editors/**/*.hpp"
-        "tools/mapview/**/*.cpp"
-        "tools/mapview/**/*.hpp"
-        "tools/platform/**/*.cpp"
-        "tools/platform/**/*.hpp"
-        "tools/tests/*.cpp"
+        "engine/*.cpp"
+        "engine/*.hpp"
+        "engine/*.h"
+        "engine/*.mm"
+        "tools/*.cpp"
+        "tools/*.hpp"
+        "tools/*.h"
+        "tools/*.mm"
     )
   add_custom_target(format_code
         COMMAND ${LLVM_CLANG_FORMAT} -i ${FORMAT_SOURCES}

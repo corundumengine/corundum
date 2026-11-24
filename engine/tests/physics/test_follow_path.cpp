@@ -18,15 +18,15 @@ using corundum::world::TileCoord;
 
 namespace {
 
-  // Minimal single-entity TransformTable setup shared by these cases.
-  struct Fixture {
-    TransformTable transforms;
-    EntityId player = static_cast<EntityId>(0);
+// Minimal single-entity TransformTable setup shared by these cases.
+struct Fixture {
+  TransformTable transforms;
+  EntityId player = static_cast<EntityId>(0);
 
-    Fixture() {
-      transforms.insert(player, 0.f, 0.f, 0.f, 0.f); // standing on tile (0, 0)
-    }
-  };
+  Fixture() {
+    transforms.insert(player, 0.f, 0.f, 0.f, 0.f); // standing on tile (0, 0)
+  }
+};
 
 } // namespace
 

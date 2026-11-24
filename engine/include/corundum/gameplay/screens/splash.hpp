@@ -11,55 +11,55 @@
 
 namespace corundum::gameplay::screens {
 
-  /** @brief Seconds each splash image holds at full opacity between its fade-in and fade-out. */
-  constexpr float k_splash_hold_seconds = 2.f;
+/** @brief Seconds each splash image holds at full opacity between its fade-in and fade-out. */
+constexpr float k_splash_hold_seconds = 2.f;
 
-  /** @brief Seconds each splash image takes to fade in from black, and again to fade out to black —
-   *  slower than a scene change's fade so the logo lingers. */
-  constexpr float k_splash_fade_seconds = 0.7f;
+/** @brief Seconds each splash image takes to fade in from black, and again to fade out to black —
+ *  slower than a scene change's fade so the logo lingers. */
+constexpr float k_splash_fade_seconds = 0.7f;
 
-  /** @brief Seconds the splash holds black before the first image fades in, so boot eases in rather
-   *  than snapping straight to the logo. */
-  constexpr float k_splash_initial_delay_seconds = 0.5f;
+/** @brief Seconds the splash holds black before the first image fades in, so boot eases in rather
+ *  than snapping straight to the logo. */
+constexpr float k_splash_initial_delay_seconds = 0.5f;
 
-  /** @brief Largest share of the viewport's width and height a splash image may cover. Splash
-   *  logos are usually tightly cropped, so fitting one to the whole viewport would run it edge to
-   *  edge; the rest of the screen stays black. */
-  constexpr float k_splash_max_viewport_fraction = 0.75f;
+/** @brief Largest share of the viewport's width and height a splash image may cover. Splash
+ *  logos are usually tightly cropped, so fitting one to the whole viewport would run it edge to
+ *  edge; the rest of the screen stays black. */
+constexpr float k_splash_max_viewport_fraction = 0.75f;
 
-  /** @brief One loaded splash image. */
-  struct SplashImage {
-    core::math::Vec2 size{}; ///< Texture size in pixels; {0, 0} when the backend cannot report it (not drawn).
+/** @brief One loaded splash image. */
+struct SplashImage {
+  core::math::Vec2 size{}; ///< Texture size in pixels; {0, 0} when the backend cannot report it (not drawn).
 
-    platform::TextureId texture{platform::TextureId::Invalid}; ///< Holds one reference until the splash closes.
-  };
+  platform::TextureId texture{platform::TextureId::Invalid}; ///< Holds one reference until the splash closes.
+};
 
-  /** @brief Splash-screen state: the images loaded from GameConfig's splash_images in play order,
-   *  the one showing, and how long it has held at full opacity.
-   *
-   *  Gameplay::open_splash() fills it at boot and Gameplay::advance_splash() empties it when the
-   *  last image has faded out. The fades themselves live in Engine::screen_transition. */
-  struct SplashState {
-    std::vector<SplashImage> images{};
+/** @brief Splash-screen state: the images loaded from GameConfig's splash_images in play order,
+ *  the one showing, and how long it has held at full opacity.
+ *
+ *  Gameplay::open_splash() fills it at boot and Gameplay::advance_splash() empties it when the
+ *  last image has faded out. The fades themselves live in Engine::screen_transition. */
+struct SplashState {
+  std::vector<SplashImage> images{};
 
-    std::size_t index{}; ///< The image showing; below images.size() while the splash is open.
+  std::size_t index{}; ///< The image showing; below images.size() while the splash is open.
 
-    float initial_delay_seconds{}; ///< Seconds of black still to hold before the first fade-in starts; 0 after that.
+  float initial_delay_seconds{}; ///< Seconds of black still to hold before the first fade-in starts; 0 after that.
 
-    float shown_seconds{}; ///< Seconds the current image has held since its fade-in finished.
-  };
+  float shown_seconds{}; ///< Seconds the current image has held since its fade-in finished.
+};
 
-  /** @brief Draw the splash: black over the whole viewport, then the current image scaled to fit
-   *  within k_splash_max_viewport_fraction of the viewport and centered.
-   *
-   *  Pure render; invoked only while Splash is on top of the UI stack. The image is contained,
-   *  never cropped, and the margin around it is black. An image of unknown size, or an
-   *  index past the end, draws only the black fill. The engine draws the fade overlay afterward.
-   *
-   *  @param r        Renderer; emits the fill and at most one sprite.
-   *  @param viewport Screen size in logical pixels.
-   *  @param state    Loaded images and the index of the one showing.
-   */
-  void splash_render(platform::Renderer &r, core::math::Vec2 viewport, const SplashState &state);
+/** @brief Draw the splash: black over the whole viewport, then the current image scaled to fit
+ *  within k_splash_max_viewport_fraction of the viewport and centered.
+ *
+ *  Pure render; invoked only while Splash is on top of the UI stack. The image is contained,
+ *  never cropped, and the margin around it is black. An image of unknown size, or an
+ *  index past the end, draws only the black fill. The engine draws the fade overlay afterward.
+ *
+ *  @param r        Renderer; emits the fill and at most one sprite.
+ *  @param viewport Screen size in logical pixels.
+ *  @param state    Loaded images and the index of the one showing.
+ */
+void splash_render(platform::Renderer &r, core::math::Vec2 viewport, const SplashState &state);
 
 } // namespace corundum::gameplay::screens

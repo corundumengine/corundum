@@ -48,51 +48,51 @@ using tools::loom::ShortcutMap;
 
 namespace {
 
-  void new_dialogue(EditorState &state) {
-    state.doc_type_ = DocumentKind::Dialogue;
-    state.graph = {};
-    state.graph.graph_id = "untitled_dialogue";
-    state.quest_doc_ = {};
-    state.layout.clear();
-    state.file_path.clear();
-    state.selected_node = -1;
-    state.selected_stage_ = -1;
-    state.last_scroll_target_ = -1;
-    state.inspector_open = false;
-    state.dirty = false;
-    state.undo_stack.clear();
-  }
+void new_dialogue(EditorState &state) {
+  state.doc_type_ = DocumentKind::Dialogue;
+  state.graph = {};
+  state.graph.graph_id = "untitled_dialogue";
+  state.quest_doc_ = {};
+  state.layout.clear();
+  state.file_path.clear();
+  state.selected_node = -1;
+  state.selected_stage_ = -1;
+  state.last_scroll_target_ = -1;
+  state.inspector_open = false;
+  state.dirty = false;
+  state.undo_stack.clear();
+}
 
-  void new_quest(EditorState &state) {
-    state.doc_type_ = DocumentKind::Quest;
-    state.graph = {};
-    state.quest_doc_ = {};
-    state.quest_doc_.quest_id = "untitled_quest";
-    state.layout.clear();
-    state.file_path.clear();
-    state.selected_node = -1;
-    state.selected_stage_ = -1;
-    state.inspector_open = false;
-    state.dirty = false;
-    state.undo_stack.clear();
-  }
+void new_quest(EditorState &state) {
+  state.doc_type_ = DocumentKind::Quest;
+  state.graph = {};
+  state.quest_doc_ = {};
+  state.quest_doc_.quest_id = "untitled_quest";
+  state.layout.clear();
+  state.file_path.clear();
+  state.selected_node = -1;
+  state.selected_stage_ = -1;
+  state.inspector_open = false;
+  state.dirty = false;
+  state.undo_stack.clear();
+}
 
-  void new_item(EditorState &state) {
-    state.doc_type_ = DocumentKind::Item;
-    state.graph = {};
-    state.quest_doc_ = {};
-    state.item_doc_.clear();
-    state.item_category_ = corundum::gameplay::item::ItemCategory::Misc;
-    state.item_doc_.emplace_back();
-    state.layout.clear();
-    state.file_path.clear();
-    state.selected_node = -1;
-    state.selected_stage_ = -1;
-    state.selected_item_ = 0;
-    state.inspector_open = false;
-    state.dirty = false;
-    state.undo_stack.clear();
-  }
+void new_item(EditorState &state) {
+  state.doc_type_ = DocumentKind::Item;
+  state.graph = {};
+  state.quest_doc_ = {};
+  state.item_doc_.clear();
+  state.item_category_ = corundum::gameplay::item::ItemCategory::Misc;
+  state.item_doc_.emplace_back();
+  state.layout.clear();
+  state.file_path.clear();
+  state.selected_node = -1;
+  state.selected_stage_ = -1;
+  state.selected_item_ = 0;
+  state.inspector_open = false;
+  state.dirty = false;
+  state.undo_stack.clear();
+}
 
 } // namespace
 

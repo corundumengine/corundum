@@ -27,42 +27,42 @@ namespace fs = std::filesystem;
 
 namespace {
 
-  using corundum::test::adopt_platform;
-  using corundum::test::make_world_config;
-  using corundum::world::GameMode;
-  namespace screens = corundum::gameplay::screens;
-  namespace quest = corundum::gameplay::quest;
+using corundum::test::adopt_platform;
+using corundum::test::make_world_config;
+using corundum::world::GameMode;
+namespace screens = corundum::gameplay::screens;
+namespace quest = corundum::gameplay::quest;
 
-  /// Route one physical action press through the engine's UI step. Journal is an engine-owned hub
-  /// tab, stepped by Engine, not world::update.
-  bool press(corundum::Engine &engine, corundum::input::Action action) {
-    corundum::input::InputState state{};
-    state.pressed.set(static_cast<std::size_t>(action));
-    engine.input_state = state;
-    const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
-    return engine.update_engine_screens(intent);
-  }
+/// Route one physical action press through the engine's UI step. Journal is an engine-owned hub
+/// tab, stepped by Engine, not world::update.
+bool press(corundum::Engine &engine, corundum::input::Action action) {
+  corundum::input::InputState state{};
+  state.pressed.set(static_cast<std::size_t>(action));
+  engine.input_state = state;
+  const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
+  return engine.update_engine_screens(intent);
+}
 
-  /// Register a two-stage quest and start it, so the journal has one Active row.
-  void add_started_quest(corundum::Engine &engine, corundum::gameplay::Gameplay &gameplay, std::string_view id,
-                         std::string name) {
-    quest::Quest q;
-    q.quest_id = id;
-    q.name = std::move(name);
-    q.stages.push_back({.name = "start", .objectives = {{.text = "Do the thing"}}, .sequence = 1});
-    q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
-    gameplay.quests.add(std::move(q));
-    quest::start(*gameplay.quests.find(id), engine.flags);
-  }
+/// Register a two-stage quest and start it, so the journal has one Active row.
+void add_started_quest(corundum::Engine &engine, corundum::gameplay::Gameplay &gameplay, std::string_view id,
+                       std::string name) {
+  quest::Quest q;
+  q.quest_id = id;
+  q.name = std::move(name);
+  q.stages.push_back({.name = "start", .objectives = {{.text = "Do the thing"}}, .sequence = 1});
+  q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
+  gameplay.quests.add(std::move(q));
+  quest::start(*gameplay.quests.find(id), engine.flags);
+}
 
-  /// Complete the quest whose id is @p id.
-  void complete(corundum::Engine &engine, std::string_view id) {
-    engine.flags[quest::quest_flag_key(id)] = 2;
-  }
+/// Complete the quest whose id is @p id.
+void complete(corundum::Engine &engine, std::string_view id) {
+  engine.flags[quest::quest_flag_key(id)] = 2;
+}
 
-  bool tracked(const corundum::Engine &engine, std::string_view id) {
-    return corundum::world::has_flag(engine.flags, quest::tracked_flag_key(id));
-  }
+bool tracked(const corundum::Engine &engine, std::string_view id) {
+  return corundum::world::has_flag(engine.flags, quest::tracked_flag_key(id));
+}
 
 } // namespace
 

@@ -14,42 +14,42 @@
 
 namespace corundum::gameplay::location {
 
-  int Registry::load_all(const core::ContentSource &content, const std::filesystem::path &dir) {
-    const auto entries = content.list(dir, {.extensions = {"json"}});
-    if (!entries) {
-      corundum::detail::warn_log("[location] cannot read location directory '{}': {}", dir.string(), entries.error());
-      return 0;
-    }
-
-    int loaded = 0;
-    const Loader loader;
-    for (const auto &entry : *entries) {
-      if (entry.is_dir)
-        continue;
-
-      auto result = loader.load(content, entry.path);
-      if (!result) {
-        corundum::detail::warn_log("[location] skipping '{}': {}", entry.name, result.error());
-        continue;
-      }
-
-      for (auto &location : *result) {
-        const std::string id = location.id;
-        if (locations_.contains(id)) {
-          corundum::detail::warn_log("[location] duplicate location id '{}' — '{}' is shadowed", id, entry.name);
-        } else {
-          locations_.emplace(id, std::move(location));
-          ++loaded;
-        }
-      }
-    }
-
-    return loaded;
+int Registry::load_all(const core::ContentSource &content, const std::filesystem::path &dir) {
+  const auto entries = content.list(dir, {.extensions = {"json"}});
+  if (!entries) {
+    corundum::detail::warn_log("[location] cannot read location directory '{}': {}", dir.string(), entries.error());
+    return 0;
   }
 
-  const Location *Registry::find(std::string_view id) const {
-    const auto it = locations_.find(id);
-    return it != locations_.end() ? &it->second : nullptr;
+  int loaded = 0;
+  const Loader loader;
+  for (const auto &entry : *entries) {
+    if (entry.is_dir)
+      continue;
+
+    auto result = loader.load(content, entry.path);
+    if (!result) {
+      corundum::detail::warn_log("[location] skipping '{}': {}", entry.name, result.error());
+      continue;
+    }
+
+    for (auto &location : *result) {
+      const std::string id = location.id;
+      if (locations_.contains(id)) {
+        corundum::detail::warn_log("[location] duplicate location id '{}' — '{}' is shadowed", id, entry.name);
+      } else {
+        locations_.emplace(id, std::move(location));
+        ++loaded;
+      }
+    }
   }
+
+  return loaded;
+}
+
+const Location *Registry::find(std::string_view id) const {
+  const auto it = locations_.find(id);
+  return it != locations_.end() ? &it->second : nullptr;
+}
 
 } // namespace corundum::gameplay::location

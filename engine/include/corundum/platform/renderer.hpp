@@ -11,140 +11,140 @@
 
 namespace corundum::platform {
 
-  /// Textured quad draw command.
-  struct DrawSprite {
-    TextureId texture_id{TextureId::Invalid};
+/// Textured quad draw command.
+struct DrawSprite {
+  TextureId texture_id{TextureId::Invalid};
 
-    core::math::Vec2 position{};
+  core::math::Vec2 position{};
 
-    core::math::IntRect source{};
+  core::math::IntRect source{};
 
-    core::math::Vec2 scale{.x = 1.f, .y = 1.f};
+  core::math::Vec2 scale{.x = 1.f, .y = 1.f};
 
-    bool flip_x{false};
+  bool flip_x{false};
 
-    bool flip_y{false};
-  };
+  bool flip_y{false};
+};
 
-  /** @brief Rasterised text draw command.
+/** @brief Rasterised text draw command.
+ *
+ *  @note @c text is borrowed for the duration of the draw call only; the renderer does
+ *        not retain it.
+ */
+struct DrawText {
+  FontId font_id{FontId::Invalid};
+
+  std::string_view text{};
+
+  core::math::Vec2 position{};
+
+  uint32_t char_size{0};
+
+  core::math::Colour colour{.r = 255, .g = 255, .b = 255, .a = 255};
+};
+
+/// Filled axis-aligned rectangle draw command.
+struct DrawRect {
+  core::math::Vec2 position{};
+
+  core::math::Vec2 size{};
+
+  core::math::Colour colour{};
+};
+
+/// Line segment draw command with configurable thickness.
+struct DrawLine {
+  core::math::Vec2 start{};
+
+  core::math::Vec2 end{};
+
+  core::math::Colour colour{.r = 255, .g = 255, .b = 255, .a = 255};
+
+  float thickness{1.f};
+};
+
+/// Per-frame rendering diagnostics. Best-effort, not a contract.
+struct RendererStats {
+  uint32_t draw_calls{};
+
+  uint32_t quads{};
+
+  uint32_t dropped_quads{};
+};
+
+/** @brief Platform-independent rendering interface.
+ *
+ * Textures and fonts are identified by TextureId and FontId; neither ever issues its Invalid (0).
+ * Concrete implementations are created via the platform factory
+ * (create_platform() in platform_factory.hpp).
+ *
+ * Coordinate spaces: draw commands issued between set_world_view() and reset_screen_view() are
+ * interpreted in world units. Commands issued outside that bracket are in logical window points;
+ * a high-DPI backend scales them to the display's physical pixels internally, so callers never
+ * need to know the content scale. Font sizes passed to draw(DrawText) and measure_text() are
+ * logical points and are rasterised at the display's physical resolution by such a backend.
+ * (The null backend ignores the content scale, since it draws nothing.)
+ *
+ * Draw commands are only consumed inside a begin_frame()/end_frame() bracket; draws
+ * issued outside one, or referencing an invalid resource ID, are discarded.
+ *
+ * @note Not thread-safe. Call only from the main thread.
+ */
+class Renderer {
+public:
+  virtual ~Renderer() = default;
+
+  /// Load a texture from an image file.
+  /// @return The texture's id, or std::unexpected with the reason.
+  [[nodiscard]] virtual std::expected<TextureId, std::string> load_texture(std::string_view path) = 0;
+
+  /// Pixel size of a texture returned by load_texture().
+  /// @pre @p texture_id is live: returned by load_texture() and not yet purged.
+  [[nodiscard]] virtual core::math::Vec2 texture_size(TextureId texture_id) const = 0;
+
+  /// Drop one reference taken by load_texture() (every call takes one, a cached hit included).
+  /// Never destroys: an unreferenced texture stays usable until purge_unused_textures().
+  /// TextureId::Invalid is ignored.
+  virtual void release_texture(TextureId texture_id) = 0;
+
+  /// Destroy every texture whose references have all been released. Call only between frames
+  /// (never between begin_frame() and end_frame()), at an area boundary. Ids are never reused.
+  virtual void purge_unused_textures() = 0;
+
+  /// Load a font face for rasterised text.
+  /// @return The font's id, or std::unexpected with the reason.
+  [[nodiscard]] virtual std::expected<FontId, std::string> load_font(std::string_view path) = 0;
+
+  /// Set the world camera rect (top-left and viewport size, in world pixels) and zoom.
+  /// Subsequent draws are interpreted in world units until reset_screen_view().
+  virtual void set_world_view(core::math::Vec2 top_left, core::math::Vec2 viewport_size, float zoom) = 0;
+
+  /// Return to screen-space drawing, where coordinates are logical window points.
+  virtual void reset_screen_view() = 0;
+
+  /** @brief Start a frame's default render pass, clearing to @p clear_colour.
    *
-   *  @note @c text is borrowed for the duration of the draw call only; the renderer does
-   *        not retain it.
+   *  @return @c true if the pass was started; @c false if the frame was skipped because
+   *          no render target was ready, in which case the caller must issue no draws this
+   *          frame and may skip end_frame().
    */
-  struct DrawText {
-    FontId font_id{FontId::Invalid};
+  [[nodiscard]] virtual bool begin_frame(core::math::Colour clear_colour) = 0;
 
-    std::string_view text{};
+  /// End the pass started by begin_frame() and present the frame. No-op if the frame was skipped.
+  virtual void end_frame() = 0;
 
-    core::math::Vec2 position{};
+  virtual void draw(const DrawSprite &cmd) = 0;
 
-    uint32_t char_size{0};
+  virtual void draw(const DrawText &cmd) = 0;
 
-    core::math::Colour colour{.r = 255, .g = 255, .b = 255, .a = 255};
-  };
+  virtual void draw(const DrawRect &cmd) = 0;
 
-  /// Filled axis-aligned rectangle draw command.
-  struct DrawRect {
-    core::math::Vec2 position{};
+  virtual void draw(const DrawLine &cmd) = 0;
 
-    core::math::Vec2 size{};
+  /// Advance width in pixels of @p text at @p char_size, or 0 if @p font_id resolves to no font.
+  [[nodiscard]] virtual float measure_text(FontId font_id, std::string_view text, uint32_t char_size) const = 0;
 
-    core::math::Colour colour{};
-  };
-
-  /// Line segment draw command with configurable thickness.
-  struct DrawLine {
-    core::math::Vec2 start{};
-
-    core::math::Vec2 end{};
-
-    core::math::Colour colour{.r = 255, .g = 255, .b = 255, .a = 255};
-
-    float thickness{1.f};
-  };
-
-  /// Per-frame rendering diagnostics. Best-effort, not a contract.
-  struct RendererStats {
-    uint32_t draw_calls{};
-
-    uint32_t quads{};
-
-    uint32_t dropped_quads{};
-  };
-
-  /** @brief Platform-independent rendering interface.
-   *
-   * Textures and fonts are identified by TextureId and FontId; neither ever issues its Invalid (0).
-   * Concrete implementations are created via the platform factory
-   * (create_platform() in platform_factory.hpp).
-   *
-   * Coordinate spaces: draw commands issued between set_world_view() and reset_screen_view() are
-   * interpreted in world units. Commands issued outside that bracket are in logical window points;
-   * a high-DPI backend scales them to the display's physical pixels internally, so callers never
-   * need to know the content scale. Font sizes passed to draw(DrawText) and measure_text() are
-   * logical points and are rasterised at the display's physical resolution by such a backend.
-   * (The null backend ignores the content scale, since it draws nothing.)
-   *
-   * Draw commands are only consumed inside a begin_frame()/end_frame() bracket; draws
-   * issued outside one, or referencing an invalid resource ID, are discarded.
-   *
-   * @note Not thread-safe. Call only from the main thread.
-   */
-  class Renderer {
-  public:
-    virtual ~Renderer() = default;
-
-    /// Load a texture from an image file.
-    /// @return The texture's id, or std::unexpected with the reason.
-    [[nodiscard]] virtual std::expected<TextureId, std::string> load_texture(std::string_view path) = 0;
-
-    /// Pixel size of a texture returned by load_texture().
-    /// @pre @p texture_id is live: returned by load_texture() and not yet purged.
-    [[nodiscard]] virtual core::math::Vec2 texture_size(TextureId texture_id) const = 0;
-
-    /// Drop one reference taken by load_texture() (every call takes one, a cached hit included).
-    /// Never destroys: an unreferenced texture stays usable until purge_unused_textures().
-    /// TextureId::Invalid is ignored.
-    virtual void release_texture(TextureId texture_id) = 0;
-
-    /// Destroy every texture whose references have all been released. Call only between frames
-    /// (never between begin_frame() and end_frame()), at an area boundary. Ids are never reused.
-    virtual void purge_unused_textures() = 0;
-
-    /// Load a font face for rasterised text.
-    /// @return The font's id, or std::unexpected with the reason.
-    [[nodiscard]] virtual std::expected<FontId, std::string> load_font(std::string_view path) = 0;
-
-    /// Set the world camera rect (top-left and viewport size, in world pixels) and zoom.
-    /// Subsequent draws are interpreted in world units until reset_screen_view().
-    virtual void set_world_view(core::math::Vec2 top_left, core::math::Vec2 viewport_size, float zoom) = 0;
-
-    /// Return to screen-space drawing, where coordinates are logical window points.
-    virtual void reset_screen_view() = 0;
-
-    /** @brief Start a frame's default render pass, clearing to @p clear_colour.
-     *
-     *  @return @c true if the pass was started; @c false if the frame was skipped because
-     *          no render target was ready, in which case the caller must issue no draws this
-     *          frame and may skip end_frame().
-     */
-    [[nodiscard]] virtual bool begin_frame(core::math::Colour clear_colour) = 0;
-
-    /// End the pass started by begin_frame() and present the frame. No-op if the frame was skipped.
-    virtual void end_frame() = 0;
-
-    virtual void draw(const DrawSprite &cmd) = 0;
-
-    virtual void draw(const DrawText &cmd) = 0;
-
-    virtual void draw(const DrawRect &cmd) = 0;
-
-    virtual void draw(const DrawLine &cmd) = 0;
-
-    /// Advance width in pixels of @p text at @p char_size, or 0 if @p font_id resolves to no font.
-    [[nodiscard]] virtual float measure_text(FontId font_id, std::string_view text, uint32_t char_size) const = 0;
-
-    [[nodiscard]] virtual RendererStats stats() const = 0;
-  };
+  [[nodiscard]] virtual RendererStats stats() const = 0;
+};
 
 } // namespace corundum::platform

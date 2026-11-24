@@ -29,33 +29,33 @@ namespace fs = std::filesystem;
 
 namespace {
 
-  using corundum::gameplay::rules::StatRow;
-  using corundum::test::adopt_platform;
-  using corundum::test::make_world_config;
-  using corundum::world::GameMode;
-  namespace screens = corundum::gameplay::screens;
+using corundum::gameplay::rules::StatRow;
+using corundum::test::adopt_platform;
+using corundum::test::make_world_config;
+using corundum::world::GameMode;
+namespace screens = corundum::gameplay::screens;
 
-  /// Route one physical action press through the engine's UI step, exactly as the fixed-step
-  /// loop does. The character sheet is stepped by Engine, not world::update, so the shared
-  /// world helper cannot drive it.
-  bool press(corundum::Engine &engine, corundum::input::Action action) {
-    corundum::input::InputState state{};
-    state.pressed.set(static_cast<std::size_t>(action));
-    engine.input_state = state;
-    const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
-    return engine.update_engine_screens(intent);
-  }
+/// Route one physical action press through the engine's UI step, exactly as the fixed-step
+/// loop does. The character sheet is stepped by Engine, not world::update, so the shared
+/// world helper cannot drive it.
+bool press(corundum::Engine &engine, corundum::input::Action action) {
+  corundum::input::InputState state{};
+  state.pressed.set(static_cast<std::size_t>(action));
+  engine.input_state = state;
+  const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
+  return engine.update_engine_screens(intent);
+}
 
-  using corundum::gameplay::rules::FlagReader;
+using corundum::gameplay::rules::FlagReader;
 
-  /// Give @p gameplay one ruleset row, "Stance", showing the `test.stance` flag.
-  void add_stance_row(corundum::gameplay::Gameplay &gameplay) {
-    gameplay.ruleset.character_rows = [](const FlagReader &flags) {
-      return std::vector<StatRow>{
-          {.label = "Stance", .value = std::format("{}", flags.read("test.stance"))},
-      };
+/// Give @p gameplay one ruleset row, "Stance", showing the `test.stance` flag.
+void add_stance_row(corundum::gameplay::Gameplay &gameplay) {
+  gameplay.ruleset.character_rows = [](const FlagReader &flags) {
+    return std::vector<StatRow>{
+        {.label = "Stance", .value = std::format("{}", flags.read("test.stance"))},
     };
-  }
+  };
+}
 
 } // namespace
 

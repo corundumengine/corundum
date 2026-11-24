@@ -7,17 +7,17 @@
 
 namespace corundum::world::tilemap {
 
-  /** @brief Serialize a Tilemap to JSON.
-   *
-   * When @p base is non-null, the result starts as a copy of @p base and only
-   * the engine-managed fields are overwritten. Unknown keys present in @p base
-   * are preserved in the output. When @p base is null, a fresh JSON object is
-   * produced containing only the engine-managed fields.
-   *
-   * @param[in] map   The in-memory tilemap to serialize.
-   * @param[in] base  Optional existing JSON to merge onto (preserves unknown keys).
-   * @return JSON object suitable for write_json().
-   */
-  [[nodiscard]] nlohmann::json serialize(const Tilemap &map, const nlohmann::json *base = nullptr);
+/** @brief Serialize a Tilemap to JSON.
+ *
+ * When @p base is non-null, the result starts as a copy of @p base and only
+ * the engine-managed fields are overwritten. Unknown keys present in @p base
+ * are preserved in the output. When @p base is null, a fresh JSON object is
+ * produced containing only the engine-managed fields.
+ *
+ * @param[in] map   The in-memory tilemap to serialize.
+ * @param[in] base  Optional existing JSON to merge onto (preserves unknown keys).
+ * @return JSON object suitable for write_json().
+ */
+[[nodiscard]] nlohmann::json serialize(const Tilemap &map, const nlohmann::json *base = nullptr);
 
 } // namespace corundum::world::tilemap

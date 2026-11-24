@@ -16,46 +16,46 @@ using corundum::platform::Handle;
 
 namespace {
 
-  /// Counts destructions; lives in the test because the object under test is gone
-  /// by the time the count is read.
-  struct DestroyTally {
-    int count = 0;
-  };
+/// Counts destructions; lives in the test because the object under test is gone
+/// by the time the count is read.
+struct DestroyTally {
+  int count = 0;
+};
 
-  /// Stands in for a platform interface: abstract, virtual destructor, deleted
-  /// through the base by the backend-supplied function.
-  class ProbeInterface {
-  public:
-    virtual ~ProbeInterface() = default;
+/// Stands in for a platform interface: abstract, virtual destructor, deleted
+/// through the base by the backend-supplied function.
+class ProbeInterface {
+public:
+  virtual ~ProbeInterface() = default;
 
-    [[nodiscard]] virtual int identity() const = 0;
-  };
+  [[nodiscard]] virtual int identity() const = 0;
+};
 
-  class Probe final : public ProbeInterface {
-  public:
-    explicit Probe(DestroyTally &tally) : tally_(&tally) {}
+class Probe final : public ProbeInterface {
+public:
+  explicit Probe(DestroyTally &tally) : tally_(&tally) {}
 
-    ~Probe() override { ++tally_->count; }
+  ~Probe() override { ++tally_->count; }
 
-    Probe(const Probe &) = delete;
-    Probe &operator=(const Probe &) = delete;
-    Probe(Probe &&) = delete;
-    Probe &operator=(Probe &&) = delete;
+  Probe(const Probe &) = delete;
+  Probe &operator=(const Probe &) = delete;
+  Probe(Probe &&) = delete;
+  Probe &operator=(Probe &&) = delete;
 
-    [[nodiscard]] int identity() const override { return 7; }
+  [[nodiscard]] int identity() const override { return 7; }
 
-  private:
-    DestroyTally *tally_;
-  };
+private:
+  DestroyTally *tally_;
+};
 
-  /// Backend-side destruction, as platform::null::detail::destroy_window does it.
-  void destroy_probe(ProbeInterface *object) {
-    std::default_delete<ProbeInterface>{}(object);
-  }
+/// Backend-side destruction, as platform::null::detail::destroy_window does it.
+void destroy_probe(ProbeInterface *object) {
+  std::default_delete<ProbeInterface>{}(object);
+}
 
-  Handle<ProbeInterface> adopt(std::unique_ptr<Probe> object) {
-    return Handle<ProbeInterface>{object.release(), BackendDeleter<ProbeInterface>{&destroy_probe}};
-  }
+Handle<ProbeInterface> adopt(std::unique_ptr<Probe> object) {
+  return Handle<ProbeInterface>{object.release(), BackendDeleter<ProbeInterface>{&destroy_probe}};
+}
 
 } // namespace
 

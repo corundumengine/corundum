@@ -24,36 +24,36 @@ using corundum::world::tilemap::WalkabilityGraph;
 
 namespace {
 
-  // A 3x3 map whose per-cell elevations are given row-major (index == row * 3 + col), with a
-  // non-empty tile everywhere so elevation_at() sees a tile present. No ramps.
-  Tilemap make_elevation_map(const std::array<uint8_t, 9> &elevation) {
-    Tilemap tm;
-    tm.width = 3;
-    tm.height = 3;
+// A 3x3 map whose per-cell elevations are given row-major (index == row * 3 + col), with a
+// non-empty tile everywhere so elevation_at() sees a tile present. No ramps.
+Tilemap make_elevation_map(const std::array<uint8_t, 9> &elevation) {
+  Tilemap tm;
+  tm.width = 3;
+  tm.height = 3;
 
-    TilemapLayer layer;
-    layer.name = "ground";
-    layer.z_index = 0;
-    layer.tiles.assign(9, 1);
-    layer.elevation.assign(elevation.begin(), elevation.end());
-    tm.layers.push_back(std::move(layer));
-    return tm;
-  }
+  TilemapLayer layer;
+  layer.name = "ground";
+  layer.z_index = 0;
+  layer.tiles.assign(9, 1);
+  layer.elevation.assign(elevation.begin(), elevation.end());
+  tm.layers.push_back(std::move(layer));
+  return tm;
+}
 
-  // A flat map (elevation 0 everywhere) with one raised tile at the caller-chosen
-  // (raised_col, raised_row) with elevation raised_elev, and optionally a ramp cell.
-  Tilemap make_test_map(int raised_col, int raised_row, uint8_t raised_elev,
-                        std::optional<std::pair<int, int>> ramp_cell = std::nullopt,
-                        RampAxis ramp_axis = RampAxis::NorthSouth) {
-    std::array<uint8_t, 9> elevation{};
-    elevation[(static_cast<std::size_t>(raised_row) * 3) + static_cast<std::size_t>(raised_col)] = raised_elev;
-    Tilemap tm = make_elevation_map(elevation);
-    if (ramp_cell) {
-      const auto [rcol, rrow] = *ramp_cell;
-      tm.layers.front().ramps[(rrow * 3) + rcol] = ramp_axis;
-    }
-    return tm;
+// A flat map (elevation 0 everywhere) with one raised tile at the caller-chosen
+// (raised_col, raised_row) with elevation raised_elev, and optionally a ramp cell.
+Tilemap make_test_map(int raised_col, int raised_row, uint8_t raised_elev,
+                      std::optional<std::pair<int, int>> ramp_cell = std::nullopt,
+                      RampAxis ramp_axis = RampAxis::NorthSouth) {
+  std::array<uint8_t, 9> elevation{};
+  elevation[(static_cast<std::size_t>(raised_row) * 3) + static_cast<std::size_t>(raised_col)] = raised_elev;
+  Tilemap tm = make_elevation_map(elevation);
+  if (ramp_cell) {
+    const auto [rcol, rrow] = *ramp_cell;
+    tm.layers.front().ramps[(rrow * 3) + rcol] = ramp_axis;
   }
+  return tm;
+}
 
 } // namespace
 

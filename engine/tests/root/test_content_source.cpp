@@ -15,9 +15,9 @@
 
 namespace {
 
-  using corundum::Engine;
+using corundum::Engine;
 
-  constexpr std::string_view k_marker_path{"corundum_content_source_test_marker.txt"};
+constexpr std::string_view k_marker_path{"corundum_content_source_test_marker.txt"};
 
 } // namespace
 

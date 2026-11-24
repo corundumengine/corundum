@@ -14,40 +14,40 @@
 
 namespace corundum::gameplay::dialogue {
 
-  int Registry::load_all(const core::ContentSource &content, const std::filesystem::path &dir) {
-    const auto entries = content.list(dir, {.extensions = {"json"}});
-    if (!entries) {
-      corundum::detail::warn_log("[dialogue] cannot read dialogue directory '{}': {}", dir.string(), entries.error());
-      return 0;
-    }
-
-    int loaded = 0;
-    const Loader loader;
-    for (const auto &entry : *entries) {
-      if (entry.is_dir)
-        continue;
-
-      auto result = loader.load(content, entry.path);
-      if (!result) {
-        corundum::detail::warn_log("[dialogue] skipping '{}': {}", entry.name, result.error());
-        continue;
-      }
-
-      const std::string id = result->graph_id;
-      if (graphs_.contains(id)) {
-        corundum::detail::warn_log("[dialogue] duplicate graph id '{}' — '{}' is shadowed", id, entry.name);
-      } else {
-        graphs_.emplace(id, std::move(*result));
-        ++loaded;
-      }
-    }
-
-    return loaded;
+int Registry::load_all(const core::ContentSource &content, const std::filesystem::path &dir) {
+  const auto entries = content.list(dir, {.extensions = {"json"}});
+  if (!entries) {
+    corundum::detail::warn_log("[dialogue] cannot read dialogue directory '{}': {}", dir.string(), entries.error());
+    return 0;
   }
 
-  const Graph *Registry::find(std::string_view graph_id) const {
-    const auto it = graphs_.find(graph_id);
-    return it != graphs_.end() ? &it->second : nullptr;
+  int loaded = 0;
+  const Loader loader;
+  for (const auto &entry : *entries) {
+    if (entry.is_dir)
+      continue;
+
+    auto result = loader.load(content, entry.path);
+    if (!result) {
+      corundum::detail::warn_log("[dialogue] skipping '{}': {}", entry.name, result.error());
+      continue;
+    }
+
+    const std::string id = result->graph_id;
+    if (graphs_.contains(id)) {
+      corundum::detail::warn_log("[dialogue] duplicate graph id '{}' — '{}' is shadowed", id, entry.name);
+    } else {
+      graphs_.emplace(id, std::move(*result));
+      ++loaded;
+    }
   }
+
+  return loaded;
+}
+
+const Graph *Registry::find(std::string_view graph_id) const {
+  const auto it = graphs_.find(graph_id);
+  return it != graphs_.end() ? &it->second : nullptr;
+}
 
 } // namespace corundum::gameplay::dialogue

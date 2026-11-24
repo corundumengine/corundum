@@ -26,29 +26,29 @@ using corundum::test::disk;
 
 namespace {
 
-  using corundum::render::RenderState;
-  using corundum::test::TileRecordingRenderer;
-  namespace tilemap = corundum::world::tilemap;
+using corundum::render::RenderState;
+using corundum::test::TileRecordingRenderer;
+namespace tilemap = corundum::world::tilemap;
 
-  /// Non-empty cells in every layer at or above the ground band.
-  std::size_t count_drawable_cells(const tilemap::Tilemap &tm) {
-    std::size_t count = 0;
-    for (const tilemap::TilemapLayer &layer : tm.layers) {
-      if (layer.z_index < 0)
-        continue;
-      REQUIRE(layer.animated_cells.empty());
-      for (int row = 0; row < tm.height; ++row)
-        for (int col = 0; col < tm.width; ++col)
-          if (tm.tile_at(layer, col, row) != tilemap::k_empty_tile)
-            ++count;
-    }
-    return count;
+/// Non-empty cells in every layer at or above the ground band.
+std::size_t count_drawable_cells(const tilemap::Tilemap &tm) {
+  std::size_t count = 0;
+  for (const tilemap::TilemapLayer &layer : tm.layers) {
+    if (layer.z_index < 0)
+      continue;
+    REQUIRE(layer.animated_cells.empty());
+    for (int row = 0; row < tm.height; ++row)
+      for (int col = 0; col < tm.width; ++col)
+        if (tm.tile_at(layer, col, row) != tilemap::k_empty_tile)
+          ++count;
   }
+  return count;
+}
 
-  void render_frame(TileRecordingRenderer &renderer, RenderState &state, const corundum::core::GameConfig &cfg,
-                    const corundum::world::Scene &scene, corundum::core::math::IntSize window_logical) {
-    corundum::render::render(renderer, state, cfg, scene, 1.f, window_logical);
-  }
+void render_frame(TileRecordingRenderer &renderer, RenderState &state, const corundum::core::GameConfig &cfg,
+                  const corundum::world::Scene &scene, corundum::core::math::IntSize window_logical) {
+  corundum::render::render(renderer, state, cfg, scene, 1.f, window_logical);
+}
 
 } // namespace
 

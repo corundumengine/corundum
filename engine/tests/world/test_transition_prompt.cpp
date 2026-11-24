@@ -11,24 +11,24 @@
 
 namespace {
 
-  corundum::world::Portal make_portal() {
-    corundum::world::Portal p{};
-    p.col = 13.f;
-    p.row = 13.f;
-    p.w = 1.f;
-    p.h = 1.f;
-    p.target_map = "engine/tests/fixtures/tilemaps/interior.json";
-    p.spawn_col = 1;
-    p.spawn_row = 2;
-    p.return_to_world = false;
-    return p;
-  }
+corundum::world::Portal make_portal() {
+  corundum::world::Portal p{};
+  p.col = 13.f;
+  p.row = 13.f;
+  p.w = 1.f;
+  p.h = 1.f;
+  p.target_map = "engine/tests/fixtures/tilemaps/interior.json";
+  p.spawn_col = 1;
+  p.spawn_row = 2;
+  p.return_to_world = false;
+  return p;
+}
 
-  corundum::input::InputIntent with_only(corundum::input::Action action) {
-    corundum::input::InputState input{};
-    input.pressed.set(static_cast<std::size_t>(action));
-    return corundum::input::make_input_intent(input, corundum::input::InputDevice::Keyboard);
-  }
+corundum::input::InputIntent with_only(corundum::input::Action action) {
+  corundum::input::InputState input{};
+  input.pressed.set(static_cast<std::size_t>(action));
+  return corundum::input::make_input_intent(input, corundum::input::InputDevice::Keyboard);
+}
 
 } // namespace
 

@@ -9,9 +9,9 @@
 
 namespace {
 
-  using corundum::input::Action;
-  using corundum::input::InputDevice;
-  using corundum::ui::input_glyph;
+using corundum::input::Action;
+using corundum::input::InputDevice;
+using corundum::ui::input_glyph;
 
 } // namespace
 

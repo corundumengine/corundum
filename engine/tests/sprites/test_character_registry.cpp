@@ -22,23 +22,23 @@ namespace fs = std::filesystem;
 
 namespace {
 
-  void write_file(const fs::path &p, std::string_view content) {
-    fs::create_directories(p.parent_path());
-    std::ofstream f(p);
-    f << content;
-  }
+void write_file(const fs::path &p, std::string_view content) {
+  fs::create_directories(p.parent_path());
+  std::ofstream f(p);
+  f << content;
+}
 
-  corundum::test::TempDir temp_dir(std::string_view tag) {
-    return corundum::test::TempDir{"crpg_test_character_registry_", tag};
-  }
+corundum::test::TempDir temp_dir(std::string_view tag) {
+  return corundum::test::TempDir{"crpg_test_character_registry_", tag};
+}
 
-  /// Minimal valid character sheet: one sprite with authored footprints on a 3x1 grid.
-  std::string sheet_json(std::string_view id, std::string_view sprite) {
-    return R"({"id":")" + std::string{id} + R"(","path":"game/assets/)" + std::string{id} +
-           R"(.png","frame_width":32,"frame_height":32,"frames":{")" + std::string{sprite} +
-           R"(":{"col_span":1,"row_span":2,"footprint_col_span":0.25,"footprint_row_span":0.75,)"
-           R"("south":[{"col":0,"row":0},{"col":1,"row":0}],"east":[{"col":2,"row":0}]}}})";
-  }
+/// Minimal valid character sheet: one sprite with authored footprints on a 3x1 grid.
+std::string sheet_json(std::string_view id, std::string_view sprite) {
+  return R"({"id":")" + std::string{id} + R"(","path":"game/assets/)" + std::string{id} +
+         R"(.png","frame_width":32,"frame_height":32,"frames":{")" + std::string{sprite} +
+         R"(":{"col_span":1,"row_span":2,"footprint_col_span":0.25,"footprint_row_span":0.75,)"
+         R"("south":[{"col":0,"row":0},{"col":1,"row":0}],"east":[{"col":2,"row":0}]}}})";
+}
 
 } // namespace
 

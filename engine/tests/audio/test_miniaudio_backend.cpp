@@ -26,62 +26,62 @@ using corundum::test::disk;
 
 namespace {
 
-  using corundum::platform::miniaudio::MiniaudioBackend;
-  using corundum::platform::miniaudio::MiniaudioOutput;
+using corundum::platform::miniaudio::MiniaudioBackend;
+using corundum::platform::miniaudio::MiniaudioOutput;
 
-  /// Engine rate the backend runs at; the WAVs below are written at it so nothing is resampled.
-  constexpr int k_rate = 44100;
+/// Engine rate the backend runs at; the WAVs below are written at it so nothing is resampled.
+constexpr int k_rate = 44100;
 
-  /// 16384 / 32768: the f32 value a constant PCM16 sample of 16384 decodes to.
-  constexpr float k_half = 0.5f;
+/// 16384 / 32768: the f32 value a constant PCM16 sample of 16384 decodes to.
+constexpr float k_half = 0.5f;
 
-  /// Write a 16-bit stereo k_rate WAV of @p frames frames, every sample 16384 (0.5 full scale).
-  void write_wav(const fs::path &path, int frames) {
-    const auto data_bytes = static_cast<std::uint32_t>(frames) * 4u;
-    std::ofstream out(path, std::ios::binary);
-    const auto put16 = [&out](std::uint32_t v) {
-      out.put(static_cast<char>(v & 0xFFu));
-      out.put(static_cast<char>((v >> 8u) & 0xFFu));
-    };
-    const auto put32 = [&put16](std::uint32_t v) {
-      put16(v & 0xFFFFu);
-      put16(v >> 16u);
-    };
-    out.write("RIFF", 4);
-    put32(36u + data_bytes);
-    out.write("WAVEfmt ", 8);
-    put32(16u);
-    put16(1u); // PCM
-    put16(2u); // stereo
-    put32(static_cast<std::uint32_t>(k_rate));
-    put32(static_cast<std::uint32_t>(k_rate) * 4u);
-    put16(4u);  // block align
-    put16(16u); // bits per sample
-    out.write("data", 4);
-    put32(data_bytes);
-    for (int i = 0; i < frames * 2; ++i)
-      put16(16384u);
+/// Write a 16-bit stereo k_rate WAV of @p frames frames, every sample 16384 (0.5 full scale).
+void write_wav(const fs::path &path, int frames) {
+  const auto data_bytes = static_cast<std::uint32_t>(frames) * 4u;
+  std::ofstream out(path, std::ios::binary);
+  const auto put16 = [&out](std::uint32_t v) {
+    out.put(static_cast<char>(v & 0xFFu));
+    out.put(static_cast<char>((v >> 8u) & 0xFFu));
+  };
+  const auto put32 = [&put16](std::uint32_t v) {
+    put16(v & 0xFFFFu);
+    put16(v >> 16u);
+  };
+  out.write("RIFF", 4);
+  put32(36u + data_bytes);
+  out.write("WAVEfmt ", 8);
+  put32(16u);
+  put16(1u); // PCM
+  put16(2u); // stereo
+  put32(static_cast<std::uint32_t>(k_rate));
+  put32(static_cast<std::uint32_t>(k_rate) * 4u);
+  put16(4u);  // block align
+  put16(16u); // bits per sample
+  out.write("data", 4);
+  put32(data_bytes);
+  for (int i = 0; i < frames * 2; ++i)
+    put16(16384u);
+}
+
+/// Render @p frames frames in 441-frame (10 ms) chunks, calling update() after each chunk the way
+/// the game loop does; returns the left channel.
+std::vector<float> render(MiniaudioBackend &backend, int frames) {
+  constexpr int k_chunk = 441;
+  std::vector<float> left;
+  std::vector<float> chunk(static_cast<std::size_t>(k_chunk) * 2);
+  for (int done = 0; done < frames; done += k_chunk) {
+    backend.render_frames(chunk);
+    for (int i = 0; i < k_chunk; ++i)
+      left.push_back(chunk[static_cast<std::size_t>(i) * 2]);
+    backend.update();
   }
+  return left;
+}
 
-  /// Render @p frames frames in 441-frame (10 ms) chunks, calling update() after each chunk the way
-  /// the game loop does; returns the left channel.
-  std::vector<float> render(MiniaudioBackend &backend, int frames) {
-    constexpr int k_chunk = 441;
-    std::vector<float> left;
-    std::vector<float> chunk(static_cast<std::size_t>(k_chunk) * 2);
-    for (int done = 0; done < frames; done += k_chunk) {
-      backend.render_frames(chunk);
-      for (int i = 0; i < k_chunk; ++i)
-        left.push_back(chunk[static_cast<std::size_t>(i) * 2]);
-      backend.update();
-    }
-    return left;
-  }
-
-  /// Start @p handle on the Sound bus at full volume, matching the interface's default.
-  corundum::audio::SoundInstanceId play_effect(MiniaudioBackend &backend, corundum::audio::SoundHandle handle) {
-    return backend.play(handle, 1.f, /*loop=*/false, corundum::audio::AudioBus::Sound);
-  }
+/// Start @p handle on the Sound bus at full volume, matching the interface's default.
+corundum::audio::SoundInstanceId play_effect(MiniaudioBackend &backend, corundum::audio::SoundHandle handle) {
+  return backend.play(handle, 1.f, /*loop=*/false, corundum::audio::AudioBus::Sound);
+}
 
 } // namespace
 

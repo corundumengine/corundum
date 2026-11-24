@@ -14,96 +14,96 @@
 
 namespace tools::tilesmith {
 
-  namespace {
+namespace {
 
-    void render_hover_tile(CanvasContext ctx, const EditorState &state) {
-      if (state.hover_tile_col < 0 || state.hover_tile_row < 0)
-        return;
-      if (state.map.tilesets.empty())
-        return;
+void render_hover_tile(CanvasContext ctx, const EditorState &state) {
+  if (state.hover_tile_col < 0 || state.hover_tile_row < 0)
+    return;
+  if (state.map.tilesets.empty())
+    return;
 
-      const auto iso = corundum::core::math::compute_isometric_params(
-          state.map.diamond_w(), state.map.diamond_h(), state.map.height, state.canvas.scale, state.elev_step_px);
-      const float ox = ctx.origin.x - state.canvas.offset_x;
-      const float oy = ctx.origin.y - state.canvas.offset_y;
-      const int col = state.hover_tile_col;
-      const int row = state.hover_tile_row;
+  const auto iso = corundum::core::math::compute_isometric_params(
+      state.map.diamond_w(), state.map.diamond_h(), state.map.height, state.canvas.scale, state.elev_step_px);
+  const float ox = ctx.origin.x - state.canvas.offset_x;
+  const float oy = ctx.origin.y - state.canvas.offset_y;
+  const int col = state.hover_tile_col;
+  const int row = state.hover_tile_row;
 
-      // Top vertex of the diamond in world space, then shift to the southern vertex
-      // (the footprint diamond extends downward from the top vertex).
-      const auto top_world = corundum::core::math::tile_to_world(col, row, 0, iso);
-      const float anchor_x = ox + top_world.x;
-      const float anchor_y = oy + top_world.y + corundum::core::math::diamond_cell_height(iso.half_th);
+  // Top vertex of the diamond in world space, then shift to the southern vertex
+  // (the footprint diamond extends downward from the top vertex).
+  const auto top_world = corundum::core::math::tile_to_world(col, row, 0, iso);
+  const float anchor_x = ox + top_world.x;
+  const float anchor_y = oy + top_world.y + corundum::core::math::diamond_cell_height(iso.half_th);
 
-      constexpr float fw = 1.0f; // tile footprint is always 1×1 now (footprint feature removed)
-      constexpr float fh = 1.0f;
+  constexpr float fw = 1.0f; // tile footprint is always 1×1 now (footprint feature removed)
+  constexpr float fh = 1.0f;
 
-      const ImVec2 top = {anchor_x - (fw - fh) * iso.half_tw, anchor_y - (fw + fh) * iso.half_th};
-      const ImVec2 right = {anchor_x + fh * iso.half_tw, anchor_y - fh * iso.half_th};
-      const ImVec2 bottom = {anchor_x, anchor_y};
-      const ImVec2 left = {anchor_x - fw * iso.half_tw, anchor_y - fw * iso.half_th};
+  const ImVec2 top = {anchor_x - (fw - fh) * iso.half_tw, anchor_y - (fw + fh) * iso.half_th};
+  const ImVec2 right = {anchor_x + fh * iso.half_tw, anchor_y - fh * iso.half_th};
+  const ImVec2 bottom = {anchor_x, anchor_y};
+  const ImVec2 left = {anchor_x - fw * iso.half_tw, anchor_y - fw * iso.half_th};
 
-      constexpr ImU32 k_fill = IM_COL32(255, 255, 255, 28);
-      constexpr ImU32 k_outline = IM_COL32(255, 220, 80, 210);
-      ctx.dl->AddQuadFilled(top, right, bottom, left, k_fill);
-      ctx.dl->AddQuad(top, right, bottom, left, k_outline, 1.5f);
-    }
+  constexpr ImU32 k_fill = IM_COL32(255, 255, 255, 28);
+  constexpr ImU32 k_outline = IM_COL32(255, 220, 80, 210);
+  ctx.dl->AddQuadFilled(top, right, bottom, left, k_fill);
+  ctx.dl->AddQuad(top, right, bottom, left, k_outline, 1.5f);
+}
 
-    void render_iso_grid(CanvasContext ctx, const EditorState &state) {
-      if (state.map.tilesets.empty())
-        return;
-      const auto iso = corundum::core::math::compute_isometric_params(
-          state.map.diamond_w(), state.map.diamond_h(), state.map.height, state.canvas.scale, state.elev_step_px);
-      const float ox = ctx.origin.x - state.canvas.offset_x;
-      const float oy = ctx.origin.y - state.canvas.offset_y;
-      const int W = state.map.width;
-      const int H = state.map.height;
-      constexpr ImU32 k_color = IM_COL32(255, 255, 255, 40);
+void render_iso_grid(CanvasContext ctx, const EditorState &state) {
+  if (state.map.tilesets.empty())
+    return;
+  const auto iso = corundum::core::math::compute_isometric_params(
+      state.map.diamond_w(), state.map.diamond_h(), state.map.height, state.canvas.scale, state.elev_step_px);
+  const float ox = ctx.origin.x - state.canvas.offset_x;
+  const float oy = ctx.origin.y - state.canvas.offset_y;
+  const int W = state.map.width;
+  const int H = state.map.height;
+  constexpr ImU32 k_color = IM_COL32(255, 255, 255, 40);
 
-      // Column lines (k = 0..W): connect top vertices of (k, 0) and (k, H).
-      for (int k = 0; k <= W; ++k) {
-        const auto p0_world = corundum::core::math::tile_to_world(k, 0, 0, iso);
-        const auto p1_world = corundum::core::math::tile_to_world(k, H, 0, iso);
-        ctx.dl->AddLine({ox + p0_world.x, oy + p0_world.y}, {ox + p1_world.x, oy + p1_world.y}, k_color, 1.f);
-      }
-
-      // Row lines (k = 0..H): connect top vertices of (0, k) and (W, k).
-      for (int k = 0; k <= H; ++k) {
-        const auto p0_world = corundum::core::math::tile_to_world(0, k, 0, iso);
-        const auto p1_world = corundum::core::math::tile_to_world(W, k, 0, iso);
-        ctx.dl->AddLine({ox + p0_world.x, oy + p0_world.y}, {ox + p1_world.x, oy + p1_world.y}, k_color, 1.f);
-      }
-    }
-
-  } // namespace
-
-  void render_canvas(CanvasContext ctx, const EditorState &state, const MapRenderFn &render_map) {
-    render_map(ctx);
-
-    if (state.show_grid)
-      render_iso_grid(ctx, state);
-
-    if (state.show_collisions) {
-      render_collisions(ctx, state);
-      render_collision_preview(ctx, state);
-    } else if (state.show_elevation) {
-      render_elevation_overlay(ctx, state);
-      render_elevation_preview(ctx, state);
-    } else if (state.show_ramps) {
-      render_ramps_overlay(ctx, state);
-      render_ramp_preview(ctx, state);
-    } else {
-      render_hover_tile(ctx, state);
-      render_erase_preview(ctx, state);
-    }
-
-    if (state.show_portals) {
-      render_portals(ctx, state);
-      render_portal_preview(ctx, state);
-    }
-
-    if (state.show_walkability)
-      render_walkability_overlay(ctx, state);
+  // Column lines (k = 0..W): connect top vertices of (k, 0) and (k, H).
+  for (int k = 0; k <= W; ++k) {
+    const auto p0_world = corundum::core::math::tile_to_world(k, 0, 0, iso);
+    const auto p1_world = corundum::core::math::tile_to_world(k, H, 0, iso);
+    ctx.dl->AddLine({ox + p0_world.x, oy + p0_world.y}, {ox + p1_world.x, oy + p1_world.y}, k_color, 1.f);
   }
+
+  // Row lines (k = 0..H): connect top vertices of (0, k) and (W, k).
+  for (int k = 0; k <= H; ++k) {
+    const auto p0_world = corundum::core::math::tile_to_world(0, k, 0, iso);
+    const auto p1_world = corundum::core::math::tile_to_world(W, k, 0, iso);
+    ctx.dl->AddLine({ox + p0_world.x, oy + p0_world.y}, {ox + p1_world.x, oy + p1_world.y}, k_color, 1.f);
+  }
+}
+
+} // namespace
+
+void render_canvas(CanvasContext ctx, const EditorState &state, const MapRenderFn &render_map) {
+  render_map(ctx);
+
+  if (state.show_grid)
+    render_iso_grid(ctx, state);
+
+  if (state.show_collisions) {
+    render_collisions(ctx, state);
+    render_collision_preview(ctx, state);
+  } else if (state.show_elevation) {
+    render_elevation_overlay(ctx, state);
+    render_elevation_preview(ctx, state);
+  } else if (state.show_ramps) {
+    render_ramps_overlay(ctx, state);
+    render_ramp_preview(ctx, state);
+  } else {
+    render_hover_tile(ctx, state);
+    render_erase_preview(ctx, state);
+  }
+
+  if (state.show_portals) {
+    render_portals(ctx, state);
+    render_portal_preview(ctx, state);
+  }
+
+  if (state.show_walkability)
+    render_walkability_overlay(ctx, state);
+}
 
 } // namespace tools::tilesmith

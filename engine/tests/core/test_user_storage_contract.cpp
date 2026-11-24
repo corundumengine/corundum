@@ -13,29 +13,29 @@
 
 namespace {
 
-  // One flat list of contract assertions; splitting it would hide the shared contract.
-  // NOLINTNEXTLINE(readability-function-size)
-  void check_contract(corundum::core::UserStorage &storage, std::string_view label) {
-    INFO(label);
+// One flat list of contract assertions; splitting it would hide the shared contract.
+// NOLINTNEXTLINE(readability-function-size)
+void check_contract(corundum::core::UserStorage &storage, std::string_view label) {
+  INFO(label);
 
-    CHECK_FALSE(storage.contains("saves/slot_01.json"));
+  CHECK_FALSE(storage.contains("saves/slot_01.json"));
 
-    REQUIRE(storage.write("saves/slot_01.json", "first").has_value());
-    CHECK(storage.contains("saves/slot_01.json"));
+  REQUIRE(storage.write("saves/slot_01.json", "first").has_value());
+  CHECK(storage.contains("saves/slot_01.json"));
 
-    const auto first = storage.read("saves/slot_01.json");
-    REQUIRE(first.has_value());
-    CHECK_EQ(*first, "first");
+  const auto first = storage.read("saves/slot_01.json");
+  REQUIRE(first.has_value());
+  CHECK_EQ(*first, "first");
 
-    REQUIRE(storage.write("saves/slot_01.json", "second").has_value());
-    const auto second = storage.read("saves/slot_01.json");
-    REQUIRE(second.has_value());
-    CHECK_EQ(*second, "second");
+  REQUIRE(storage.write("saves/slot_01.json", "second").has_value());
+  const auto second = storage.read("saves/slot_01.json");
+  REQUIRE(second.has_value());
+  CHECK_EQ(*second, "second");
 
-    const auto missing = storage.read("missing.json");
-    REQUIRE_FALSE(missing.has_value());
-    CHECK_MESSAGE(missing.error().find("missing.json") != std::string::npos, missing.error());
-  }
+  const auto missing = storage.read("missing.json");
+  REQUIRE_FALSE(missing.has_value());
+  CHECK_MESSAGE(missing.error().find("missing.json") != std::string::npos, missing.error());
+}
 
 } // namespace
 

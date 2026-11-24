@@ -21,108 +21,108 @@ using corundum::test::disk;
 
 namespace {
 
-  /// Per-bus recording pre-filled with -1 so "never called" is distinguishable from a real 0.
-  [[nodiscard]] std::array<float, corundum::audio::k_audio_bus_count> unset_bus_volumes() {
-    std::array<float, corundum::audio::k_audio_bus_count> volumes{};
-    volumes.fill(-1.f);
-    return volumes;
-  }
+/// Per-bus recording pre-filled with -1 so "never called" is distinguishable from a real 0.
+[[nodiscard]] std::array<float, corundum::audio::k_audio_bus_count> unset_bus_volumes() {
+  std::array<float, corundum::audio::k_audio_bus_count> volumes{};
+  volumes.fill(-1.f);
+  return volumes;
+}
 
-  /// Records load/play calls; hands out sequential handles starting at 1.
-  class StubBackend final : public corundum::audio::AudioBackend {
-  public:
-    struct Played {
-      corundum::audio::SoundHandle handle{};
-      float volume{};
-      bool loop{};
-      corundum::audio::AudioBus bus{};
-    };
-
-    struct Stopped {
-      corundum::audio::SoundInstanceId id{};
-      float fade_out_seconds{};
-    };
-
-    struct VolumeChange {
-      corundum::audio::SoundInstanceId id{};
-      float volume{};
-    };
-
-    struct PitchChange {
-      corundum::audio::SoundInstanceId id{};
-      float pitch{};
-    };
-
-    std::expected<corundum::audio::SoundHandle, std::string> load_sound(std::string_view path) override {
-      loaded_paths.emplace_back(path);
-      return corundum::audio::SoundHandle{.value = next_handle_++};
-    }
-
-    corundum::audio::SoundInstanceId play(corundum::audio::SoundHandle handle, float volume, bool loop,
-                                          corundum::audio::AudioBus bus) override {
-      if (should_fail_play)
-        return {};
-      played.push_back(Played{.handle = handle, .volume = volume, .loop = loop, .bus = bus});
-      return corundum::audio::SoundInstanceId{.index = next_instance_++, .generation = 1};
-    }
-
-    void stop(corundum::audio::SoundInstanceId id, float fade_out_seconds) override {
-      stopped.push_back(Stopped{.id = id, .fade_out_seconds = fade_out_seconds});
-    }
-
-    void set_volume(corundum::audio::SoundInstanceId id, float volume) override {
-      volumes.push_back(VolumeChange{.id = id, .volume = volume});
-    }
-
-    void set_pitch(corundum::audio::SoundInstanceId id, float pitch) override {
-      pitches.push_back(PitchChange{.id = id, .pitch = pitch});
-    }
-
-    void set_bus_volume(corundum::audio::AudioBus bus, float volume) override {
-      bus_volumes[corundum::audio::bus_index(bus)] = volume;
-    }
-
-    void set_paused(bool paused) override { last_paused = paused; }
-
-    std::expected<void, std::string> play_music(std::string_view path,
-                                                const corundum::audio::MusicPlayback &playback) override {
-      if (path == "bad.ogg")
-        return std::unexpected(std::string{"cannot open bad.ogg"});
-      music_played.emplace_back(path);
-      last_playback = playback;
-      return {};
-    }
-
-    void stop_music(float fade_out_seconds) override { music_stops.push_back(fade_out_seconds); }
-
-    void update() override { ++updates; }
-
-    bool last_paused = false;
-    bool should_fail_play = false;
-    std::vector<std::string> loaded_paths;
-    std::vector<Played> played;
-    std::vector<Stopped> stopped;
-    std::vector<VolumeChange> volumes;
-    std::vector<PitchChange> pitches;
-    std::array<float, corundum::audio::k_audio_bus_count> bus_volumes = unset_bus_volumes();
-    std::vector<std::string> music_played;
-    corundum::audio::MusicPlayback last_playback{};
-    std::vector<float> music_stops;
-    int updates = 0;
-
-  private:
-    std::uint32_t next_handle_ = 1;
-    std::uint32_t next_instance_ = 1;
+/// Records load/play calls; hands out sequential handles starting at 1.
+class StubBackend final : public corundum::audio::AudioBackend {
+public:
+  struct Played {
+    corundum::audio::SoundHandle handle{};
+    float volume{};
+    bool loop{};
+    corundum::audio::AudioBus bus{};
   };
 
-  /// Make an AudioSystem with an adopted stub backend; returns the raw stub
-  /// pointer for assertions (owned by the system).
-  StubBackend *make_system(corundum::audio::AudioSystem &sys) {
-    std::unique_ptr<StubBackend> stub = std::make_unique<StubBackend>();
-    StubBackend *raw = stub.get();
-    sys.adopt_backend(std::move(stub));
-    return raw;
+  struct Stopped {
+    corundum::audio::SoundInstanceId id{};
+    float fade_out_seconds{};
+  };
+
+  struct VolumeChange {
+    corundum::audio::SoundInstanceId id{};
+    float volume{};
+  };
+
+  struct PitchChange {
+    corundum::audio::SoundInstanceId id{};
+    float pitch{};
+  };
+
+  std::expected<corundum::audio::SoundHandle, std::string> load_sound(std::string_view path) override {
+    loaded_paths.emplace_back(path);
+    return corundum::audio::SoundHandle{.value = next_handle_++};
   }
+
+  corundum::audio::SoundInstanceId play(corundum::audio::SoundHandle handle, float volume, bool loop,
+                                        corundum::audio::AudioBus bus) override {
+    if (should_fail_play)
+      return {};
+    played.push_back(Played{.handle = handle, .volume = volume, .loop = loop, .bus = bus});
+    return corundum::audio::SoundInstanceId{.index = next_instance_++, .generation = 1};
+  }
+
+  void stop(corundum::audio::SoundInstanceId id, float fade_out_seconds) override {
+    stopped.push_back(Stopped{.id = id, .fade_out_seconds = fade_out_seconds});
+  }
+
+  void set_volume(corundum::audio::SoundInstanceId id, float volume) override {
+    volumes.push_back(VolumeChange{.id = id, .volume = volume});
+  }
+
+  void set_pitch(corundum::audio::SoundInstanceId id, float pitch) override {
+    pitches.push_back(PitchChange{.id = id, .pitch = pitch});
+  }
+
+  void set_bus_volume(corundum::audio::AudioBus bus, float volume) override {
+    bus_volumes[corundum::audio::bus_index(bus)] = volume;
+  }
+
+  void set_paused(bool paused) override { last_paused = paused; }
+
+  std::expected<void, std::string> play_music(std::string_view path,
+                                              const corundum::audio::MusicPlayback &playback) override {
+    if (path == "bad.ogg")
+      return std::unexpected(std::string{"cannot open bad.ogg"});
+    music_played.emplace_back(path);
+    last_playback = playback;
+    return {};
+  }
+
+  void stop_music(float fade_out_seconds) override { music_stops.push_back(fade_out_seconds); }
+
+  void update() override { ++updates; }
+
+  bool last_paused = false;
+  bool should_fail_play = false;
+  std::vector<std::string> loaded_paths;
+  std::vector<Played> played;
+  std::vector<Stopped> stopped;
+  std::vector<VolumeChange> volumes;
+  std::vector<PitchChange> pitches;
+  std::array<float, corundum::audio::k_audio_bus_count> bus_volumes = unset_bus_volumes();
+  std::vector<std::string> music_played;
+  corundum::audio::MusicPlayback last_playback{};
+  std::vector<float> music_stops;
+  int updates = 0;
+
+private:
+  std::uint32_t next_handle_ = 1;
+  std::uint32_t next_instance_ = 1;
+};
+
+/// Make an AudioSystem with an adopted stub backend; returns the raw stub
+/// pointer for assertions (owned by the system).
+StubBackend *make_system(corundum::audio::AudioSystem &sys) {
+  std::unique_ptr<StubBackend> stub = std::make_unique<StubBackend>();
+  StubBackend *raw = stub.get();
+  sys.adopt_backend(std::move(stub));
+  return raw;
+}
 
 } // namespace
 

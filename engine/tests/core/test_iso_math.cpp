@@ -21,23 +21,23 @@ namespace fs = std::filesystem;
 
 namespace {
 
-  void write_file(const fs::path &p, std::string_view content) {
-    fs::create_directories(p.parent_path());
-    std::ofstream f(p);
-    f << content;
-  }
+void write_file(const fs::path &p, std::string_view content) {
+  fs::create_directories(p.parent_path());
+  std::ofstream f(p);
+  f << content;
+}
 
-  corundum::test::TempDir temp_dir(std::string_view tag) {
-    return corundum::test::TempDir{"crpg_test_iso_", tag};
-  }
+corundum::test::TempDir temp_dir(std::string_view tag) {
+  return corundum::test::TempDir{"crpg_test_iso_", tag};
+}
 
-  constexpr float k_half_tw = 32.f;
-  constexpr float k_half_th = 16.f;
-  constexpr float k_x_origin = 0.f;
+constexpr float k_half_tw = 32.f;
+constexpr float k_half_th = 16.f;
+constexpr float k_x_origin = 0.f;
 
-  constexpr ccm::IsometricParams make_iso(float elev_step, float x_origin) noexcept {
-    return {.half_tw = k_half_tw, .half_th = k_half_th, .x_origin = x_origin, .elev_step = elev_step};
-  }
+constexpr ccm::IsometricParams make_iso(float elev_step, float x_origin) noexcept {
+  return {.half_tw = k_half_tw, .half_th = k_half_th, .x_origin = x_origin, .elev_step = elev_step};
+}
 
 } // namespace
 
@@ -405,48 +405,48 @@ TEST_CASE("IsometricCullBounds - round-trip: rect containing a tile encloses its
 
 namespace {
 
-  [[nodiscard]] bool tile_within_cull_bounds(const ccm::IsometricCullBounds &cull, int col, int row) {
-    const int depth = col + row;
-    if (depth < cull.depth_min || depth > cull.depth_max)
-      return false;
-    return col >= ccm::isometric_cull_first_column(cull, depth) && col <= ccm::isometric_cull_last_column(cull, depth);
+[[nodiscard]] bool tile_within_cull_bounds(const ccm::IsometricCullBounds &cull, int col, int row) {
+  const int depth = col + row;
+  if (depth < cull.depth_min || depth > cull.depth_max)
+    return false;
+  return col >= ccm::isometric_cull_first_column(cull, depth) && col <= ccm::isometric_cull_last_column(cull, depth);
+}
+
+struct ViewportSweep {
+  int enclosed{};
+  int visible_bands{};
+};
+
+struct CullRect {
+  float cx{};
+  float cy{};
+  float vpw{};
+  float vph{};
+};
+
+[[nodiscard]] bool tile_anchor_in_rect(const ccm::IsometricParams &iso, const CullRect &rect, int col, int row) {
+  const ccm::Vec2 world = ccm::tile_to_world(static_cast<float>(col), static_cast<float>(row), 0, iso);
+  return world.x >= rect.cx && world.x <= rect.cx + rect.vpw && world.y >= rect.cy && world.y <= rect.cy + rect.vph;
+}
+
+/// Every tile anchor inside @p rect must fall inside @p iso's cull bounds.
+[[nodiscard]] ViewportSweep sweep_viewport(const ccm::IsometricParams &iso, const CullRect &rect, int offset_x,
+                                           int offset_y) {
+  const ccm::IsometricCullBounds cull =
+      ccm::compute_isometric_cull_bounds(rect.cx, rect.cy, rect.cx + rect.vpw, rect.cy + rect.vph, iso);
+  constexpr int k_grid_side = 64;
+  int enclosed = 0;
+  for (int index = 0; index < k_grid_side * k_grid_side; ++index) {
+    const int col = index % k_grid_side;
+    const int row = index / k_grid_side;
+    if (!tile_anchor_in_rect(iso, rect, col, row))
+      continue;
+    REQUIRE_MESSAGE(tile_within_cull_bounds(cull, col, row),
+                    "offset_x=" << offset_x << " offset_y=" << offset_y << " col=" << col << " row=" << row);
+    ++enclosed;
   }
-
-  struct ViewportSweep {
-    int enclosed{};
-    int visible_bands{};
-  };
-
-  struct CullRect {
-    float cx{};
-    float cy{};
-    float vpw{};
-    float vph{};
-  };
-
-  [[nodiscard]] bool tile_anchor_in_rect(const ccm::IsometricParams &iso, const CullRect &rect, int col, int row) {
-    const ccm::Vec2 world = ccm::tile_to_world(static_cast<float>(col), static_cast<float>(row), 0, iso);
-    return world.x >= rect.cx && world.x <= rect.cx + rect.vpw && world.y >= rect.cy && world.y <= rect.cy + rect.vph;
-  }
-
-  /// Every tile anchor inside @p rect must fall inside @p iso's cull bounds.
-  [[nodiscard]] ViewportSweep sweep_viewport(const ccm::IsometricParams &iso, const CullRect &rect, int offset_x,
-                                             int offset_y) {
-    const ccm::IsometricCullBounds cull =
-        ccm::compute_isometric_cull_bounds(rect.cx, rect.cy, rect.cx + rect.vpw, rect.cy + rect.vph, iso);
-    constexpr int k_grid_side = 64;
-    int enclosed = 0;
-    for (int index = 0; index < k_grid_side * k_grid_side; ++index) {
-      const int col = index % k_grid_side;
-      const int row = index / k_grid_side;
-      if (!tile_anchor_in_rect(iso, rect, col, row))
-        continue;
-      REQUIRE_MESSAGE(tile_within_cull_bounds(cull, col, row),
-                      "offset_x=" << offset_x << " offset_y=" << offset_y << " col=" << col << " row=" << row);
-      ++enclosed;
-    }
-    return {.enclosed = enclosed, .visible_bands = cull.depth_max - cull.depth_min + 1};
-  }
+  return {.enclosed = enclosed, .visible_bands = cull.depth_max - cull.depth_min + 1};
+}
 
 } // namespace
 

@@ -24,60 +24,60 @@
 
 namespace {
 
-  using corundum::test::adopt_platform;
-  using corundum::test::make_world_config;
-  using corundum::world::GameMode;
-  namespace screens = corundum::gameplay::screens;
+using corundum::test::adopt_platform;
+using corundum::test::make_world_config;
+using corundum::world::GameMode;
+namespace screens = corundum::gameplay::screens;
 
-  void init_engine(corundum::Engine &engine) {
-    adopt_platform(engine, 640, 480);
-    const std::filesystem::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-    REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
-  }
+void init_engine(corundum::Engine &engine) {
+  adopt_platform(engine, 640, 480);
+  const std::filesystem::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+}
 
-  corundum::core::math::Vec2 viewport(const corundum::Engine &engine) {
-    const auto [width, height] = engine.window().size();
-    return {.x = static_cast<float>(width), .y = static_cast<float>(height)};
-  }
+corundum::core::math::Vec2 viewport(const corundum::Engine &engine) {
+  const auto [width, height] = engine.window().size();
+  return {.x = static_cast<float>(width), .y = static_cast<float>(height)};
+}
 
-  /// Route one action press through the engine's UI step (see test_pause_menu.cpp).
-  bool press(corundum::Engine &engine, corundum::input::Action action) {
-    corundum::input::InputState state{};
-    state.pressed.set(static_cast<std::size_t>(action));
-    engine.input_state = state;
-    const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
-    return engine.update_engine_screens(intent);
-  }
+/// Route one action press through the engine's UI step (see test_pause_menu.cpp).
+bool press(corundum::Engine &engine, corundum::input::Action action) {
+  corundum::input::InputState state{};
+  state.pressed.set(static_cast<std::size_t>(action));
+  engine.input_state = state;
+  const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
+  return engine.update_engine_screens(intent);
+}
 
-  /// Drive one fixed UI step with a synthetic cursor. @p prev is the baseline from the previous
-  /// poll; a left click also raises Activate/Select the way the binding table would.
-  bool step_mouse(corundum::Engine &engine, corundum::core::math::Vec2 cursor, corundum::core::math::Vec2 prev,
-                  bool clicked = false, float scroll = 0.f) {
-    engine.input_state = {};
-    engine.input_state.mouse_x = cursor.x;
-    engine.input_state.mouse_y = cursor.y;
-    engine.input_state.prev_mouse_x = prev.x;
-    engine.input_state.prev_mouse_y = prev.y;
-    engine.input_state.mouse_click_pressed = clicked;
-    engine.input_state.scroll_delta_y = scroll;
-    if (clicked) {
-      engine.input_state.pressed.set(static_cast<std::size_t>(corundum::input::Action::Select));
-      engine.input_state.pressed.set(static_cast<std::size_t>(corundum::input::Action::Activate));
-    }
-    const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
-    return engine.update_engine_screens(intent);
+/// Drive one fixed UI step with a synthetic cursor. @p prev is the baseline from the previous
+/// poll; a left click also raises Activate/Select the way the binding table would.
+bool step_mouse(corundum::Engine &engine, corundum::core::math::Vec2 cursor, corundum::core::math::Vec2 prev,
+                bool clicked = false, float scroll = 0.f) {
+  engine.input_state = {};
+  engine.input_state.mouse_x = cursor.x;
+  engine.input_state.mouse_y = cursor.y;
+  engine.input_state.prev_mouse_x = prev.x;
+  engine.input_state.prev_mouse_y = prev.y;
+  engine.input_state.mouse_click_pressed = clicked;
+  engine.input_state.scroll_delta_y = scroll;
+  if (clicked) {
+    engine.input_state.pressed.set(static_cast<std::size_t>(corundum::input::Action::Select));
+    engine.input_state.pressed.set(static_cast<std::size_t>(corundum::input::Action::Activate));
   }
+  const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
+  return engine.update_engine_screens(intent);
+}
 
-  /// Simulate a physical right mouse press and route it through the current UI step.
-  bool press_right_mouse(corundum::Engine &engine) {
-    corundum::input::clear_pressed(engine.input_state);
-    engine.input_mapper.begin_poll();
-    engine.input_mapper.mouse_button(corundum::input::MouseButton::Right, true);
-    engine.input_mapper.end_poll(engine.input_state);
-    REQUIRE(engine.input_state.is_pressed(corundum::input::Action::Cancel));
-    const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
-    return engine.update_engine_screens(intent);
-  }
+/// Simulate a physical right mouse press and route it through the current UI step.
+bool press_right_mouse(corundum::Engine &engine) {
+  corundum::input::clear_pressed(engine.input_state);
+  engine.input_mapper.begin_poll();
+  engine.input_mapper.mouse_button(corundum::input::MouseButton::Right, true);
+  engine.input_mapper.end_poll(engine.input_state);
+  REQUIRE(engine.input_state.is_pressed(corundum::input::Action::Cancel));
+  const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
+  return engine.update_engine_screens(intent);
+}
 
 } // namespace
 

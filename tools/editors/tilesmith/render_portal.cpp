@@ -16,158 +16,157 @@
 
 namespace tools::tilesmith {
 
-  namespace {
+namespace {
 
-    // Convert tile-grid coords (col, row) to canvas screen position.
-    // Delegates the iso projection to corundum::core::math::tile_to_world so this
-    // stays in lockstep with engine entity/camera sites.
-    inline ImVec2 tile_to_iso(const CanvasContext &ctx, float col_f, float row_f,
-                              const corundum::core::math::IsometricParams &iso, float offset_x,
-                              float offset_y) noexcept {
-      const auto w = corundum::core::math::tile_to_world(col_f, row_f, 0, iso);
-      return {ctx.origin.x + w.x - offset_x, ctx.origin.y + w.y - offset_y};
-    }
+// Convert tile-grid coords (col, row) to canvas screen position.
+// Delegates the iso projection to corundum::core::math::tile_to_world so this
+// stays in lockstep with engine entity/camera sites.
+inline ImVec2 tile_to_iso(const CanvasContext &ctx, float col_f, float row_f,
+                          const corundum::core::math::IsometricParams &iso, float offset_x, float offset_y) noexcept {
+  const auto w = corundum::core::math::tile_to_world(col_f, row_f, 0, iso);
+  return {ctx.origin.x + w.x - offset_x, ctx.origin.y + w.y - offset_y};
+}
 
-    void draw_iso_portal(const CanvasContext &ctx, float col, float row, float w_tiles, float h_tiles,
-                         const corundum::core::math::IsometricParams &iso, float offset_x, float offset_y, ImU32 fill,
-                         ImU32 outline) noexcept {
-      const ImVec2 top = tile_to_iso(ctx, col, row, iso, offset_x, offset_y);
-      const ImVec2 right = tile_to_iso(ctx, col + w_tiles, row, iso, offset_x, offset_y);
-      const ImVec2 bottom = tile_to_iso(ctx, col + w_tiles, row + h_tiles, iso, offset_x, offset_y);
-      const ImVec2 left = tile_to_iso(ctx, col, row + h_tiles, iso, offset_x, offset_y);
-      ctx.dl->AddQuadFilled(top, right, bottom, left, fill);
-      ctx.dl->AddQuad(top, right, bottom, left, outline, 1.f);
-    }
+void draw_iso_portal(const CanvasContext &ctx, float col, float row, float w_tiles, float h_tiles,
+                     const corundum::core::math::IsometricParams &iso, float offset_x, float offset_y, ImU32 fill,
+                     ImU32 outline) noexcept {
+  const ImVec2 top = tile_to_iso(ctx, col, row, iso, offset_x, offset_y);
+  const ImVec2 right = tile_to_iso(ctx, col + w_tiles, row, iso, offset_x, offset_y);
+  const ImVec2 bottom = tile_to_iso(ctx, col + w_tiles, row + h_tiles, iso, offset_x, offset_y);
+  const ImVec2 left = tile_to_iso(ctx, col, row + h_tiles, iso, offset_x, offset_y);
+  ctx.dl->AddQuadFilled(top, right, bottom, left, fill);
+  ctx.dl->AddQuad(top, right, bottom, left, outline, 1.f);
+}
 
-  } // namespace
+} // namespace
 
-  void render_portals(CanvasContext ctx, const EditorState &state) {
-    if (state.map.tilesets.empty())
-      return;
+void render_portals(CanvasContext ctx, const EditorState &state) {
+  if (state.map.tilesets.empty())
+    return;
 
-    const int dw = effective_diamond_w(state.map);
-    const int dh = effective_diamond_h(state.map);
-    const auto iso = corundum::core::math::compute_isometric_params(dw, dh, state.map.height, state.canvas.scale,
-                                                                    state.elev_step_px);
+  const int dw = effective_diamond_w(state.map);
+  const int dh = effective_diamond_h(state.map);
+  const auto iso =
+      corundum::core::math::compute_isometric_params(dw, dh, state.map.height, state.canvas.scale, state.elev_step_px);
 
-    for (int i = 0; i < static_cast<int>(state.portals.size()); ++i) {
-      const auto &p = state.portals[i];
-      const bool selected = (i == state.selected_portal);
+  for (int i = 0; i < static_cast<int>(state.portals.size()); ++i) {
+    const auto &p = state.portals[i];
+    const bool selected = (i == state.selected_portal);
 
-      draw_iso_portal(ctx, p.col, p.row, p.w, p.h, iso, state.canvas.offset_x, state.canvas.offset_y,
-                      selected ? IM_COL32(0, 200, 200, 80) : IM_COL32(0, 200, 200, 45),
-                      selected ? IM_COL32(0, 220, 220, 255) : IM_COL32(0, 220, 220, 180));
+    draw_iso_portal(ctx, p.col, p.row, p.w, p.h, iso, state.canvas.offset_x, state.canvas.offset_y,
+                    selected ? IM_COL32(0, 200, 200, 80) : IM_COL32(0, 200, 200, 45),
+                    selected ? IM_COL32(0, 220, 220, 255) : IM_COL32(0, 220, 220, 180));
 
-      // Label at the top corner of the portal rhombus
-      const ImVec2 text_pos = tile_to_iso(ctx, p.col, p.row, iso, state.canvas.offset_x, state.canvas.offset_y);
-      const std::string stem = std::filesystem::path(p.target_map).stem().string();
-      std::string label;
-      if (p.return_to_world)
-        label = std::format("-> overworld @ ({},{})", p.spawn_col, p.spawn_row);
-      else if (p.target_chunk_col >= 0)
-        label =
-            std::format("-> chunk ({},{}) @ ({},{})", p.target_chunk_col, p.target_chunk_row, p.spawn_col, p.spawn_row);
-      else
-        label = std::format("-> {} @ ({},{})", stem, p.spawn_col, p.spawn_row);
-      ctx.dl->AddText({text_pos.x + 3.f, text_pos.y + 2.f},
-                      selected ? IM_COL32(0, 255, 255, 255) : IM_COL32(0, 220, 220, 200), label.c_str());
-    }
+    // Label at the top corner of the portal rhombus
+    const ImVec2 text_pos = tile_to_iso(ctx, p.col, p.row, iso, state.canvas.offset_x, state.canvas.offset_y);
+    const std::string stem = std::filesystem::path(p.target_map).stem().string();
+    std::string label;
+    if (p.return_to_world)
+      label = std::format("-> overworld @ ({},{})", p.spawn_col, p.spawn_row);
+    else if (p.target_chunk_col >= 0)
+      label =
+          std::format("-> chunk ({},{}) @ ({},{})", p.target_chunk_col, p.target_chunk_row, p.spawn_col, p.spawn_row);
+    else
+      label = std::format("-> {} @ ({},{})", stem, p.spawn_col, p.spawn_row);
+    ctx.dl->AddText({text_pos.x + 3.f, text_pos.y + 2.f},
+                    selected ? IM_COL32(0, 255, 255, 255) : IM_COL32(0, 220, 220, 200), label.c_str());
+  }
+}
+
+void render_portal_preview(CanvasContext ctx, const EditorState &state) {
+  if (!state.portal_dragging || state.map.tilesets.empty())
+    return;
+
+  const int dw = effective_diamond_w(state.map);
+  const int dh = effective_diamond_h(state.map);
+  const auto iso =
+      corundum::core::math::compute_isometric_params(dw, dh, state.map.height, state.canvas.scale, state.elev_step_px);
+
+  const int col = std::min(state.portal_drag_anchor_col, state.portal_drag_cur_col);
+  const int row = std::min(state.portal_drag_anchor_row, state.portal_drag_cur_row);
+  const int w = std::abs(state.portal_drag_cur_col - state.portal_drag_anchor_col) + 1;
+  const int h = std::abs(state.portal_drag_cur_row - state.portal_drag_anchor_row) + 1;
+  draw_iso_portal(ctx, static_cast<float>(col), static_cast<float>(row), static_cast<float>(w), static_cast<float>(h),
+                  iso, state.canvas.offset_x, state.canvas.offset_y, IM_COL32(0, 220, 220, 40),
+                  IM_COL32(0, 220, 220, 230));
+}
+
+void render_portal_panel(EditorState &state) {
+  if (!state.show_portals || state.selected_portal < 0 ||
+      state.selected_portal >= static_cast<int>(state.portals.size()))
+    return;
+
+  auto &p = state.portals[static_cast<std::size_t>(state.selected_portal)];
+
+  constexpr float PANEL_W = 340.f;
+
+  if (state.show_portals_popup) {
+    ImGui::OpenPopup("Portal");
+    state.show_portals_popup = false;
   }
 
-  void render_portal_preview(CanvasContext ctx, const EditorState &state) {
-    if (!state.portal_dragging || state.map.tilesets.empty())
-      return;
+  if (ImGui::BeginPopupModal("Portal")) {
+    constexpr int BUF_SIZE = 256;
+    std::array<char, BUF_SIZE> buf{};
+    std::copy_n(p.target_map.c_str(), std::min(static_cast<int>(p.target_map.size()), BUF_SIZE - 1), buf.data());
+    ImGui::SetNextItemWidth(PANEL_W - 16.f);
 
-    const int dw = effective_diamond_w(state.map);
-    const int dh = effective_diamond_h(state.map);
-    const auto iso = corundum::core::math::compute_isometric_params(dw, dh, state.map.height, state.canvas.scale,
-                                                                    state.elev_step_px);
+    if (ImGui::InputText("##target_map", buf.data(), BUF_SIZE)) {
+      p.target_map = buf.data();
+      state.dirty = true;
+    }
+    ImGui::SameLine();
+    ImGui::TextUnformatted("target");
 
-    const int col = std::min(state.portal_drag_anchor_col, state.portal_drag_cur_col);
-    const int row = std::min(state.portal_drag_anchor_row, state.portal_drag_cur_row);
-    const int w = std::abs(state.portal_drag_cur_col - state.portal_drag_anchor_col) + 1;
-    const int h = std::abs(state.portal_drag_cur_row - state.portal_drag_anchor_row) + 1;
-    draw_iso_portal(ctx, static_cast<float>(col), static_cast<float>(row), static_cast<float>(w), static_cast<float>(h),
-                    iso, state.canvas.offset_x, state.canvas.offset_y, IM_COL32(0, 220, 220, 40),
-                    IM_COL32(0, 220, 220, 230));
-  }
+    ImGui::SetNextItemWidth(80.f);
+    if (ImGui::InputInt("spawn col", &p.spawn_col))
+      state.dirty = true;
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(80.f);
+    if (ImGui::InputInt("spawn row", &p.spawn_row))
+      state.dirty = true;
 
-  void render_portal_panel(EditorState &state) {
-    if (!state.show_portals || state.selected_portal < 0 ||
-        state.selected_portal >= static_cast<int>(state.portals.size()))
-      return;
+    // World-mode portals target a chunk in the overworld instead of a named map; both
+    // coordinates move together, so a single checkbox toggles the pair on and off.
+    bool chunk_target = p.target_chunk_col >= 0 && p.target_chunk_row >= 0;
+    if (ImGui::Checkbox("chunk target", &chunk_target)) {
+      p.target_chunk_col = chunk_target ? 0 : -1;
+      p.target_chunk_row = chunk_target ? 0 : -1;
+      state.dirty = true;
+    }
+    if (chunk_target) {
+      ImGui::SameLine();
+      ImGui::SetNextItemWidth(70.f);
+      if (ImGui::InputInt("##chunk_col", &p.target_chunk_col))
+        state.dirty = true;
+      ImGui::SameLine();
+      ImGui::SetNextItemWidth(70.f);
+      if (ImGui::InputInt("##chunk_row", &p.target_chunk_row))
+        state.dirty = true;
+    }
 
-    auto &p = state.portals[static_cast<std::size_t>(state.selected_portal)];
+    if (ImGui::Checkbox("return to world", &p.return_to_world))
+      state.dirty = true;
 
-    constexpr float PANEL_W = 340.f;
+    ImGui::TextDisabled("rect: col %d  row %d  w %d  h %d  [portal %d/%d]", static_cast<int>(p.col),
+                        static_cast<int>(p.row), static_cast<int>(p.w), static_cast<int>(p.h),
+                        state.selected_portal + 1, static_cast<int>(state.portals.size()));
 
-    if (state.show_portals_popup) {
-      ImGui::OpenPopup("Portal");
+    if (ImGui::Button("Remove portal")) {
+      state.portals.erase(state.portals.begin() + state.selected_portal);
+      state.selected_portal = -1;
+      state.dirty = true;
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::SetItemDefaultFocus();
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel", ImVec2{120.f, 0.f})) {
       state.show_portals_popup = false;
+      ImGui::CloseCurrentPopup();
     }
 
-    if (ImGui::BeginPopupModal("Portal")) {
-      constexpr int BUF_SIZE = 256;
-      std::array<char, BUF_SIZE> buf{};
-      std::copy_n(p.target_map.c_str(), std::min(static_cast<int>(p.target_map.size()), BUF_SIZE - 1), buf.data());
-      ImGui::SetNextItemWidth(PANEL_W - 16.f);
-
-      if (ImGui::InputText("##target_map", buf.data(), BUF_SIZE)) {
-        p.target_map = buf.data();
-        state.dirty = true;
-      }
-      ImGui::SameLine();
-      ImGui::TextUnformatted("target");
-
-      ImGui::SetNextItemWidth(80.f);
-      if (ImGui::InputInt("spawn col", &p.spawn_col))
-        state.dirty = true;
-      ImGui::SameLine();
-      ImGui::SetNextItemWidth(80.f);
-      if (ImGui::InputInt("spawn row", &p.spawn_row))
-        state.dirty = true;
-
-      // World-mode portals target a chunk in the overworld instead of a named map; both
-      // coordinates move together, so a single checkbox toggles the pair on and off.
-      bool chunk_target = p.target_chunk_col >= 0 && p.target_chunk_row >= 0;
-      if (ImGui::Checkbox("chunk target", &chunk_target)) {
-        p.target_chunk_col = chunk_target ? 0 : -1;
-        p.target_chunk_row = chunk_target ? 0 : -1;
-        state.dirty = true;
-      }
-      if (chunk_target) {
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(70.f);
-        if (ImGui::InputInt("##chunk_col", &p.target_chunk_col))
-          state.dirty = true;
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(70.f);
-        if (ImGui::InputInt("##chunk_row", &p.target_chunk_row))
-          state.dirty = true;
-      }
-
-      if (ImGui::Checkbox("return to world", &p.return_to_world))
-        state.dirty = true;
-
-      ImGui::TextDisabled("rect: col %d  row %d  w %d  h %d  [portal %d/%d]", static_cast<int>(p.col),
-                          static_cast<int>(p.row), static_cast<int>(p.w), static_cast<int>(p.h),
-                          state.selected_portal + 1, static_cast<int>(state.portals.size()));
-
-      if (ImGui::Button("Remove portal")) {
-        state.portals.erase(state.portals.begin() + state.selected_portal);
-        state.selected_portal = -1;
-        state.dirty = true;
-        ImGui::CloseCurrentPopup();
-      }
-      ImGui::SetItemDefaultFocus();
-      ImGui::SameLine();
-      if (ImGui::Button("Cancel", ImVec2{120.f, 0.f})) {
-        state.show_portals_popup = false;
-        ImGui::CloseCurrentPopup();
-      }
-
-      ImGui::EndPopup();
-    }
+    ImGui::EndPopup();
   }
+}
 
 } // namespace tools::tilesmith

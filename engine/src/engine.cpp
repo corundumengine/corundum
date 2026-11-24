@@ -58,839 +58,829 @@
 
 namespace corundum {
 
-  namespace {
-
-    using corundum::detail::warn_log;
-
-    /// Owns the initialize() sequence as private, ordered phases. The only
-    /// public entry point is run() — phase order is therefore structural
-    /// (nothing outside this class can call a phase out of order), not a
-    /// convention enforced by statement order in one function.
-    class InitPipeline {
-    public:
-      explicit InitPipeline(Engine &engine) : engine_(&engine) {}
-
-      std::expected<void, std::string> run(core::GameConfig &&cfg) {
-        engine_->cfg = std::move(cfg);
-        engine_->timer.set_target_fps(static_cast<float>(engine_->cfg.simulation_fps));
-        engine_->window().set_vsync(engine_->cfg.vsync);
-
-        const std::uint64_t rng_seed = engine_->cfg.rng_seed.value_or([] {
-          std::random_device rd;
-          return (static_cast<std::uint64_t>(rd()) << 32U) | static_cast<std::uint64_t>(rd());
-        }());
-        engine_->rng = core::Rng{rng_seed};
-        corundum::detail::info_log("[engine] RNG seed {}", rng_seed);
-
-        const auto assets_start = std::chrono::steady_clock::now();
-        if (auto result = load_render_assets(); !result)
-          return result;
-        corundum::detail::info_log("[boot] render assets: {:.1f} ms", corundum::detail::elapsed_ms(assets_start));
-
-        const auto audio_start = std::chrono::steady_clock::now();
-        init_audio();
-        corundum::detail::info_log("[boot] audio: {:.1f} ms", corundum::detail::elapsed_ms(audio_start));
-
-        render::configure_panel_style(engine_->render, engine_->cfg);
-        return {};
-      }
-
-    private:
-      std::expected<void, std::string> load_render_assets() {
-        std::expected<void, std::string> characters_result;
-        characters_result = engine_->characters.load_all(engine_->content_source(), engine_->cfg.paths.sprites_dir);
-        if (!characters_result)
-          return std::unexpected(characters_result.error());
-        render::load_sprite_index(engine_->renderer(), engine_->render, engine_->characters);
-
-        if (auto result = render::load_fonts(engine_->renderer(), engine_->render, engine_->cfg.paths); !result)
-          return std::unexpected(std::move(result).error());
-
-        std::expected<void, std::string> ui_result;
-        ui_result = render::load_ui_assets(engine_->content_source(), engine_->renderer(), engine_->render,
-                                           engine_->cfg.paths);
-        if (!ui_result)
-          return std::unexpected(ui_result.error());
-        return {};
-      }
-
-      void init_audio() {
-        std::expected<void, std::string> audio_result;
-        audio_result = engine_->audio.initialize(engine_->cfg.paths.sounds_dir);
-        if (!audio_result) {
-          corundum::detail::warn_log("[engine] WARN: Audio init failed — {}", audio_result.error());
-          return;
-        }
-        engine_->audio.load_catalog(engine_->content_source(), engine_->cfg.paths.sounds_catalog);
-      }
-
-      Engine *engine_;
-    };
-
-  } // namespace
-
-  void Engine::adopt_platform(platform::PlatformContext platform) {
-    window_ = std::move(platform.window);
-    gpu_ = std::move(platform.gpu);
-    renderer_ = std::move(platform.renderer);
-    audio.adopt_backend(std::move(platform.audio_backend));
-  }
-
-  std::expected<void, std::string> Engine::initialize(core::GameConfig &&cfg) {
-    if (!window_ || !renderer_)
-      return std::unexpected("Engine::initialize: window and renderer must be non-null "
-                             "(use make_engine(), or adopt a platform before calling)");
-
-    InitPipeline pipeline(*this);
-    if (auto result = pipeline.run(std::move(cfg)); !result) {
-      cleanup();
-      return std::unexpected(result.error());
-    }
-    register_screens();
-    return {};
-  }
-
-  std::expected<void, std::string> Engine::set_content_source(std::unique_ptr<core::ContentSource> source) {
-    if (!source)
-      return std::unexpected("Engine::set_content_source: source must be non-null");
-    if (window_ || gpu_ || renderer_)
-      return std::unexpected("Engine::set_content_source: a platform is already adopted");
-    content_ = std::move(source);
-    return {};
-  }
-
-  namespace {
-
-    /// Result of one frame's fixed-step simulation.
-    struct SimulationResult {
-      int steps_run{0};
-      /// True when the drain exhausted its step budget and dropped queued simulation time.
-      bool budget_exhausted{false};
-    };
-
-    /// Invoke the user-provided platform-event hook, swallowing any exceptions
-    /// so the frame's noexcept contract holds.
-    void invoke_platform_event_hook(Engine &engine, const platform::PlatformEvents &events) noexcept {
-      if (!engine.on_platform_event)
-        return;
-      try {
-        engine.on_platform_event(engine, events);
-      } catch (...) {
-        warn_log("[engine] WARN: on_platform_event handler threw");
-      }
-    }
-
-    /// Pause when the player loses their only controller mid-play; resume once a pad is back or
-    /// they have pressed something on the keyboard or mouse instead.
-    void update_controller_pause(Engine &engine, const platform::PlatformEvents &events) noexcept {
-      const input::InputMapper &mapper{engine.input_mapper};
-      const bool playing_on_gamepad{mapper.last_device() == input::InputDevice::Gamepad};
-      if (events.controller_disconnected && playing_on_gamepad && !mapper.gamepad_connected())
-        engine.pause(PauseReason::Controller);
-      else if (engine.is_paused_for(PauseReason::Controller) && (mapper.gamepad_connected() || !playing_on_gamepad))
-        engine.resume(PauseReason::Controller);
-    }
-
-    /// Poll platform input and OS lifecycle events, apply focus, controller and quit behaviour,
-    /// then hand the frame to the on_platform_event hook.
-    void process_input(Engine &engine) noexcept {
-      platform::PlatformEvents events{};
-      input::poll(engine.input_mapper, engine.input_state, engine.window(), events);
-
-      if (events.focus_lost)
-        engine.pause(PauseReason::Focus);
-      // Handled after focus_lost so a same-frame loss-and-gain nets to running.
-      if (events.focus_gained)
-        engine.resume(PauseReason::Focus);
-      if (events.quit_requested)
-        engine.request_quit();
-      update_controller_pause(engine, events);
-
-      if (platform::has_any_event(events))
-        invoke_platform_event_hook(engine, events);
-
-      if (engine.input_state.is_held(input::Action::Quit))
-        engine.request_quit();
-    }
-
-    /// Invoke the user-provided per-fixed-step hook, swallowing any exceptions
-    /// so the noexcept contract on the simulation loop holds.
-    void invoke_fixed_update_hook(Engine &engine, float dt) noexcept {
-      if (!engine.on_fixed_update)
-        return;
-      try {
-        engine.on_fixed_update(engine, dt);
-      } catch (...) {
-        warn_log("[engine] WARN: on_fixed_update handler threw");
-      }
-    }
-
-    /// Invoke the pause menu's Quit hook, swallowing any exception so the fixed-step
-    /// noexcept contract holds, as invoke_fixed_update_hook() does.
-    void invoke_menu_quit_hook(Engine &engine) noexcept {
-      if (!engine.on_menu_quit)
-        return;
-      try {
-        engine.on_menu_quit(engine);
-      } catch (...) {
-        warn_log("[engine] WARN: on_menu_quit handler threw");
-      }
-    }
-
-    /// Invoke the pause menu's Save/Load hook, swallowing any exception.
-    void invoke_menu_save_load_hook(Engine &engine, SaveLoadIntent intent) noexcept {
-      if (!engine.on_menu_save_load)
-        return;
-      try {
-        engine.on_menu_save_load(engine, intent);
-      } catch (...) {
-        warn_log("[engine] WARN: on_menu_save_load handler threw");
-      }
-    }
-
-    /// Consult the game's pause-menu block hook, treating a throw as "not blocked".
-    bool pause_menu_blocked(const Engine &engine, world::GameMode mode) noexcept {
-      if (!engine.blocks_pause_menu)
-        return false;
-      try {
-        return engine.blocks_pause_menu(mode);
-      } catch (...) {
-        warn_log("[engine] WARN: blocks_pause_menu handler threw");
-        return false;
-      }
-    }
-
-    /// Modulo wrap of a UI list cursor, matching the dialogue choice cursor: Down past the last
-    /// row lands on the first, Up past the first lands on the last. @p count must be > 0.
-    int wrap_cursor(int current, int delta, int count) noexcept {
-      return (current + delta + count) % count;
-    }
-
-    /// Live values the Settings screen shows, read from the engine each frame it renders.
-    ui::SettingsValues settings_values(const Engine &engine) {
-      return ui::SettingsValues{
-          .ambience_volume = engine.audio.bus_volume(audio::AudioBus::Ambience),
-          .master_volume = engine.audio.bus_volume(audio::AudioBus::Master),
-          .music_volume = engine.audio.bus_volume(audio::AudioBus::Music),
-          .sound_volume = engine.audio.bus_volume(audio::AudioBus::Sound),
-          .voice_volume = engine.audio.bus_volume(audio::AudioBus::Voice),
-          .text_speed = engine.render.text_speed,
-          .ui_scale = engine.render.ui_scale,
-          .window_mode = engine.window().window_mode(),
-      };
-    }
-
-    /// The window's size in logical points, the space panels and the cursor share.
-    core::math::Vec2 screen_viewport(const Engine &engine) noexcept {
-      const auto [width, height] = engine.window().size();
-      return {.x = static_cast<float>(width), .y = static_cast<float>(height)};
-    }
-
-    /// Re-derive the dialogue style after an edit to ui_scale or text_speed.
-    void refresh_dialog_style(Engine &engine) {
-      render::configure_panel_style(engine.render, engine.cfg);
-    }
-
-    /// Persist the live settings to settings.json when the Settings screen closes. Persistence is
-    /// skipped when the project has no game_id or user data directory; a failed write is a warning,
-    /// never fatal to the close.
-    void save_user_settings(const Engine &engine) {
-      if (!engine.user_storage)
-        return;
-      if (std::expected<void, std::string> saved = settings::save(engine, **engine.user_storage); !saved)
-        warn_log("[engine] WARN: could not save settings: {}", saved.error());
-    }
-
-    /// True when @p input is the conventional Back press during a rebind capture. Capture
-    /// swallows every press before it reaches the action bitsets, so Back must be recognised
-    /// from the captured physical input itself.
-    bool is_cancel_capture(input::PhysicalInput input) noexcept {
-      return input == input::physical(input::Key::Escape) ||
-             input == input::physical(input::GamepadControl::B);
-    }
-
-    /// Apply the change for a Left/Right press on a General-tab row.
-    void adjust_general_row(Engine &engine, ui::SettingsGeneralRow row, int direction) {
-      if (const std::optional<audio::AudioBus> bus = ui::volume_row_bus(row)) {
-        // set_bus_volume clamps to [0, 1].
-        engine.audio.set_bus_volume(*bus, engine.audio.bus_volume(*bus) +
-                                              (static_cast<float>(direction) * ui::k_volume_step));
-        return;
-      }
-
-      switch (row) {
-        case ui::SettingsGeneralRow::TextSpeed:
-          engine.render.text_speed = direction > 0 ? ui::next_text_speed(engine.render.text_speed)
-                                                   : ui::prev_text_speed(engine.render.text_speed);
-          refresh_dialog_style(engine);
-          break;
-        case ui::SettingsGeneralRow::UiScale:
-          engine.render.ui_scale =
-              std::clamp(engine.render.ui_scale + (static_cast<float>(direction) * ui::k_ui_scale_step),
-                         ui::k_ui_scale_min, ui::k_ui_scale_max);
-          refresh_dialog_style(engine);
-          break;
-        case ui::SettingsGeneralRow::MasterVolume:
-        case ui::SettingsGeneralRow::MusicVolume:
-        case ui::SettingsGeneralRow::SoundVolume:
-        case ui::SettingsGeneralRow::AmbienceVolume:
-        case ui::SettingsGeneralRow::VoiceVolume:
-        case ui::SettingsGeneralRow::WindowMode:
-        case ui::SettingsGeneralRow::Count:
-          break; // Volume rows return above; window mode toggles on Activate; Count is not a row.
-      }
-    }
-
-    /// Bind @p captured to the action under the Controls cursor, replacing that action's binding on
-    /// the same device class and swapping its old input to any action the capture leaves unbound.
-    void rebind_captured(Engine &engine, input::PhysicalInput captured) {
-      assert(engine.settings_screen.cursor < ui::k_controls_reset_row);
-      const auto action = static_cast<input::Action>(engine.settings_screen.cursor);
-      input::Bindings bindings = engine.input_mapper.bindings();
-      input::bind_swapping(bindings, action, captured);
-      if (auto result = engine.input_mapper.set_bindings(std::move(bindings)); !result)
-        warn_log("[engine] WARN: rebind failed: {}", result.error());
-    }
-
-    /// Apply a mouse move, click or wheel to the pause menu: a hovered row takes focus, and the
-    /// wheel moves the cursor.
-    void apply_menu_pointer(Engine &engine, const input::InputIntent &intent) {
-      if (!intent.mouse_moved && !intent.cursor_clicked && intent.scroll_y == 0.f)
-        return;
-
-      if (intent.mouse_moved || intent.cursor_clicked) {
-        const ui::MenuLayout layout = ui::menu_panel_layout(engine.renderer(), engine.render.panel_skin.style,
-                                                            screen_viewport(engine), engine.input_mapper.last_device());
-        const core::math::Vec2 cursor{.x = intent.cursor_x, .y = intent.cursor_y};
-        if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
-          engine.menu.cursor = hovered;
-      }
-      if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0)
-        engine.menu.cursor = wrap_cursor(engine.menu.cursor, steps, ui::k_menu_command_count);
-    }
-
-    /// Run the highlighted pause-menu command.
-    void activate_menu_command(Engine &engine) {
-      switch (ui::menu_command_at(engine.menu.cursor)) {
-        case ui::MenuCommand::Resume:
-          engine.scene.ui.pop();
-          break;
-        case ui::MenuCommand::Settings:
-          engine.settings_screen = {.presentation = ui::SettingsPresentation::InGame};
-          engine.scene.ui.push(world::GameMode::Settings);
-          break;
-        case ui::MenuCommand::Save:
-          engine.scene.ui.pop();
-          if (engine.on_menu_save_load)
-            invoke_menu_save_load_hook(engine, SaveLoadIntent::Save);
-          else
-            engine.raise_action_next_step(input::Action::QuickSave);
-          break;
-        case ui::MenuCommand::Load:
-          engine.scene.ui.pop();
-          if (engine.on_menu_save_load)
-            invoke_menu_save_load_hook(engine, SaveLoadIntent::Load);
-          else
-            engine.raise_action_next_step(input::Action::QuickLoad);
-          break;
-        case ui::MenuCommand::Quit:
-          if (engine.on_menu_quit)
-            invoke_menu_quit_hook(engine);
-          else
-            engine.request_quit();
-          break;
-        case ui::MenuCommand::Count:
-          break;
-      }
-    }
-
-    /// Step the pause menu: Back/Menu closes it; Up/Down move the selection; a hovered row takes
-    /// focus on a real mouse move or click; Activate runs the highlighted command.
-    void update_pause_menu(Engine &engine, const input::InputIntent &intent) {
-      if (intent.back || engine.input_state.is_pressed(input::Action::Menu)) {
-        engine.scene.ui.pop();
-        return;
-      }
-
-      apply_menu_pointer(engine, intent);
-
-      if (intent.navigate_y != 0)
-        engine.menu.cursor = wrap_cursor(engine.menu.cursor, intent.navigate_y, ui::k_menu_command_count);
-      if (intent.activate)
-        activate_menu_command(engine);
-    }
-
-    /// Switch the settings tab to @p tab, resetting the cursor and scroll.
-    void switch_settings_tab(ui::SettingsState &state, ui::SettingsTab tab) noexcept {
-      state.tab = tab;
-      state.cursor = 0;
-      state.scroll = 0;
-    }
-
-    /// Switch to the tab @p direction steps away, wrapping around.
-    void cycle_settings_tab(ui::SettingsState &state, int direction) {
-      const int tabs = ui::k_settings_tab_count;
-      switch_settings_tab(state,
-                          static_cast<ui::SettingsTab>((static_cast<int>(state.tab) + direction + tabs) % tabs));
-    }
-
-    /// Apply mouse intent to the settings screen: a click on a tab switches to it, the wheel over
-    /// the tabs cycles them, a hovered row (on a real move or click) takes focus, and the wheel
-    /// over the list moves the cursor. Returns true when the pointer switched tabs and the step
-    /// should be consumed.
-    bool apply_settings_pointer(const Engine &engine, ui::SettingsState &state, const input::InputIntent &intent) {
-      if (!intent.mouse_moved && !intent.cursor_clicked && intent.scroll_y == 0.f)
-        return false;
-
-      const ui::SettingsLayout layout = ui::settings_panel_layout(
-          engine.renderer(), engine.render.panel_skin.style, state, settings_values(engine),
-          engine.input_mapper.bindings(), screen_viewport(engine), engine.input_mapper.last_device());
-      const core::math::Vec2 cursor{.x = intent.cursor_x, .y = intent.cursor_y};
-
-      if (const int hovered_tab = ui::hovered_row(cursor, layout.tabs); hovered_tab >= 0) {
-        if (intent.cursor_clicked) {
-          switch_settings_tab(state, static_cast<ui::SettingsTab>(hovered_tab));
-          return true;
-        }
-        if (intent.scroll_y != 0.f) {
-          cycle_settings_tab(state, intent.scroll_y > 0.f ? -1 : 1);
-          return true;
-        }
-      }
-
-      if (intent.mouse_moved || intent.cursor_clicked) {
-        if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
-          state.cursor = hovered;
-      }
-      if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0) {
-        const int row_count = ui::settings_row_count(state.tab);
-        state.cursor = wrap_cursor(state.cursor, steps, row_count);
-        ui::settings_scroll_to_cursor(state, row_count, std::min(row_count, ui::k_settings_max_visible_rows));
-      }
-      return false;
-    }
-
-    /// Consume the press captured for a rebind, or cancel it on Back, and clear the capture.
-    /// Returns true while the Settings screen is still capturing, so the step is consumed.
-    bool update_rebind_capture(Engine &engine) {
-      ui::SettingsState &state = engine.settings_screen;
-      if (!state.rebinding)
-        return false;
-
-      if (const std::optional<input::PhysicalInput> captured = engine.input_mapper.take_captured()) {
-        if (is_cancel_capture(*captured))
-          engine.input_mapper.cancel_capture();
-        else
-          rebind_captured(engine, *captured);
-        state.rebinding = false;
-      }
-      return true;
-    }
-
-    /// Apply a Left/Right press to the General-tab row under the cursor, or toggle Window Mode on
-    /// Activate. Non-volume rows do nothing on Left/Right, and Window Mode only toggles on Activate.
-    void edit_general_row(Engine &engine, int cursor, const input::InputIntent &intent) {
-      const auto row = static_cast<ui::SettingsGeneralRow>(cursor);
-      if (intent.navigate_x != 0) {
-        adjust_general_row(engine, row, intent.navigate_x);
-      } else if (intent.activate && row == ui::SettingsGeneralRow::WindowMode) {
-        const bool fullscreen = engine.window().window_mode() == core::WindowMode::Fullscreen;
-        engine.window().set_window_mode(fullscreen ? core::WindowMode::Windowed : core::WindowMode::Fullscreen);
-      }
-    }
-
-    /// Activate on a Controls row: the Reset row restores the default bindings; an action row
-    /// starts capturing its new input.
-    void activate_controls_row(Engine &engine, ui::SettingsState &state) {
-      if (state.cursor == ui::k_controls_reset_row) {
-        if (auto result = engine.input_mapper.set_bindings(input::default_bindings()); !result)
-          warn_log("[engine] WARN: could not reset bindings: {}", result.error());
-        return;
-      }
-      engine.input_mapper.begin_capture();
-      state.rebinding = true;
-    }
-
-    /// Step the Settings screen. While the Controls tab is capturing a rebind, every other
-    /// intent is ignored; otherwise Back returns to the menu, TabNext/Prev switch pages, the
-    /// cursor edits the focused row, and the pointer can click a tab or a row.
-    void update_settings(Engine &engine, const input::InputIntent &intent) {
-      ui::SettingsState &state = engine.settings_screen;
-
-      if (update_rebind_capture(engine))
-        return;
-
-      if (intent.back || engine.input_state.is_pressed(input::Action::Menu)) {
-        engine.scene.ui.pop();
-        save_user_settings(engine);
-        return;
-      }
-
-      if (apply_settings_pointer(engine, state, intent))
-        return;
-
-      if (intent.next_tab || intent.prev_tab) {
-        cycle_settings_tab(state, intent.next_tab ? 1 : -1);
-        return;
-      }
-
-      const int row_count = ui::settings_row_count(state.tab);
-      const int visible_rows = std::min(row_count, ui::k_settings_max_visible_rows);
-      if (intent.navigate_y != 0) {
-        state.cursor = wrap_cursor(state.cursor, intent.navigate_y, row_count);
-        ui::settings_scroll_to_cursor(state, row_count, visible_rows);
-        return;
-      }
-
-      if (state.tab == ui::SettingsTab::General) {
-        edit_general_row(engine, state.cursor, intent);
-      } else if (intent.activate) {
-        activate_controls_row(engine, state);
-      }
-    }
-
-    /// Upper bound on catch-up work per frame. At 60 Hz this is ~133 ms of catch-up; past it the
-    /// simulation sheds the remaining time rather than compounding a backlog.
-    constexpr int k_max_steps_per_frame{8};
-
-    /// Drain the timer accumulator: run the world step, the registered fixed-step systems and the
-    /// on_fixed_update hook, and flush deletions once per fixed step.
-    ///
-    /// Simulation work is intentionally not wrapped — a throw here (allocation failure in an
-    /// engine UI screen) is fatal, not recoverable.
-    // NOLINTNEXTLINE(bugprone-exception-escape)
-    [[nodiscard]] SimulationResult run_fixed_steps(Engine &engine) noexcept {
-      const float pending_time{engine.timer.accumulator};
-      const int steps{engine.timer.take_steps(k_max_steps_per_frame)};
-      const float consumed{static_cast<float>(steps) * engine.timer.target_dt};
-      // take_steps() sheds whatever remains once it hits the cap; that remainder is dropped time.
-      SimulationResult result{
-          .steps_run = steps,
-          .budget_exhausted = steps == k_max_steps_per_frame && pending_time > consumed,
-      };
-
-      for (int step_index = 0; step_index < steps; ++step_index) {
-        engine.screen_transition.update(engine.timer.target_dt);
-        render::snapshot_previous_step(engine.render, engine.scene);
-
-        const input::InputIntent intent =
-            input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
-        // Screen input hooks (the gameplay menu hub) and the engine-owned Menu/Settings screens
-        // own the step while open, which is what pauses the simulation — no world update,
-        // gameplay systems, or on_fixed_update while a screen is up. Call it unconditionally: it
-        // has side effects (opening a screen) even when no screen ends up active. Opening the
-        // pause menu happens here because Esc doubles as Cancel — opening consumes the step so
-        // the same press cannot also close the fresh menu.
-        const bool engine_screen_active = engine.update_engine_screens(intent);
-
-        // Transient UI keeps aging while a screen pauses the simulation, so a toast raised just
-        // before opening a screen still expires instead of freezing on display.
-        engine.toasts.update(engine.timer.target_dt);
-
-        if (!engine_screen_active) {
-          engine.scene.elapsed_time += engine.timer.target_dt;
-
-          // World mode with nothing streamed in has no actors to simulate, but time still advances
-          // and the input edge must still be consumed: poll() only ORs presses in, so a press
-          // latched here would fire the moment the world activates.
-          const auto *world_area = std::get_if<render::WorldArea>(&engine.render.area);
-          if (world_area == nullptr || !world_area->chunks.active_empty()) {
-            const world::MapView map_view = world::build_map_view(engine.render, engine.cfg);
-            world::sync_chunk_actors(engine.content_source(), engine.scene, engine.render, engine.cfg, engine.characters);
-            // Core simulation is intentionally not wrapped: unlike the game seams (dialogue
-            // dispatch, on_fixed_update, map transitions), a throw here is fatal, not recoverable.
-            const ScreenSpec *top_spec = engine.screens.find(engine.scene.mode());
-            const world::WorldStep world_step =
-                top_spec != nullptr ? top_spec->world_step : world::WorldStep::Frozen;
-            world::update(engine.scene, engine.cfg, engine.input_state, map_view, engine.timer.target_dt,
-                          static_cast<float>(engine.window_width()), static_cast<float>(engine.window_height()),
-                          engine.input_mapper.last_device(), world_step);
-          }
-
-          // Registered systems (gameplay's dialogue/event/quest tick) run every step — including
-          // World mode with nothing streamed in — so queued work is never stranded while
-          // elapsed_time advances. They run after world::update and before on_fixed_update.
-          for (const std::function<void(Engine &, float)> &system : engine.fixed_step_systems)
-            system(engine, engine.timer.target_dt);
-
-          invoke_fixed_update_hook(engine, engine.timer.target_dt);
-
-          entities::flush_deletions(engine.scene.world);
-        }
-
-        input::clear_pressed(engine.input_state);
-      }
-
+namespace {
+
+using corundum::detail::warn_log;
+
+/// Owns the initialize() sequence as private, ordered phases. The only
+/// public entry point is run() — phase order is therefore structural
+/// (nothing outside this class can call a phase out of order), not a
+/// convention enforced by statement order in one function.
+class InitPipeline {
+public:
+  explicit InitPipeline(Engine &engine) : engine_(&engine) {}
+
+  std::expected<void, std::string> run(core::GameConfig &&cfg) {
+    engine_->cfg = std::move(cfg);
+    engine_->timer.set_target_fps(static_cast<float>(engine_->cfg.simulation_fps));
+    engine_->window().set_vsync(engine_->cfg.vsync);
+
+    const std::uint64_t rng_seed = engine_->cfg.rng_seed.value_or([] {
+      std::random_device rd;
+      return (static_cast<std::uint64_t>(rd()) << 32U) | static_cast<std::uint64_t>(rd());
+    }());
+    engine_->rng = core::Rng{rng_seed};
+    corundum::detail::info_log("[engine] RNG seed {}", rng_seed);
+
+    const auto assets_start = std::chrono::steady_clock::now();
+    if (auto result = load_render_assets(); !result)
       return result;
-    }
+    corundum::detail::info_log("[boot] render assets: {:.1f} ms", corundum::detail::elapsed_ms(assets_start));
 
-    void render_menu(const Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
-      ui::menu_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border, engine.menu, viewport,
-                            engine.input_mapper.last_device());
-    }
+    const auto audio_start = std::chrono::steady_clock::now();
+    init_audio();
+    corundum::detail::info_log("[boot] audio: {:.1f} ms", corundum::detail::elapsed_ms(audio_start));
 
-    void render_settings(const Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
-      ui::settings_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border, engine.settings_screen,
-                                settings_values(engine), engine.input_mapper.bindings(), viewport,
-                                engine.input_mapper.last_device());
-    }
-
-    /// begin_frame → world → layered overlays (HUD, toasts, modals, screens, hub) → debug HUD →
-    /// end_frame. The overlay order is fixed; each registered hook gates on its own state.
-    // std::format with a literal format string cannot throw at run time, and a throw from the
-    // frame path is intentionally fatal (noexcept).
-    // NOLINTNEXTLINE(bugprone-exception-escape)
-    void render_frame(Engine &engine, const float alpha, const bool budget_exhausted) noexcept {
-      platform::Renderer &r = engine.renderer();
-      if (!r.begin_frame(engine.clear_colour))
-        return;
-
-      const core::math::IntSize window_logical{
-          .width = engine.window_width(),
-          .height = engine.window_height(),
-      };
-      render::render(r, engine.render, engine.cfg, engine.scene, alpha, window_logical);
-
-      const corundum::core::math::Vec2 viewport{
-          .x = static_cast<float>(window_logical.width),
-          .y = static_cast<float>(window_logical.height),
-      };
-      const bool screen_open = !engine.scene.ui.empty();
-      const bool transition_showing =
-          engine.scene.transition_prompt && !engine.scene.transition_prompt->declined();
-
-      // 2. Gameplay HUD, only while nothing is modal.
-      if (!screen_open && !transition_showing)
-        engine.screens.render_layer(RenderLayer::Hud, engine, r, viewport);
-
-      // 3. Engine toasts.
-      engine.toasts.render(r, engine.render.panel_skin.style, viewport);
-
-      // 4a. Engine-owned transition prompt, drawn whenever pending regardless of mode.
-      if (transition_showing) {
-        const std::string_view question =
-            engine.scene.transition_prompt->transition().return_to_world ? "Leave?" : "Enter?";
-        ui::prompt_box_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border, question,
-                              engine.scene.transition_prompt->confirm_selected(), viewport);
-      }
-
-      // 4b. Modal hooks, each gated on its own state and on being the top-of-stack mode
-      // (the dialogue box hides while a screen is pushed over it).
-      engine.screens.render_layer(RenderLayer::Modal, engine, r, viewport);
-
-      // 4c. The top mode's own screen, if it registered a render hook.
-      if (const ScreenSpec *spec = engine.screens.find(engine.scene.mode()); spec != nullptr && spec->render)
-        spec->render(engine, r, viewport);
-
-      // 5. Hub panels, then the hub tab strip.
-      engine.screens.render_layer(RenderLayer::HubPanel, engine, r, viewport);
-      engine.screens.render_layer(RenderLayer::HubStrip, engine, r, viewport);
-
-      // 6. Scene fade, above every screen but below the debug HUD.
-      ui::render_screen_transition(r, engine.screen_transition, viewport);
-
-      // 7. Debug HUD, always last.
-      const debug::OverlayInput hud_input{
-          .render_state = &engine.render,
-          .cfg = &engine.cfg,
-          .scene = &engine.scene,
-          .timer = &engine.timer,
-          .viewport = viewport,
-          .step_budget_exhausted = budget_exhausted,
-      };
-      engine.hud.render(r, hud_input);
-
-      r.end_frame();
-    }
-
-  } // namespace
-
-  void Engine::register_screens() {
-    // Engine-owned screens. They capture nothing and read the Engine& argument.
-    screens.add(world::GameMode::Menu,
-                ScreenSpec{
-                    .owns_step = true,
-                    .update = [](Engine &engine, const input::InputIntent &intent) { update_pause_menu(engine, intent); },
-                    .render = [](Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
-                      render_menu(engine, r, viewport);
-                    },
-                });
-    screens.add(world::GameMode::Settings,
-                ScreenSpec{
-                    .owns_step = true,
-                    .update = [](Engine &engine, const input::InputIntent &intent) { update_settings(engine, intent); },
-                    .render = [](Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
-                      render_settings(engine, r, viewport);
-                    },
-                });
+    render::configure_panel_style(engine_->render, engine_->cfg);
+    return {};
   }
 
-  bool Engine::update_engine_screens(const input::InputIntent &intent) {
-    // Registered input hooks (the gameplay menu hub) get first refusal and may consume the step
-    // by opening, closing or switching a screen.
-    for (const std::function<bool(Engine &, const input::InputIntent &)> &hook : screen_input_hooks) {
-      if (hook(*this, intent))
-        return true;
-    }
+private:
+  std::expected<void, std::string> load_render_assets() {
+    std::expected<void, std::string> characters_result;
+    characters_result = engine_->characters.load_all(engine_->content_source(), engine_->cfg.paths.sprites_dir);
+    if (!characters_result)
+      return std::unexpected(characters_result.error());
+    render::load_sprite_index(engine_->renderer(), engine_->render, engine_->characters);
 
-    // The pause menu opens over any screen: Resume pops the single layer it pushed and reveals
-    // whatever was beneath (a hub tab, dialogue, loot or barter). One physical press may raise
-    // both Menu and Cancel (Esc), so with a screen open the press is left to that screen's own
-    // back handling rather than opening the menu and closing it again the same step. From an
-    // empty stack, or over a screen with no back action (ScreenSpec::handles_back, a fight),
-    // nothing would close, so the menu opens. Menu and Settings consume Menu themselves (to
-    // close, or to capture a rebind), so the menu never opens over either.
-    const ScreenSpec *spec = screens.find(scene.mode());
-    const bool menu_pressed = input_state.is_pressed(input::Action::Menu);
-    const bool top_handles_menu = scene.mode() == world::GameMode::Menu || scene.mode() == world::GameMode::Settings;
-    const bool menu_blocked = pause_menu_blocked(*this, scene.mode());
-    const bool back_handled_by_screen = !scene.ui.empty() && intent.back && (spec == nullptr || spec->handles_back);
-    if (menu_pressed && !top_handles_menu && !menu_blocked && !back_handled_by_screen) {
-      scene.ui.push(world::GameMode::Menu);
-      menu.cursor = 0;
-      return true;
-    }
+    if (auto result = render::load_fonts(engine_->renderer(), engine_->render, engine_->cfg.paths); !result)
+      return std::unexpected(std::move(result).error());
 
-    // Dispatch the top mode's screen. Only a step-owning screen reports the step as taken;
-    // a non-step-owning extension mode (Dialogue) leaves the world step running.
-    if (spec == nullptr || !spec->owns_step) {
-      // No screen owns this step, so a deferred action may run now. Promote it here rather
-      // than in run_fixed_steps() to keep the pending slot private and keep the "only when no
-      // screen owns the step" rule in one place. clear_pressed() at the end of the step drops
-      // it again once every consumer has seen it.
-      if (pending_action_) {
-        input_state.pressed.set(static_cast<std::size_t>(*pending_action_));
-        pending_action_.reset();
-      }
-      return false;
-    }
-    if (spec->update)
-      spec->update(*this, intent);
-    return true;
+    std::expected<void, std::string> ui_result;
+    ui_result =
+        render::load_ui_assets(engine_->content_source(), engine_->renderer(), engine_->render, engine_->cfg.paths);
+    if (!ui_result)
+      return std::unexpected(ui_result.error());
+    return {};
   }
 
-  void Engine::advance_scene_transition() noexcept {
-    // A portal transition is held until the fade covers it, so the map swap is never seen.
-    if (scene.pending_transition && !scene_swap_pending_) {
-      scene_swap_pending_ = true;
-      screen_transition.begin_fade_out();
+  void init_audio() {
+    std::expected<void, std::string> audio_result;
+    audio_result = engine_->audio.initialize(engine_->cfg.paths.sounds_dir);
+    if (!audio_result) {
+      corundum::detail::warn_log("[engine] WARN: Audio init failed — {}", audio_result.error());
+      return;
     }
-    if (scene_swap_pending_ && screen_transition.at_black()) {
-      scene_swap_pending_ = false;
-      world::handle_map_transition(*this);
-      screen_transition.begin_fade_in();
-    }
+    engine_->audio.load_catalog(engine_->content_source(), engine_->cfg.paths.sounds_catalog);
   }
 
-  void Engine::run_loop() noexcept {
-    // Start the timer unseeded so the first frame adds no time: asset-load time during initialize() is
-    // not replayed as a burst of catch-up fixed steps.
-    timer.prev_time.reset();
-    while (run_frame(std::chrono::steady_clock::now())) {
-    }
-  }
+  Engine *engine_;
+};
 
-  void Engine::run() noexcept {
-    run_loop();
+} // namespace
+
+void Engine::adopt_platform(platform::PlatformContext platform) {
+  window_ = std::move(platform.window);
+  gpu_ = std::move(platform.gpu);
+  renderer_ = std::move(platform.renderer);
+  audio.adopt_backend(std::move(platform.audio_backend));
+}
+
+std::expected<void, std::string> Engine::initialize(core::GameConfig &&cfg) {
+  if (!window_ || !renderer_)
+    return std::unexpected("Engine::initialize: window and renderer must be non-null "
+                           "(use make_engine(), or adopt a platform before calling)");
+
+  InitPipeline pipeline(*this);
+  if (auto result = pipeline.run(std::move(cfg)); !result) {
     cleanup();
+    return std::unexpected(result.error());
+  }
+  register_screens();
+  return {};
+}
+
+std::expected<void, std::string> Engine::set_content_source(std::unique_ptr<core::ContentSource> source) {
+  if (!source)
+    return std::unexpected("Engine::set_content_source: source must be non-null");
+  if (window_ || gpu_ || renderer_)
+    return std::unexpected("Engine::set_content_source: a platform is already adopted");
+  content_ = std::move(source);
+  return {};
+}
+
+namespace {
+
+/// Result of one frame's fixed-step simulation.
+struct SimulationResult {
+  int steps_run{0};
+  /// True when the drain exhausted its step budget and dropped queued simulation time.
+  bool budget_exhausted{false};
+};
+
+/// Invoke the user-provided platform-event hook, swallowing any exceptions
+/// so the frame's noexcept contract holds.
+void invoke_platform_event_hook(Engine &engine, const platform::PlatformEvents &events) noexcept {
+  if (!engine.on_platform_event)
+    return;
+  try {
+    engine.on_platform_event(engine, events);
+  } catch (...) {
+    warn_log("[engine] WARN: on_platform_event handler threw");
+  }
+}
+
+/// Pause when the player loses their only controller mid-play; resume once a pad is back or
+/// they have pressed something on the keyboard or mouse instead.
+void update_controller_pause(Engine &engine, const platform::PlatformEvents &events) noexcept {
+  const input::InputMapper &mapper{engine.input_mapper};
+  const bool playing_on_gamepad{mapper.last_device() == input::InputDevice::Gamepad};
+  if (events.controller_disconnected && playing_on_gamepad && !mapper.gamepad_connected())
+    engine.pause(PauseReason::Controller);
+  else if (engine.is_paused_for(PauseReason::Controller) && (mapper.gamepad_connected() || !playing_on_gamepad))
+    engine.resume(PauseReason::Controller);
+}
+
+/// Poll platform input and OS lifecycle events, apply focus, controller and quit behaviour,
+/// then hand the frame to the on_platform_event hook.
+void process_input(Engine &engine) noexcept {
+  platform::PlatformEvents events{};
+  input::poll(engine.input_mapper, engine.input_state, engine.window(), events);
+
+  if (events.focus_lost)
+    engine.pause(PauseReason::Focus);
+  // Handled after focus_lost so a same-frame loss-and-gain nets to running.
+  if (events.focus_gained)
+    engine.resume(PauseReason::Focus);
+  if (events.quit_requested)
+    engine.request_quit();
+  update_controller_pause(engine, events);
+
+  if (platform::has_any_event(events))
+    invoke_platform_event_hook(engine, events);
+
+  if (engine.input_state.is_held(input::Action::Quit))
+    engine.request_quit();
+}
+
+/// Invoke the user-provided per-fixed-step hook, swallowing any exceptions
+/// so the noexcept contract on the simulation loop holds.
+void invoke_fixed_update_hook(Engine &engine, float dt) noexcept {
+  if (!engine.on_fixed_update)
+    return;
+  try {
+    engine.on_fixed_update(engine, dt);
+  } catch (...) {
+    warn_log("[engine] WARN: on_fixed_update handler threw");
+  }
+}
+
+/// Invoke the pause menu's Quit hook, swallowing any exception so the fixed-step
+/// noexcept contract holds, as invoke_fixed_update_hook() does.
+void invoke_menu_quit_hook(Engine &engine) noexcept {
+  if (!engine.on_menu_quit)
+    return;
+  try {
+    engine.on_menu_quit(engine);
+  } catch (...) {
+    warn_log("[engine] WARN: on_menu_quit handler threw");
+  }
+}
+
+/// Invoke the pause menu's Save/Load hook, swallowing any exception.
+void invoke_menu_save_load_hook(Engine &engine, SaveLoadIntent intent) noexcept {
+  if (!engine.on_menu_save_load)
+    return;
+  try {
+    engine.on_menu_save_load(engine, intent);
+  } catch (...) {
+    warn_log("[engine] WARN: on_menu_save_load handler threw");
+  }
+}
+
+/// Consult the game's pause-menu block hook, treating a throw as "not blocked".
+bool pause_menu_blocked(const Engine &engine, world::GameMode mode) noexcept {
+  if (!engine.blocks_pause_menu)
+    return false;
+  try {
+    return engine.blocks_pause_menu(mode);
+  } catch (...) {
+    warn_log("[engine] WARN: blocks_pause_menu handler threw");
+    return false;
+  }
+}
+
+/// Modulo wrap of a UI list cursor, matching the dialogue choice cursor: Down past the last
+/// row lands on the first, Up past the first lands on the last. @p count must be > 0.
+int wrap_cursor(int current, int delta, int count) noexcept {
+  return (current + delta + count) % count;
+}
+
+/// Live values the Settings screen shows, read from the engine each frame it renders.
+ui::SettingsValues settings_values(const Engine &engine) {
+  return ui::SettingsValues{
+      .ambience_volume = engine.audio.bus_volume(audio::AudioBus::Ambience),
+      .master_volume = engine.audio.bus_volume(audio::AudioBus::Master),
+      .music_volume = engine.audio.bus_volume(audio::AudioBus::Music),
+      .sound_volume = engine.audio.bus_volume(audio::AudioBus::Sound),
+      .voice_volume = engine.audio.bus_volume(audio::AudioBus::Voice),
+      .text_speed = engine.render.text_speed,
+      .ui_scale = engine.render.ui_scale,
+      .window_mode = engine.window().window_mode(),
+  };
+}
+
+/// The window's size in logical points, the space panels and the cursor share.
+core::math::Vec2 screen_viewport(const Engine &engine) noexcept {
+  const auto [width, height] = engine.window().size();
+  return {.x = static_cast<float>(width), .y = static_cast<float>(height)};
+}
+
+/// Re-derive the dialogue style after an edit to ui_scale or text_speed.
+void refresh_dialog_style(Engine &engine) {
+  render::configure_panel_style(engine.render, engine.cfg);
+}
+
+/// Persist the live settings to settings.json when the Settings screen closes. Persistence is
+/// skipped when the project has no game_id or user data directory; a failed write is a warning,
+/// never fatal to the close.
+void save_user_settings(const Engine &engine) {
+  if (!engine.user_storage)
+    return;
+  if (std::expected<void, std::string> saved = settings::save(engine, **engine.user_storage); !saved)
+    warn_log("[engine] WARN: could not save settings: {}", saved.error());
+}
+
+/// True when @p input is the conventional Back press during a rebind capture. Capture
+/// swallows every press before it reaches the action bitsets, so Back must be recognised
+/// from the captured physical input itself.
+bool is_cancel_capture(input::PhysicalInput input) noexcept {
+  return input == input::physical(input::Key::Escape) || input == input::physical(input::GamepadControl::B);
+}
+
+/// Apply the change for a Left/Right press on a General-tab row.
+void adjust_general_row(Engine &engine, ui::SettingsGeneralRow row, int direction) {
+  if (const std::optional<audio::AudioBus> bus = ui::volume_row_bus(row)) {
+    // set_bus_volume clamps to [0, 1].
+    engine.audio.set_bus_volume(*bus,
+                                engine.audio.bus_volume(*bus) + (static_cast<float>(direction) * ui::k_volume_step));
+    return;
   }
 
-  bool Engine::run_frame(std::chrono::steady_clock::time_point now) noexcept {
-    if (!window_->is_open() || quit_)
-      return false;
-    const core::math::IntSize window_logical = window_->size();
-    window_width_ = window_logical.width;
-    window_height_ = window_logical.height;
+  switch (row) {
+    case ui::SettingsGeneralRow::TextSpeed:
+      engine.render.text_speed =
+          direction > 0 ? ui::next_text_speed(engine.render.text_speed) : ui::prev_text_speed(engine.render.text_speed);
+      refresh_dialog_style(engine);
+      break;
+    case ui::SettingsGeneralRow::UiScale:
+      engine.render.ui_scale =
+          std::clamp(engine.render.ui_scale + (static_cast<float>(direction) * ui::k_ui_scale_step), ui::k_ui_scale_min,
+                     ui::k_ui_scale_max);
+      refresh_dialog_style(engine);
+      break;
+    case ui::SettingsGeneralRow::MasterVolume:
+    case ui::SettingsGeneralRow::MusicVolume:
+    case ui::SettingsGeneralRow::SoundVolume:
+    case ui::SettingsGeneralRow::AmbienceVolume:
+    case ui::SettingsGeneralRow::VoiceVolume:
+    case ui::SettingsGeneralRow::WindowMode:
+    case ui::SettingsGeneralRow::Count:
+      break; // Volume rows return above; window mode toggles on Activate; Count is not a row.
+  }
+}
 
-    process_input(*this);
-    if (quit_)
-      return false;
+/// Bind @p captured to the action under the Controls cursor, replacing that action's binding on
+/// the same device class and swapping its old input to any action the capture leaves unbound.
+void rebind_captured(Engine &engine, input::PhysicalInput captured) {
+  assert(engine.settings_screen.cursor < ui::k_controls_reset_row);
+  const auto action = static_cast<input::Action>(engine.settings_screen.cursor);
+  input::Bindings bindings = engine.input_mapper.bindings();
+  input::bind_swapping(bindings, action, captured);
+  if (auto result = engine.input_mapper.set_bindings(std::move(bindings)); !result)
+    warn_log("[engine] WARN: rebind failed: {}", result.error());
+}
 
-    // Every frame, paused or not: music loop restarts are scheduled on the audio engine's clock,
-    // which stops with the device while paused, so the gap never elapses during a pause.
-    audio.update();
+/// Apply a mouse move, click or wheel to the pause menu: a hovered row takes focus, and the
+/// wheel moves the cursor.
+void apply_menu_pointer(Engine &engine, const input::InputIntent &intent) {
+  if (!intent.mouse_moved && !intent.cursor_clicked && intent.scroll_y == 0.f)
+    return;
 
-    // While paused the timer is deliberately not ticked: wall time spent paused must not
-    // queue catch-up fixed steps. Rendering still runs so a pause menu stays on screen.
-    if (is_paused()) {
-      render_frame(*this, timer.alpha(), /*budget_exhausted=*/false);
-      reveal_window();
+  if (intent.mouse_moved || intent.cursor_clicked) {
+    const ui::MenuLayout layout = ui::menu_panel_layout(engine.renderer(), engine.render.panel_skin.style,
+                                                        screen_viewport(engine), engine.input_mapper.last_device());
+    const core::math::Vec2 cursor{.x = intent.cursor_x, .y = intent.cursor_y};
+    if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
+      engine.menu.cursor = hovered;
+  }
+  if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0)
+    engine.menu.cursor = wrap_cursor(engine.menu.cursor, steps, ui::k_menu_command_count);
+}
+
+/// Run the highlighted pause-menu command.
+void activate_menu_command(Engine &engine) {
+  switch (ui::menu_command_at(engine.menu.cursor)) {
+    case ui::MenuCommand::Resume: engine.scene.ui.pop(); break;
+    case ui::MenuCommand::Settings:
+      engine.settings_screen = {.presentation = ui::SettingsPresentation::InGame};
+      engine.scene.ui.push(world::GameMode::Settings);
+      break;
+    case ui::MenuCommand::Save:
+      engine.scene.ui.pop();
+      if (engine.on_menu_save_load)
+        invoke_menu_save_load_hook(engine, SaveLoadIntent::Save);
+      else
+        engine.raise_action_next_step(input::Action::QuickSave);
+      break;
+    case ui::MenuCommand::Load:
+      engine.scene.ui.pop();
+      if (engine.on_menu_save_load)
+        invoke_menu_save_load_hook(engine, SaveLoadIntent::Load);
+      else
+        engine.raise_action_next_step(input::Action::QuickLoad);
+      break;
+    case ui::MenuCommand::Quit:
+      if (engine.on_menu_quit)
+        invoke_menu_quit_hook(engine);
+      else
+        engine.request_quit();
+      break;
+    case ui::MenuCommand::Count: break;
+  }
+}
+
+/// Step the pause menu: Back/Menu closes it; Up/Down move the selection; a hovered row takes
+/// focus on a real mouse move or click; Activate runs the highlighted command.
+void update_pause_menu(Engine &engine, const input::InputIntent &intent) {
+  if (intent.back || engine.input_state.is_pressed(input::Action::Menu)) {
+    engine.scene.ui.pop();
+    return;
+  }
+
+  apply_menu_pointer(engine, intent);
+
+  if (intent.navigate_y != 0)
+    engine.menu.cursor = wrap_cursor(engine.menu.cursor, intent.navigate_y, ui::k_menu_command_count);
+  if (intent.activate)
+    activate_menu_command(engine);
+}
+
+/// Switch the settings tab to @p tab, resetting the cursor and scroll.
+void switch_settings_tab(ui::SettingsState &state, ui::SettingsTab tab) noexcept {
+  state.tab = tab;
+  state.cursor = 0;
+  state.scroll = 0;
+}
+
+/// Switch to the tab @p direction steps away, wrapping around.
+void cycle_settings_tab(ui::SettingsState &state, int direction) {
+  const int tabs = ui::k_settings_tab_count;
+  switch_settings_tab(state, static_cast<ui::SettingsTab>((static_cast<int>(state.tab) + direction + tabs) % tabs));
+}
+
+/// Apply mouse intent to the settings screen: a click on a tab switches to it, the wheel over
+/// the tabs cycles them, a hovered row (on a real move or click) takes focus, and the wheel
+/// over the list moves the cursor. Returns true when the pointer switched tabs and the step
+/// should be consumed.
+bool apply_settings_pointer(const Engine &engine, ui::SettingsState &state, const input::InputIntent &intent) {
+  if (!intent.mouse_moved && !intent.cursor_clicked && intent.scroll_y == 0.f)
+    return false;
+
+  const ui::SettingsLayout layout = ui::settings_panel_layout(
+      engine.renderer(), engine.render.panel_skin.style, state, settings_values(engine), engine.input_mapper.bindings(),
+      screen_viewport(engine), engine.input_mapper.last_device());
+  const core::math::Vec2 cursor{.x = intent.cursor_x, .y = intent.cursor_y};
+
+  if (const int hovered_tab = ui::hovered_row(cursor, layout.tabs); hovered_tab >= 0) {
+    if (intent.cursor_clicked) {
+      switch_settings_tab(state, static_cast<ui::SettingsTab>(hovered_tab));
       return true;
     }
+    if (intent.scroll_y != 0.f) {
+      cycle_settings_tab(state, intent.scroll_y > 0.f ? -1 : 1);
+      return true;
+    }
+  }
 
-    timer.tick(now);
+  if (intent.mouse_moved || intent.cursor_clicked) {
+    if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
+      state.cursor = hovered;
+  }
+  if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0) {
+    const int row_count = ui::settings_row_count(state.tab);
+    state.cursor = wrap_cursor(state.cursor, steps, row_count);
+    ui::settings_scroll_to_cursor(state, row_count, std::min(row_count, ui::k_settings_max_visible_rows));
+  }
+  return false;
+}
 
-    render::stream_world_chunks(*renderer_, render, cfg, scene);
+/// Consume the press captured for a rebind, or cancel it on Back, and clear the capture.
+/// Returns true while the Settings screen is still capturing, so the step is consumed.
+bool update_rebind_capture(Engine &engine) {
+  ui::SettingsState &state = engine.settings_screen;
+  if (!state.rebinding)
+    return false;
 
-    const SimulationResult simulation{run_fixed_steps(*this)};
-    // Portal scene changes are applied at full black by advance_scene_transition(); the
-    // frame_camera_on re-snapshot keeps the render blend from spanning two scenes.
-    advance_scene_transition();
-    render_frame(*this, timer.alpha(), simulation.budget_exhausted);
-    reveal_window();
+  if (const std::optional<input::PhysicalInput> captured = engine.input_mapper.take_captured()) {
+    if (is_cancel_capture(*captured))
+      engine.input_mapper.cancel_capture();
+    else
+      rebind_captured(engine, *captured);
+    state.rebinding = false;
+  }
+  return true;
+}
 
+/// Apply a Left/Right press to the General-tab row under the cursor, or toggle Window Mode on
+/// Activate. Non-volume rows do nothing on Left/Right, and Window Mode only toggles on Activate.
+void edit_general_row(Engine &engine, int cursor, const input::InputIntent &intent) {
+  const auto row = static_cast<ui::SettingsGeneralRow>(cursor);
+  if (intent.navigate_x != 0) {
+    adjust_general_row(engine, row, intent.navigate_x);
+  } else if (intent.activate && row == ui::SettingsGeneralRow::WindowMode) {
+    const bool fullscreen = engine.window().window_mode() == core::WindowMode::Fullscreen;
+    engine.window().set_window_mode(fullscreen ? core::WindowMode::Windowed : core::WindowMode::Fullscreen);
+  }
+}
+
+/// Activate on a Controls row: the Reset row restores the default bindings; an action row
+/// starts capturing its new input.
+void activate_controls_row(Engine &engine, ui::SettingsState &state) {
+  if (state.cursor == ui::k_controls_reset_row) {
+    if (auto result = engine.input_mapper.set_bindings(input::default_bindings()); !result)
+      warn_log("[engine] WARN: could not reset bindings: {}", result.error());
+    return;
+  }
+  engine.input_mapper.begin_capture();
+  state.rebinding = true;
+}
+
+/// Step the Settings screen. While the Controls tab is capturing a rebind, every other
+/// intent is ignored; otherwise Back returns to the menu, TabNext/Prev switch pages, the
+/// cursor edits the focused row, and the pointer can click a tab or a row.
+void update_settings(Engine &engine, const input::InputIntent &intent) {
+  ui::SettingsState &state = engine.settings_screen;
+
+  if (update_rebind_capture(engine))
+    return;
+
+  if (intent.back || engine.input_state.is_pressed(input::Action::Menu)) {
+    engine.scene.ui.pop();
+    save_user_settings(engine);
+    return;
+  }
+
+  if (apply_settings_pointer(engine, state, intent))
+    return;
+
+  if (intent.next_tab || intent.prev_tab) {
+    cycle_settings_tab(state, intent.next_tab ? 1 : -1);
+    return;
+  }
+
+  const int row_count = ui::settings_row_count(state.tab);
+  const int visible_rows = std::min(row_count, ui::k_settings_max_visible_rows);
+  if (intent.navigate_y != 0) {
+    state.cursor = wrap_cursor(state.cursor, intent.navigate_y, row_count);
+    ui::settings_scroll_to_cursor(state, row_count, visible_rows);
+    return;
+  }
+
+  if (state.tab == ui::SettingsTab::General) {
+    edit_general_row(engine, state.cursor, intent);
+  } else if (intent.activate) {
+    activate_controls_row(engine, state);
+  }
+}
+
+/// Upper bound on catch-up work per frame. At 60 Hz this is ~133 ms of catch-up; past it the
+/// simulation sheds the remaining time rather than compounding a backlog.
+constexpr int k_max_steps_per_frame{8};
+
+/// Drain the timer accumulator: run the world step, the registered fixed-step systems and the
+/// on_fixed_update hook, and flush deletions once per fixed step.
+///
+/// Simulation work is intentionally not wrapped — a throw here (allocation failure in an
+/// engine UI screen) is fatal, not recoverable.
+// NOLINTNEXTLINE(bugprone-exception-escape)
+[[nodiscard]] SimulationResult run_fixed_steps(Engine &engine) noexcept {
+  const float pending_time{engine.timer.accumulator};
+  const int steps{engine.timer.take_steps(k_max_steps_per_frame)};
+  const float consumed{static_cast<float>(steps) * engine.timer.target_dt};
+  // take_steps() sheds whatever remains once it hits the cap; that remainder is dropped time.
+  SimulationResult result{
+      .steps_run = steps,
+      .budget_exhausted = steps == k_max_steps_per_frame && pending_time > consumed,
+  };
+
+  for (int step_index = 0; step_index < steps; ++step_index) {
+    engine.screen_transition.update(engine.timer.target_dt);
+    render::snapshot_previous_step(engine.render, engine.scene);
+
+    const input::InputIntent intent = input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
+    // Screen input hooks (the gameplay menu hub) and the engine-owned Menu/Settings screens
+    // own the step while open, which is what pauses the simulation — no world update,
+    // gameplay systems, or on_fixed_update while a screen is up. Call it unconditionally: it
+    // has side effects (opening a screen) even when no screen ends up active. Opening the
+    // pause menu happens here because Esc doubles as Cancel — opening consumes the step so
+    // the same press cannot also close the fresh menu.
+    const bool engine_screen_active = engine.update_engine_screens(intent);
+
+    // Transient UI keeps aging while a screen pauses the simulation, so a toast raised just
+    // before opening a screen still expires instead of freezing on display.
+    engine.toasts.update(engine.timer.target_dt);
+
+    if (!engine_screen_active) {
+      engine.scene.elapsed_time += engine.timer.target_dt;
+
+      // World mode with nothing streamed in has no actors to simulate, but time still advances
+      // and the input edge must still be consumed: poll() only ORs presses in, so a press
+      // latched here would fire the moment the world activates.
+      const auto *world_area = std::get_if<render::WorldArea>(&engine.render.area);
+      if (world_area == nullptr || !world_area->chunks.active_empty()) {
+        const world::MapView map_view = world::build_map_view(engine.render, engine.cfg);
+        world::sync_chunk_actors(engine.content_source(), engine.scene, engine.render, engine.cfg, engine.characters);
+        // Core simulation is intentionally not wrapped: unlike the game seams (dialogue
+        // dispatch, on_fixed_update, map transitions), a throw here is fatal, not recoverable.
+        const ScreenSpec *top_spec = engine.screens.find(engine.scene.mode());
+        const world::WorldStep world_step = top_spec != nullptr ? top_spec->world_step : world::WorldStep::Frozen;
+        world::update(engine.scene, engine.cfg, engine.input_state, map_view, engine.timer.target_dt,
+                      static_cast<float>(engine.window_width()), static_cast<float>(engine.window_height()),
+                      engine.input_mapper.last_device(), world_step);
+      }
+
+      // Registered systems (gameplay's dialogue/event/quest tick) run every step — including
+      // World mode with nothing streamed in — so queued work is never stranded while
+      // elapsed_time advances. They run after world::update and before on_fixed_update.
+      for (const std::function<void(Engine &, float)> &system : engine.fixed_step_systems)
+        system(engine, engine.timer.target_dt);
+
+      invoke_fixed_update_hook(engine, engine.timer.target_dt);
+
+      entities::flush_deletions(engine.scene.world);
+    }
+
+    input::clear_pressed(engine.input_state);
+  }
+
+  return result;
+}
+
+void render_menu(const Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
+  ui::menu_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border, engine.menu, viewport,
+                        engine.input_mapper.last_device());
+}
+
+void render_settings(const Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
+  ui::settings_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border, engine.settings_screen,
+                            settings_values(engine), engine.input_mapper.bindings(), viewport,
+                            engine.input_mapper.last_device());
+}
+
+/// begin_frame → world → layered overlays (HUD, toasts, modals, screens, hub) → debug HUD →
+/// end_frame. The overlay order is fixed; each registered hook gates on its own state.
+// std::format with a literal format string cannot throw at run time, and a throw from the
+// frame path is intentionally fatal (noexcept).
+// NOLINTNEXTLINE(bugprone-exception-escape)
+void render_frame(Engine &engine, const float alpha, const bool budget_exhausted) noexcept {
+  platform::Renderer &r = engine.renderer();
+  if (!r.begin_frame(engine.clear_colour))
+    return;
+
+  const core::math::IntSize window_logical{
+      .width = engine.window_width(),
+      .height = engine.window_height(),
+  };
+  render::render(r, engine.render, engine.cfg, engine.scene, alpha, window_logical);
+
+  const corundum::core::math::Vec2 viewport{
+      .x = static_cast<float>(window_logical.width),
+      .y = static_cast<float>(window_logical.height),
+  };
+  const bool screen_open = !engine.scene.ui.empty();
+  const bool transition_showing = engine.scene.transition_prompt && !engine.scene.transition_prompt->declined();
+
+  // 2. Gameplay HUD, only while nothing is modal.
+  if (!screen_open && !transition_showing)
+    engine.screens.render_layer(RenderLayer::Hud, engine, r, viewport);
+
+  // 3. Engine toasts.
+  engine.toasts.render(r, engine.render.panel_skin.style, viewport);
+
+  // 4a. Engine-owned transition prompt, drawn whenever pending regardless of mode.
+  if (transition_showing) {
+    const std::string_view question =
+        engine.scene.transition_prompt->transition().return_to_world ? "Leave?" : "Enter?";
+    ui::prompt_box_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border, question,
+                          engine.scene.transition_prompt->confirm_selected(), viewport);
+  }
+
+  // 4b. Modal hooks, each gated on its own state and on being the top-of-stack mode
+  // (the dialogue box hides while a screen is pushed over it).
+  engine.screens.render_layer(RenderLayer::Modal, engine, r, viewport);
+
+  // 4c. The top mode's own screen, if it registered a render hook.
+  if (const ScreenSpec *spec = engine.screens.find(engine.scene.mode()); spec != nullptr && spec->render)
+    spec->render(engine, r, viewport);
+
+  // 5. Hub panels, then the hub tab strip.
+  engine.screens.render_layer(RenderLayer::HubPanel, engine, r, viewport);
+  engine.screens.render_layer(RenderLayer::HubStrip, engine, r, viewport);
+
+  // 6. Scene fade, above every screen but below the debug HUD.
+  ui::render_screen_transition(r, engine.screen_transition, viewport);
+
+  // 7. Debug HUD, always last.
+  const debug::OverlayInput hud_input{
+      .render_state = &engine.render,
+      .cfg = &engine.cfg,
+      .scene = &engine.scene,
+      .timer = &engine.timer,
+      .viewport = viewport,
+      .step_budget_exhausted = budget_exhausted,
+  };
+  engine.hud.render(r, hud_input);
+
+  r.end_frame();
+}
+
+} // namespace
+
+void Engine::register_screens() {
+  // Engine-owned screens. They capture nothing and read the Engine& argument.
+  screens.add(world::GameMode::Menu,
+              ScreenSpec{
+                  .owns_step = true,
+                  .update = [](Engine &engine, const input::InputIntent &intent) { update_pause_menu(engine, intent); },
+                  .render = [](Engine &engine, platform::Renderer &r,
+                               core::math::Vec2 viewport) { render_menu(engine, r, viewport); },
+              });
+  screens.add(world::GameMode::Settings,
+              ScreenSpec{
+                  .owns_step = true,
+                  .update = [](Engine &engine, const input::InputIntent &intent) { update_settings(engine, intent); },
+                  .render = [](Engine &engine, platform::Renderer &r,
+                               core::math::Vec2 viewport) { render_settings(engine, r, viewport); },
+              });
+}
+
+bool Engine::update_engine_screens(const input::InputIntent &intent) {
+  // Registered input hooks (the gameplay menu hub) get first refusal and may consume the step
+  // by opening, closing or switching a screen.
+  for (const std::function<bool(Engine &, const input::InputIntent &)> &hook : screen_input_hooks) {
+    if (hook(*this, intent))
+      return true;
+  }
+
+  // The pause menu opens over any screen: Resume pops the single layer it pushed and reveals
+  // whatever was beneath (a hub tab, dialogue, loot or barter). One physical press may raise
+  // both Menu and Cancel (Esc), so with a screen open the press is left to that screen's own
+  // back handling rather than opening the menu and closing it again the same step. From an
+  // empty stack, or over a screen with no back action (ScreenSpec::handles_back, a fight),
+  // nothing would close, so the menu opens. Menu and Settings consume Menu themselves (to
+  // close, or to capture a rebind), so the menu never opens over either.
+  const ScreenSpec *spec = screens.find(scene.mode());
+  const bool menu_pressed = input_state.is_pressed(input::Action::Menu);
+  const bool top_handles_menu = scene.mode() == world::GameMode::Menu || scene.mode() == world::GameMode::Settings;
+  const bool menu_blocked = pause_menu_blocked(*this, scene.mode());
+  const bool back_handled_by_screen = !scene.ui.empty() && intent.back && (spec == nullptr || spec->handles_back);
+  if (menu_pressed && !top_handles_menu && !menu_blocked && !back_handled_by_screen) {
+    scene.ui.push(world::GameMode::Menu);
+    menu.cursor = 0;
     return true;
   }
 
-  void Engine::reveal_window() noexcept {
-    if (window_shown_)
-      return;
-    window_shown_ = true;
-    window_->show();
-    // Enter the configured mode only after the window is visible: glfwSetWindowMonitor on a hidden
-    // window leaves it permanently hidden on macOS, and a later show() cannot recover it.
-    window_->set_window_mode(cfg.window_mode);
+  // Dispatch the top mode's screen. Only a step-owning screen reports the step as taken;
+  // a non-step-owning extension mode (Dialogue) leaves the world step running.
+  if (spec == nullptr || !spec->owns_step) {
+    // No screen owns this step, so a deferred action may run now. Promote it here rather
+    // than in run_fixed_steps() to keep the pending slot private and keep the "only when no
+    // screen owns the step" rule in one place. clear_pressed() at the end of the step drops
+    // it again once every consumer has seen it.
+    if (pending_action_) {
+      input_state.pressed.set(static_cast<std::size_t>(*pending_action_));
+      pending_action_.reset();
+    }
+    return false;
+  }
+  if (spec->update)
+    spec->update(*this, intent);
+  return true;
+}
+
+void Engine::advance_scene_transition() noexcept {
+  // A portal transition is held until the fade covers it, so the map swap is never seen.
+  if (scene.pending_transition && !scene_swap_pending_) {
+    scene_swap_pending_ = true;
+    screen_transition.begin_fade_out();
+  }
+  if (scene_swap_pending_ && screen_transition.at_black()) {
+    scene_swap_pending_ = false;
+    world::handle_map_transition(*this);
+    screen_transition.begin_fade_in();
+  }
+}
+
+void Engine::run_loop() noexcept {
+  // Start the timer unseeded so the first frame adds no time: asset-load time during initialize() is
+  // not replayed as a burst of catch-up fixed steps.
+  timer.prev_time.reset();
+  while (run_frame(std::chrono::steady_clock::now())) {
+  }
+}
+
+void Engine::run() noexcept {
+  run_loop();
+  cleanup();
+}
+
+bool Engine::run_frame(std::chrono::steady_clock::time_point now) noexcept {
+  if (!window_->is_open() || quit_)
+    return false;
+  const core::math::IntSize window_logical = window_->size();
+  window_width_ = window_logical.width;
+  window_height_ = window_logical.height;
+
+  process_input(*this);
+  if (quit_)
+    return false;
+
+  // Every frame, paused or not: music loop restarts are scheduled on the audio engine's clock,
+  // which stops with the device while paused, so the gap never elapses during a pause.
+  audio.update();
+
+  // While paused the timer is deliberately not ticked: wall time spent paused must not
+  // queue catch-up fixed steps. Rendering still runs so a pause menu stays on screen.
+  if (is_paused()) {
+    render_frame(*this, timer.alpha(), /*budget_exhausted=*/false);
+    reveal_window();
+    return true;
   }
 
-  void Engine::pause(PauseReason reason) noexcept {
-    core::verify(reason != PauseReason::Count, "pause: PauseReason::Count is not a reason");
-    const bool was_paused{is_paused()};
-    pause_reasons_[static_cast<std::size_t>(reason)] = true;
-    if (!was_paused)
-      audio.set_paused(true);
-  }
+  timer.tick(now);
 
-  void Engine::resume(PauseReason reason) noexcept {
-    core::verify(reason != PauseReason::Count, "resume: PauseReason::Count is not a reason");
-    const bool was_paused{is_paused()};
-    pause_reasons_[static_cast<std::size_t>(reason)] = false;
-    if (!was_paused || is_paused())
-      return;
+  render::stream_world_chunks(*renderer_, render, cfg, scene);
 
-    audio.set_paused(false);
-    timer.accumulator = 0.f;
-    timer.prev_time.reset();
-    input::clear_pressed(input_state);
-  }
+  const SimulationResult simulation{run_fixed_steps(*this)};
+  // Portal scene changes are applied at full black by advance_scene_transition(); the
+  // frame_camera_on re-snapshot keeps the render blend from spanning two scenes.
+  advance_scene_transition();
+  render_frame(*this, timer.alpha(), simulation.budget_exhausted);
+  reveal_window();
 
-  void Engine::cleanup() noexcept {
-    audio.shutdown();
-    if (window_)
-      window_->close();
-    quit_ = true;
-  }
+  return true;
+}
 
-  void Engine::request_quit() noexcept {
-    quit_ = true;
-  }
+void Engine::reveal_window() noexcept {
+  if (window_shown_)
+    return;
+  window_shown_ = true;
+  window_->show();
+  // Enter the configured mode only after the window is visible: glfwSetWindowMonitor on a hidden
+  // window leaves it permanently hidden on macOS, and a later show() cannot recover it.
+  window_->set_window_mode(cfg.window_mode);
+}
 
-  void Engine::notify(std::string text) {
-    toasts.notify(std::move(text));
-  }
+void Engine::pause(PauseReason reason) noexcept {
+  core::verify(reason != PauseReason::Count, "pause: PauseReason::Count is not a reason");
+  const bool was_paused{is_paused()};
+  pause_reasons_[static_cast<std::size_t>(reason)] = true;
+  if (!was_paused)
+    audio.set_paused(true);
+}
 
-  void Engine::notify(std::string text, core::math::Colour colour) {
-    toasts.notify(std::move(text), colour);
-  }
+void Engine::resume(PauseReason reason) noexcept {
+  core::verify(reason != PauseReason::Count, "resume: PauseReason::Count is not a reason");
+  const bool was_paused{is_paused()};
+  pause_reasons_[static_cast<std::size_t>(reason)] = false;
+  if (!was_paused || is_paused())
+    return;
 
-  void Engine::raise_action_next_step(input::Action action) noexcept {
-    if (static_cast<std::size_t>(action) >= input::k_action_count)
-      return;
-    pending_action_ = action;
-  }
+  audio.set_paused(false);
+  timer.accumulator = 0.f;
+  timer.prev_time.reset();
+  input::clear_pressed(input_state);
+}
 
-  void Engine::toggle_fullscreen() const noexcept {
-    const bool fullscreen{window_->window_mode() == core::WindowMode::Fullscreen};
-    window_->set_window_mode(fullscreen ? core::WindowMode::Windowed : core::WindowMode::Fullscreen);
-  }
+void Engine::cleanup() noexcept {
+  audio.shutdown();
+  if (window_)
+    window_->close();
+  quit_ = true;
+}
+
+void Engine::request_quit() noexcept {
+  quit_ = true;
+}
+
+void Engine::notify(std::string text) {
+  toasts.notify(std::move(text));
+}
+
+void Engine::notify(std::string text, core::math::Colour colour) {
+  toasts.notify(std::move(text), colour);
+}
+
+void Engine::raise_action_next_step(input::Action action) noexcept {
+  if (static_cast<std::size_t>(action) >= input::k_action_count)
+    return;
+  pending_action_ = action;
+}
+
+void Engine::toggle_fullscreen() const noexcept {
+  const bool fullscreen{window_->window_mode() == core::WindowMode::Fullscreen};
+  window_->set_window_mode(fullscreen ? core::WindowMode::Windowed : core::WindowMode::Fullscreen);
+}
 
 } // namespace corundum

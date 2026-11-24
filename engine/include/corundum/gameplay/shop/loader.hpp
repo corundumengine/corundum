@@ -12,29 +12,29 @@
 #include <vector>
 
 namespace corundum::core {
-  class ContentSource;
+class ContentSource;
 }
 
 namespace corundum::gameplay::shop {
 
-  /** @brief Loads shop batch files, validating each against the shop schema compiled once at construction. */
-  class Loader {
-  public:
-    Loader();
+/** @brief Loads shop batch files, validating each against the shop schema compiled once at construction. */
+class Loader {
+public:
+  Loader();
 
-    /** @brief Load one shop batch file (`data/shops/<file>.json`).
-     *
-     *  Expects an object with a `schema_version` and a `shops` array. The whole document is
-     *  validated against the shop schema, so one malformed shop fails the file.
-     *
-     *  @param path Batch file to load.
-     *  @return The loaded shops, or an error describing an open, version, or format failure.
-     */
-    [[nodiscard]] std::expected<std::vector<Shop>, std::string> load(const core::ContentSource &content,
-                                                                     const std::filesystem::path &path) const;
+  /** @brief Load one shop batch file (`data/shops/<file>.json`).
+   *
+   *  Expects an object with a `schema_version` and a `shops` array. The whole document is
+   *  validated against the shop schema, so one malformed shop fails the file.
+   *
+   *  @param path Batch file to load.
+   *  @return The loaded shops, or an error describing an open, version, or format failure.
+   */
+  [[nodiscard]] std::expected<std::vector<Shop>, std::string> load(const core::ContentSource &content,
+                                                                   const std::filesystem::path &path) const;
 
-  private:
-    core::SchemaValidator schema_;
-  };
+private:
+  core::SchemaValidator schema_;
+};
 
 } // namespace corundum::gameplay::shop

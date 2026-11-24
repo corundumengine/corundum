@@ -19,30 +19,30 @@ using corundum::test::disk;
 
 namespace {
 
-  using corundum::sprites::AnimId;
-  using corundum::sprites::k_num_anim_ids;
-  using corundum::test::TileRecordingRenderer;
+using corundum::sprites::AnimId;
+using corundum::sprites::k_num_anim_ids;
+using corundum::test::TileRecordingRenderer;
 
-  corundum::sprites::CharacterRegistry load_fixture_registry() {
-    corundum::sprites::CharacterRegistry registry;
-    REQUIRE(
-        registry.load_all(disk(), std::filesystem::path{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR} / "sprites").has_value());
-    return registry;
-  }
+corundum::sprites::CharacterRegistry load_fixture_registry() {
+  corundum::sprites::CharacterRegistry registry;
+  REQUIRE(
+      registry.load_all(disk(), std::filesystem::path{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR} / "sprites").has_value());
+  return registry;
+}
 
-  /// Calls @p check for every non-empty animation frame of every sprite.
-  template <typename Check>
-  void for_each_animated_frame(const corundum::sprites::CharacterRegistry &registry, const Check &check) {
-    for (const auto &[name, frame] : registry.frames()) {
-      INFO(name);
-      for (uint8_t anim = 0; anim < k_num_anim_ids; ++anim) {
-        if (frame.anim_frames[anim].empty())
-          continue;
-        INFO(anim);
-        check(frame, static_cast<AnimId>(anim));
-      }
+/// Calls @p check for every non-empty animation frame of every sprite.
+template <typename Check>
+void for_each_animated_frame(const corundum::sprites::CharacterRegistry &registry, const Check &check) {
+  for (const auto &[name, frame] : registry.frames()) {
+    INFO(name);
+    for (uint8_t anim = 0; anim < k_num_anim_ids; ++anim) {
+      if (frame.anim_frames[anim].empty())
+        continue;
+      INFO(anim);
+      check(frame, static_cast<AnimId>(anim));
     }
   }
+}
 
 } // namespace
 

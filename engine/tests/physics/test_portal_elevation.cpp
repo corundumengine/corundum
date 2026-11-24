@@ -19,24 +19,24 @@ using corundum::world::tilemap::TilemapLayer;
 
 namespace {
 
-  Tilemap make_flat_map(int w, int h, uint8_t elev) {
-    Tilemap tm;
-    tm.width = w;
-    tm.height = h;
-    TilemapLayer layer;
-    layer.name = "ground";
-    layer.z_index = 0;
-    layer.tiles.assign(static_cast<std::size_t>(w) * static_cast<std::size_t>(h), 1);
-    layer.elevation.assign(static_cast<std::size_t>(w) * static_cast<std::size_t>(h), elev);
-    tm.layers.push_back(std::move(layer));
-    return tm;
-  }
+Tilemap make_flat_map(int w, int h, uint8_t elev) {
+  Tilemap tm;
+  tm.width = w;
+  tm.height = h;
+  TilemapLayer layer;
+  layer.name = "ground";
+  layer.z_index = 0;
+  layer.tiles.assign(static_cast<std::size_t>(w) * static_cast<std::size_t>(h), 1);
+  layer.elevation.assign(static_cast<std::size_t>(w) * static_cast<std::size_t>(h), elev);
+  tm.layers.push_back(std::move(layer));
+  return tm;
+}
 
-  MapView map_with_elevation_map(const Tilemap &tm) {
-    MapView map;
-    map.elevation_map = &tm;
-    return map;
-  }
+MapView map_with_elevation_map(const Tilemap &tm) {
+  MapView map;
+  map.elevation_map = &tm;
+  return map;
+}
 
 } // namespace
 

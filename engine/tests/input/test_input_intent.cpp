@@ -11,17 +11,17 @@
 
 namespace {
 
-  using corundum::input::Action;
-  using corundum::input::InputDevice;
-  using corundum::input::InputIntent;
-  using corundum::input::InputState;
-  using corundum::input::make_input_intent;
+using corundum::input::Action;
+using corundum::input::InputDevice;
+using corundum::input::InputIntent;
+using corundum::input::InputState;
+using corundum::input::make_input_intent;
 
-  InputIntent intent_with(Action action) {
-    InputState state{};
-    state.pressed.set(static_cast<std::size_t>(action));
-    return make_input_intent(state, InputDevice::Keyboard);
-  }
+InputIntent intent_with(Action action) {
+  InputState state{};
+  state.pressed.set(static_cast<std::size_t>(action));
+  return make_input_intent(state, InputDevice::Keyboard);
+}
 
 } // namespace
 

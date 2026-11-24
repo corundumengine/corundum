@@ -13,12 +13,12 @@ namespace ctt = corundum::world::tilemap;
 
 namespace {
 
-  ctt::Tilemap make_2x2_map() {
-    ctt::Tilemap tm;
-    tm.width = 2;
-    tm.height = 2;
-    return tm;
-  }
+ctt::Tilemap make_2x2_map() {
+  ctt::Tilemap tm;
+  tm.width = 2;
+  tm.height = 2;
+  return tm;
+}
 
 } // namespace
 

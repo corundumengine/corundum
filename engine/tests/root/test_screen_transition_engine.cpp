@@ -19,17 +19,17 @@ namespace fs = std::filesystem;
 
 namespace {
 
-  using corundum::test::adopt_platform;
-  using corundum::test::initialize_with_world;
-  using corundum::test::make_world_config;
-  using corundum::test::run_one_step;
-  using corundum::ui::TransitionPhase;
-  using corundum::world::GameMode;
-  using corundum::world::MapTransition;
+using corundum::test::adopt_platform;
+using corundum::test::initialize_with_world;
+using corundum::test::make_world_config;
+using corundum::test::run_one_step;
+using corundum::ui::TransitionPhase;
+using corundum::world::GameMode;
+using corundum::world::MapTransition;
 
-  std::string interior_path(const fs::path &fixtures) {
-    return (fixtures / "tilemaps/interior.json").string();
-  }
+std::string interior_path(const fs::path &fixtures) {
+  return (fixtures / "tilemaps/interior.json").string();
+}
 
 } // namespace
 

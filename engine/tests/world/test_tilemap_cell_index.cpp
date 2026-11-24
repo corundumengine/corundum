@@ -9,15 +9,15 @@
 #include <cstddef>
 
 namespace {
-  struct CellCase {
-    int width{};
+struct CellCase {
+  int width{};
 
-    int col{};
+  int col{};
 
-    int row{};
+  int row{};
 
-    std::size_t expected{};
-  };
+  std::size_t expected{};
+};
 } // namespace
 
 TEST_CASE("cell_index: row-major, width cells per row") {

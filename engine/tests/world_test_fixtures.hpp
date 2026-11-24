@@ -19,56 +19,56 @@
 /// helper is `inline` so the two translation units share one definition.
 namespace corundum::test {
 
-  /// A flat chunk_size x chunk_size tilemap: one tile per cell, elevation 0 everywhere.
-  inline world::tilemap::Tilemap flat_chunk(int chunk_size) {
-    using world::tilemap::Tilemap;
-    using world::tilemap::TilemapLayer;
-    Tilemap tm;
-    tm.width = chunk_size;
-    tm.height = chunk_size;
-    tm.iso_diamond_w = 128;
-    tm.iso_diamond_h = 64;
-    TilemapLayer layer;
-    layer.name = "ground";
-    layer.z_index = 0;
-    layer.tiles.assign(static_cast<std::size_t>(chunk_size) * static_cast<std::size_t>(chunk_size), 1);
-    layer.elevation.assign(static_cast<std::size_t>(chunk_size) * static_cast<std::size_t>(chunk_size), 0);
-    tm.layers.push_back(std::move(layer));
-    return tm;
-  }
+/// A flat chunk_size x chunk_size tilemap: one tile per cell, elevation 0 everywhere.
+inline world::tilemap::Tilemap flat_chunk(int chunk_size) {
+  using world::tilemap::Tilemap;
+  using world::tilemap::TilemapLayer;
+  Tilemap tm;
+  tm.width = chunk_size;
+  tm.height = chunk_size;
+  tm.iso_diamond_w = 128;
+  tm.iso_diamond_h = 64;
+  TilemapLayer layer;
+  layer.name = "ground";
+  layer.z_index = 0;
+  layer.tiles.assign(static_cast<std::size_t>(chunk_size) * static_cast<std::size_t>(chunk_size), 1);
+  layer.elevation.assign(static_cast<std::size_t>(chunk_size) * static_cast<std::size_t>(chunk_size), 0);
+  tm.layers.push_back(std::move(layer));
+  return tm;
+}
 
-  inline render::ChunkEntry make_chunk(int ccol, int crow, world::tilemap::Tilemap tm) {
-    render::ChunkEntry c;
-    c.coord = {.col = ccol, .row = crow};
-    c.tilemap = std::move(tm);
-    return c;
-  }
+inline render::ChunkEntry make_chunk(int ccol, int crow, world::tilemap::Tilemap tm) {
+  render::ChunkEntry c;
+  c.coord = {.col = ccol, .row = crow};
+  c.tilemap = std::move(tm);
+  return c;
+}
 
-  /// World-mode RenderState with a horizontal run of `n` chunks along row 0, starting at (0,0).
-  /// Each chunk's tilemap is produced by `mk(chunk_index)` so tests can inject elevation walls.
-  template <typename Mk> void init_world(render::RenderState &state, int chunk_size, int n, const Mk &mk) {
-    auto &world_area = emplace_world_area(state);
-    world_area.manifest.chunk_size = chunk_size;
-    world_area.manifest.chunks_wide = n + 2;
-    world_area.manifest.chunks_tall = 3;
-    for (int i = 0; i < n; ++i)
-      world_area.chunks.add_active(make_chunk(i, 0, mk(i)));
-    world_area.chunks.set_last_center({.col = 0, .row = 0});
-    render::rebuild_world_aggregates(world_area, /*max_step_height=*/4);
-  }
+/// World-mode RenderState with a horizontal run of `n` chunks along row 0, starting at (0,0).
+/// Each chunk's tilemap is produced by `mk(chunk_index)` so tests can inject elevation walls.
+template <typename Mk> void init_world(render::RenderState &state, int chunk_size, int n, const Mk &mk) {
+  auto &world_area = emplace_world_area(state);
+  world_area.manifest.chunk_size = chunk_size;
+  world_area.manifest.chunks_wide = n + 2;
+  world_area.manifest.chunks_tall = 3;
+  for (int i = 0; i < n; ++i)
+    world_area.chunks.add_active(make_chunk(i, 0, mk(i)));
+  world_area.chunks.set_last_center({.col = 0, .row = 0});
+  render::rebuild_world_aggregates(world_area, /*max_step_height=*/4);
+}
 
-  /// MapView as build_map_view's world branch wires it (minus the iso math the pathfinder
-  /// does not use).
-  inline world::MapView world_map_view(const render::RenderState &state) {
-    const render::WorldArea &world_area = world_area_of(state);
-    world::MapView m;
-    m.collisions = world_area.aggregates.collisions.view();
-    m.collision_triangles = world_area.aggregates.triangles.view();
-    m.walkability = &world_area.aggregates.walkability;
-    m.world_area = &world_area;
-    m.world_w_tiles = static_cast<float>(world_area.manifest.chunks_wide * world_area.manifest.chunk_size);
-    m.world_h_tiles = static_cast<float>(world_area.manifest.chunks_tall * world_area.manifest.chunk_size);
-    return m;
-  }
+/// MapView as build_map_view's world branch wires it (minus the iso math the pathfinder
+/// does not use).
+inline world::MapView world_map_view(const render::RenderState &state) {
+  const render::WorldArea &world_area = world_area_of(state);
+  world::MapView m;
+  m.collisions = world_area.aggregates.collisions.view();
+  m.collision_triangles = world_area.aggregates.triangles.view();
+  m.walkability = &world_area.aggregates.walkability;
+  m.world_area = &world_area;
+  m.world_w_tiles = static_cast<float>(world_area.manifest.chunks_wide * world_area.manifest.chunk_size);
+  m.world_h_tiles = static_cast<float>(world_area.manifest.chunks_tall * world_area.manifest.chunk_size);
+  return m;
+}
 
 } // namespace corundum::test

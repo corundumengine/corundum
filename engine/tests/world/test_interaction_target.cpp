@@ -18,66 +18,66 @@
 
 namespace {
 
-  using corundum::entities::Animation;
-  using corundum::entities::DialogueRef;
-  using corundum::entities::EntityId;
-  using corundum::entities::Position;
-  using corundum::entities::Sprite;
-  using corundum::entities::Velocity;
-  using corundum::input::Action;
-  using corundum::sprites::AnimId;
-  using corundum::sprites::k_null_sprite_id;
+using corundum::entities::Animation;
+using corundum::entities::DialogueRef;
+using corundum::entities::EntityId;
+using corundum::entities::Position;
+using corundum::entities::Sprite;
+using corundum::entities::Velocity;
+using corundum::input::Action;
+using corundum::sprites::AnimId;
+using corundum::sprites::k_null_sprite_id;
 
-  /// A scene with an animated player at (5,5), a flat map, and an interactable NPC at
-  /// (@p npc_col, @p npc_row) unless @p npc_present is false.
-  struct Fixture {
-    corundum::world::Scene scene;
-    corundum::world::MapView map;
-    corundum::core::GameConfig cfg;
-    EntityId player{};
-    EntityId npc{};
-  };
+/// A scene with an animated player at (5,5), a flat map, and an interactable NPC at
+/// (@p npc_col, @p npc_row) unless @p npc_present is false.
+struct Fixture {
+  corundum::world::Scene scene;
+  corundum::world::MapView map;
+  corundum::core::GameConfig cfg;
+  EntityId player{};
+  EntityId npc{};
+};
 
-  void add_player(Fixture &f, const Sprite &sprite, const Velocity &velocity, const Animation &animation) {
-    const Position player_pos{.col = 5.f, .row = 5.f};
-    const std::optional<EntityId> player =
-        corundum::entities::spawn(f.scene.world, player_pos, velocity, sprite, animation);
-    REQUIRE(player.has_value());
-    // NOLINTNEXTLINE(bugprone-unchecked-optional-access): the REQUIRE above guards the deref.
-    f.player = *player;
-    f.scene.player = f.player;
-    f.scene.world.collisions.insert(f.player, 1.f, 1.f);
-  }
+void add_player(Fixture &f, const Sprite &sprite, const Velocity &velocity, const Animation &animation) {
+  const Position player_pos{.col = 5.f, .row = 5.f};
+  const std::optional<EntityId> player =
+      corundum::entities::spawn(f.scene.world, player_pos, velocity, sprite, animation);
+  REQUIRE(player.has_value());
+  // NOLINTNEXTLINE(bugprone-unchecked-optional-access): the REQUIRE above guards the deref.
+  f.player = *player;
+  f.scene.player = f.player;
+  f.scene.world.collisions.insert(f.player, 1.f, 1.f);
+}
 
-  void add_npc(Fixture &f, float npc_col, float npc_row, const Sprite &sprite, const Velocity &velocity) {
-    const Position npc_pos{.col = npc_col, .row = npc_row};
-    const std::optional<EntityId> npc =
-        corundum::entities::spawn(f.scene.world, npc_pos, velocity, sprite, DialogueRef{.graph_id = "npc"});
-    REQUIRE(npc.has_value());
-    // NOLINTNEXTLINE(bugprone-unchecked-optional-access): the REQUIRE above guards the deref.
-    f.npc = *npc;
-  }
+void add_npc(Fixture &f, float npc_col, float npc_row, const Sprite &sprite, const Velocity &velocity) {
+  const Position npc_pos{.col = npc_col, .row = npc_row};
+  const std::optional<EntityId> npc =
+      corundum::entities::spawn(f.scene.world, npc_pos, velocity, sprite, DialogueRef{.graph_id = "npc"});
+  REQUIRE(npc.has_value());
+  // NOLINTNEXTLINE(bugprone-unchecked-optional-access): the REQUIRE above guards the deref.
+  f.npc = *npc;
+}
 
-  Fixture make_fixture(float npc_col = 5.f, float npc_row = 6.f, bool npc_present = true) {
-    const Sprite sprite{.sprite_id = k_null_sprite_id, .anim_id = AnimId::Default, .frame_index = 0};
-    const Velocity velocity{};
-    const Animation animation{};
+Fixture make_fixture(float npc_col = 5.f, float npc_row = 6.f, bool npc_present = true) {
+  const Sprite sprite{.sprite_id = k_null_sprite_id, .anim_id = AnimId::Default, .frame_index = 0};
+  const Velocity velocity{};
+  const Animation animation{};
 
-    Fixture f;
-    add_player(f, sprite, velocity, animation);
-    if (npc_present)
-      add_npc(f, npc_col, npc_row, sprite, velocity);
+  Fixture f;
+  add_player(f, sprite, velocity, animation);
+  if (npc_present)
+    add_npc(f, npc_col, npc_row, sprite, velocity);
 
-    f.map.projection.half_tw = 64.f;
-    f.map.projection.half_th = 32.f;
-    f.map.world_w_tiles = 100.f;
-    f.map.world_h_tiles = 100.f;
-    return f;
-  }
+  f.map.projection.half_tw = 64.f;
+  f.map.projection.half_th = 32.f;
+  f.map.world_w_tiles = 100.f;
+  f.map.world_h_tiles = 100.f;
+  return f;
+}
 
-  void step(Fixture &f, const corundum::input::InputState &input) {
-    corundum::world::update(f.scene, f.cfg, input, f.map, 1.f / 60.f, 320.f, 240.f);
-  }
+void step(Fixture &f, const corundum::input::InputState &input) {
+  corundum::world::update(f.scene, f.cfg, input, f.map, 1.f / 60.f, 320.f, 240.f);
+}
 
 } // namespace
 

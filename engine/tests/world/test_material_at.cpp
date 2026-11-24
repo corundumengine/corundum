@@ -11,21 +11,21 @@ namespace ctt = corundum::world::tilemap;
 
 namespace {
 
-  ctt::TilemapTileset make_tileset(ctt::TileId first_gid, int tile_count, std::string material) {
-    ctt::TilemapTileset ts;
-    ts.first_gid = first_gid;
-    ts.info.tile_count = tile_count;
-    ts.info.material = std::move(material);
-    return ts;
-  }
+ctt::TilemapTileset make_tileset(ctt::TileId first_gid, int tile_count, std::string material) {
+  ctt::TilemapTileset ts;
+  ts.first_gid = first_gid;
+  ts.info.tile_count = tile_count;
+  ts.info.material = std::move(material);
+  return ts;
+}
 
-  ctt::Tilemap make_2x2_map(std::string material = "stone") {
-    ctt::Tilemap tm;
-    tm.width = 2;
-    tm.height = 2;
-    tm.tilesets.push_back(make_tileset(0, 4, std::move(material)));
-    return tm;
-  }
+ctt::Tilemap make_2x2_map(std::string material = "stone") {
+  ctt::Tilemap tm;
+  tm.width = 2;
+  tm.height = 2;
+  tm.tilesets.push_back(make_tileset(0, 4, std::move(material)));
+  return tm;
+}
 
 } // namespace
 

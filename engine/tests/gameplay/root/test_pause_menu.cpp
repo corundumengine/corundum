@@ -39,70 +39,70 @@
 
 namespace {
 
-  using corundum::test::adopt_platform;
-  using corundum::test::gamepad_inputs;
-  using corundum::test::make_world_config;
-  using corundum::test::run_one_step;
-  using corundum::world::GameMode;
-  namespace screens = corundum::gameplay::screens;
+using corundum::test::adopt_platform;
+using corundum::test::gamepad_inputs;
+using corundum::test::make_world_config;
+using corundum::test::run_one_step;
+using corundum::world::GameMode;
+namespace screens = corundum::gameplay::screens;
 
-  /// Route one physical action press through the engine's UI step, exactly as the fixed-step
-  /// loop does. The Menu/Settings screens are stepped by Engine, not world::update, so the
-  /// shared advance_with() helper (which only calls world::update) cannot drive them.
-  bool press(corundum::Engine &engine, corundum::input::Action action) {
-    corundum::input::InputState state{};
-    state.pressed.set(static_cast<std::size_t>(action));
-    engine.input_state = state;
-    const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
-    return engine.update_engine_screens(intent);
-  }
+/// Route one physical action press through the engine's UI step, exactly as the fixed-step
+/// loop does. The Menu/Settings screens are stepped by Engine, not world::update, so the
+/// shared advance_with() helper (which only calls world::update) cannot drive them.
+bool press(corundum::Engine &engine, corundum::input::Action action) {
+  corundum::input::InputState state{};
+  state.pressed.set(static_cast<std::size_t>(action));
+  engine.input_state = state;
+  const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
+  return engine.update_engine_screens(intent);
+}
 
-  /// Route Escape — which the default bindings raise as both Cancel and Menu — through the UI
-  /// step, so an open screen's back handling wins over opening the pause menu on the same press.
-  bool press_escape(corundum::Engine &engine) {
-    corundum::input::InputState state{};
-    state.pressed.set(static_cast<std::size_t>(corundum::input::Action::Cancel));
-    state.pressed.set(static_cast<std::size_t>(corundum::input::Action::Menu));
-    engine.input_state = state;
-    const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
-    return engine.update_engine_screens(intent);
-  }
+/// Route Escape — which the default bindings raise as both Cancel and Menu — through the UI
+/// step, so an open screen's back handling wins over opening the pause menu on the same press.
+bool press_escape(corundum::Engine &engine) {
+  corundum::input::InputState state{};
+  state.pressed.set(static_cast<std::size_t>(corundum::input::Action::Cancel));
+  state.pressed.set(static_cast<std::size_t>(corundum::input::Action::Menu));
+  engine.input_state = state;
+  const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
+  return engine.update_engine_screens(intent);
+}
 
-  corundum::gameplay::dialogue::Graph make_talk_graph() {
-    using namespace corundum::gameplay::dialogue;
-    Graph graph;
-    graph.graph_id = "pause_menu_over_screens";
-    graph.speaker = "NPC";
+corundum::gameplay::dialogue::Graph make_talk_graph() {
+  using namespace corundum::gameplay::dialogue;
+  Graph graph;
+  graph.graph_id = "pause_menu_over_screens";
+  graph.speaker = "NPC";
 
-    Node node;
-    node.id = "n0";
-    node.type = NodeType::Talk;
-    node.text = "Hello";
-    node.next_id = "end";
-    graph.id_to_index[node.id] = graph.nodes.size();
-    graph.nodes.push_back(std::move(node));
-    return graph;
-  }
+  Node node;
+  node.id = "n0";
+  node.type = NodeType::Talk;
+  node.text = "Hello";
+  node.next_id = "end";
+  graph.id_to_index[node.id] = graph.nodes.size();
+  graph.nodes.push_back(std::move(node));
+  return graph;
+}
 
-  void init_engine(corundum::Engine &engine) {
-    adopt_platform(engine, 320, 240);
-    const std::filesystem::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-    REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
-  }
+void init_engine(corundum::Engine &engine) {
+  adopt_platform(engine, 320, 240);
+  const std::filesystem::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+}
 
-  /// Open Menu → Settings on the General tab and return the engine.
-  void open_settings(corundum::Engine &engine) {
-    press(engine, corundum::input::Action::Menu);
-    press(engine, corundum::input::Action::MoveDown); // Resume → Settings
-    press(engine, corundum::input::Action::Select);
-  }
+/// Open Menu → Settings on the General tab and return the engine.
+void open_settings(corundum::Engine &engine) {
+  press(engine, corundum::input::Action::Menu);
+  press(engine, corundum::input::Action::MoveDown); // Resume → Settings
+  press(engine, corundum::input::Action::Select);
+}
 
-  /// Press MoveDown until the Settings cursor reaches General-tab @p row.
-  /// @pre The cursor is at or above @p row.
-  void move_to_general_row(corundum::Engine &engine, corundum::ui::SettingsGeneralRow row) {
-    while (engine.settings_screen.cursor < static_cast<int>(row))
-      press(engine, corundum::input::Action::MoveDown);
-  }
+/// Press MoveDown until the Settings cursor reaches General-tab @p row.
+/// @pre The cursor is at or above @p row.
+void move_to_general_row(corundum::Engine &engine, corundum::ui::SettingsGeneralRow row) {
+  while (engine.settings_screen.cursor < static_cast<int>(row))
+    press(engine, corundum::input::Action::MoveDown);
+}
 
 } // namespace
 
@@ -578,14 +578,14 @@ TEST_CASE("pause menu: Save with no on_fixed_update hook does not crash") {
 
 namespace {
 
-  /// Move the pause-menu cursor onto the Quit row and Activate it.
-  void activate_quit(corundum::Engine &engine) {
-    press(engine, corundum::input::Action::Menu);
-    for (int row = 0; row < corundum::ui::k_menu_command_count - 1; ++row)
-      press(engine, corundum::input::Action::MoveDown);
-    REQUIRE(engine.menu.cursor == corundum::ui::k_menu_command_count - 1);
-    press(engine, corundum::input::Action::Select);
-  }
+/// Move the pause-menu cursor onto the Quit row and Activate it.
+void activate_quit(corundum::Engine &engine) {
+  press(engine, corundum::input::Action::Menu);
+  for (int row = 0; row < corundum::ui::k_menu_command_count - 1; ++row)
+    press(engine, corundum::input::Action::MoveDown);
+  REQUIRE(engine.menu.cursor == corundum::ui::k_menu_command_count - 1);
+  press(engine, corundum::input::Action::Select);
+}
 
 } // namespace
 

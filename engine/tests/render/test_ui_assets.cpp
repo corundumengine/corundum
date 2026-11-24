@@ -21,19 +21,19 @@ using corundum::test::disk;
 
 namespace {
 
-  void write_file(const fs::path &path, std::string_view content) {
-    fs::create_directories(path.parent_path());
-    std::ofstream out(path);
-    out << content;
-  }
+void write_file(const fs::path &path, std::string_view content) {
+  fs::create_directories(path.parent_path());
+  std::ofstream out(path);
+  out << content;
+}
 
-  corundum::test::TempDir temp_dir(std::string_view tag) {
-    return corundum::test::TempDir{"crpg_test_ui_assets_", tag};
-  }
+corundum::test::TempDir temp_dir(std::string_view tag) {
+  return corundum::test::TempDir{"crpg_test_ui_assets_", tag};
+}
 
-  /// A 6×6-frame atlas whose nine-patch cells are 2×2 frames (32px), matching the shipped
-  /// border. The loader must report the cell size (span × frame), not the single-frame size.
-  constexpr std::string_view k_borders_json = R"({
+/// A 6×6-frame atlas whose nine-patch cells are 2×2 frames (32px), matching the shipped
+/// border. The loader must report the cell size (span × frame), not the single-frame size.
+constexpr std::string_view k_borders_json = R"({
     "frame_width": 16,
     "frame_height": 16,
     "path": "assets/textures/ui/border/panel.png",

@@ -23,24 +23,24 @@ using corundum::world::tilemap::TilemapLayer;
 
 namespace {
 
-  constexpr int k_max_step_height = 4;
+constexpr int k_max_step_height = 4;
 
-  Tilemap make_map(int width, int height) {
-    Tilemap tm;
-    tm.width = width;
-    tm.height = height;
-    TilemapLayer layer;
-    layer.name = "ground";
-    layer.z_index = 0;
-    layer.tiles.assign(static_cast<std::size_t>(width * height), 1);
-    layer.elevation.assign(static_cast<std::size_t>(width * height), 0);
-    tm.layers.push_back(std::move(layer));
-    return tm;
-  }
+Tilemap make_map(int width, int height) {
+  Tilemap tm;
+  tm.width = width;
+  tm.height = height;
+  TilemapLayer layer;
+  layer.name = "ground";
+  layer.z_index = 0;
+  layer.tiles.assign(static_cast<std::size_t>(width * height), 1);
+  layer.elevation.assign(static_cast<std::size_t>(width * height), 0);
+  tm.layers.push_back(std::move(layer));
+  return tm;
+}
 
-  void set_elevation(Tilemap &tm, int col, int row, uint8_t elev) {
-    tm.layers[0].elevation[static_cast<std::size_t>(row * tm.width + col)] = elev;
-  }
+void set_elevation(Tilemap &tm, int col, int row, uint8_t elev) {
+  tm.layers[0].elevation[static_cast<std::size_t>(row * tm.width + col)] = elev;
+}
 
 } // namespace
 

@@ -13,33 +13,32 @@
 
 namespace {
 
-  using corundum::gameplay::item::ApparelData;
-  using corundum::gameplay::item::Item;
-  using corundum::gameplay::item::ItemCategory;
-  using corundum::gameplay::item::Registry;
-  using corundum::gameplay::item::WeaponData;
-  using corundum::world::FlagStore;
+using corundum::gameplay::item::ApparelData;
+using corundum::gameplay::item::Item;
+using corundum::gameplay::item::ItemCategory;
+using corundum::gameplay::item::Registry;
+using corundum::gameplay::item::WeaponData;
+using corundum::world::FlagStore;
 
-  /// Two body items (to exercise slot replacement), one weapon, and one misc item.
-  Registry make_items() {
-    Registry items;
-    items.add(Item{
-        .apparel = ApparelData{.defense = 1, .slot = "body"},
-        .category = ItemCategory::Apparel,
-        .id = "leather_armor",
-        .name = "Leather Armor",
-    });
-    items.add(Item{
-        .apparel = ApparelData{.defense = 2, .slot = "body"},
-        .category = ItemCategory::Apparel,
-        .id = "steel_armor",
-        .name = "Steel Armor",
-    });
-    items.add(
-        Item{.category = ItemCategory::Weapon, .id = "sword", .name = "Sword", .weapon = WeaponData{.damage = 3}});
-    items.add(Item{.category = ItemCategory::Misc, .id = "pebble", .name = "Pebble"});
-    return items;
-  }
+/// Two body items (to exercise slot replacement), one weapon, and one misc item.
+Registry make_items() {
+  Registry items;
+  items.add(Item{
+      .apparel = ApparelData{.defense = 1, .slot = "body"},
+      .category = ItemCategory::Apparel,
+      .id = "leather_armor",
+      .name = "Leather Armor",
+  });
+  items.add(Item{
+      .apparel = ApparelData{.defense = 2, .slot = "body"},
+      .category = ItemCategory::Apparel,
+      .id = "steel_armor",
+      .name = "Steel Armor",
+  });
+  items.add(Item{.category = ItemCategory::Weapon, .id = "sword", .name = "Sword", .weapon = WeaponData{.damage = 3}});
+  items.add(Item{.category = ItemCategory::Misc, .id = "pebble", .name = "Pebble"});
+  return items;
+}
 
 } // namespace
 

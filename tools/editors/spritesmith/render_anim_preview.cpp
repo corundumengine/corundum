@@ -15,212 +15,211 @@
 
 namespace tools::spritesmith {
 
-  namespace {
+namespace {
 
-    using corundum::sprites::FrameCoord;
+using corundum::sprites::FrameCoord;
 
-    // Retrieve the active frame sequence (character or sprite sheet mode). Atlas mode is
-    // handled separately since its frames are names, not grid coordinates.
-    std::span<const FrameCoord> active_frames(const EditorState &state) {
-      if (state.mode == SheetMode::Character) {
-        if (state.selected_sprite < 0 || state.selected_sprite >= static_cast<int>(state.sprites.size()))
-          return {};
-        const auto &sp = state.sprites[static_cast<std::size_t>(state.selected_sprite)];
-        return sp.anim_frames[static_cast<int>(state.selected_anim)];
-      }
-      if (state.selected_clip < 0 || state.selected_clip >= static_cast<int>(state.anim_clips.size()))
-        return {};
-      return state.anim_clips[static_cast<std::size_t>(state.selected_clip)].frames;
-    }
+// Retrieve the active frame sequence (character or sprite sheet mode). Atlas mode is
+// handled separately since its frames are names, not grid coordinates.
+std::span<const FrameCoord> active_frames(const EditorState &state) {
+  if (state.mode == SheetMode::Character) {
+    if (state.selected_sprite < 0 || state.selected_sprite >= static_cast<int>(state.sprites.size()))
+      return {};
+    const auto &sp = state.sprites[static_cast<std::size_t>(state.selected_sprite)];
+    return sp.anim_frames[static_cast<int>(state.selected_anim)];
+  }
+  if (state.selected_clip < 0 || state.selected_clip >= static_cast<int>(state.anim_clips.size()))
+    return {};
+  return state.anim_clips[static_cast<std::size_t>(state.selected_clip)].frames;
+}
 
-    float frame_duration(const EditorState &state) {
-      if (state.mode == SheetMode::Atlas) {
-        if (state.selected_atlas_clip < 0 || state.selected_atlas_clip >= static_cast<int>(state.atlas_clips.size()))
-          return 1.f / 8.f;
-        return 1.f / static_cast<float>(
-                         std::max(1, state.atlas_clips[static_cast<std::size_t>(state.selected_atlas_clip)].fps));
-      }
-      if (state.mode == SheetMode::SpriteSheet)
-        return 1.f / static_cast<float>(std::max(1, state.anim_fps));
-      // Character mode: per-sprite fps override, or the engine's default frame duration.
-      constexpr float k_default_character_frame_duration = 0.15f;
-      if (state.selected_sprite >= 0 && state.selected_sprite < static_cast<int>(state.sprites.size())) {
-        const float fps = state.sprites[static_cast<std::size_t>(state.selected_sprite)].fps;
-        if (fps > 0.f)
-          return 1.f / fps;
-      }
-      return k_default_character_frame_duration;
-    }
+float frame_duration(const EditorState &state) {
+  if (state.mode == SheetMode::Atlas) {
+    if (state.selected_atlas_clip < 0 || state.selected_atlas_clip >= static_cast<int>(state.atlas_clips.size()))
+      return 1.f / 8.f;
+    return 1.f /
+           static_cast<float>(std::max(1, state.atlas_clips[static_cast<std::size_t>(state.selected_atlas_clip)].fps));
+  }
+  if (state.mode == SheetMode::SpriteSheet)
+    return 1.f / static_cast<float>(std::max(1, state.anim_fps));
+  // Character mode: per-sprite fps override, or the engine's default frame duration.
+  constexpr float k_default_character_frame_duration = 0.15f;
+  if (state.selected_sprite >= 0 && state.selected_sprite < static_cast<int>(state.sprites.size())) {
+    const float fps = state.sprites[static_cast<std::size_t>(state.selected_sprite)].fps;
+    if (fps > 0.f)
+      return 1.f / fps;
+  }
+  return k_default_character_frame_duration;
+}
 
-    // Resolve the atlas clip's frame names to sprite indices, skipping dangling names.
-    std::vector<int> active_atlas_frame_indices(const EditorState &state) {
-      std::vector<int> indices;
-      if (state.selected_atlas_clip < 0 || state.selected_atlas_clip >= static_cast<int>(state.atlas_clips.size()))
-        return indices;
-      const auto &clip = state.atlas_clips[static_cast<std::size_t>(state.selected_atlas_clip)];
-      indices.reserve(clip.frames.size());
-      for (const auto &name : clip.frames) {
-        auto it = state.atlas_name_to_index.find(name);
-        if (it != state.atlas_name_to_index.end())
-          indices.push_back(it->second);
-      }
-      return indices;
-    }
+// Resolve the atlas clip's frame names to sprite indices, skipping dangling names.
+std::vector<int> active_atlas_frame_indices(const EditorState &state) {
+  std::vector<int> indices;
+  if (state.selected_atlas_clip < 0 || state.selected_atlas_clip >= static_cast<int>(state.atlas_clips.size()))
+    return indices;
+  const auto &clip = state.atlas_clips[static_cast<std::size_t>(state.selected_atlas_clip)];
+  indices.reserve(clip.frames.size());
+  for (const auto &name : clip.frames) {
+    auto it = state.atlas_name_to_index.find(name);
+    if (it != state.atlas_name_to_index.end())
+      indices.push_back(it->second);
+  }
+  return indices;
+}
 
-    // Return {col_span, row_span} for the active selection (1,1 for sprite sheet mode).
-    std::pair<int, int> active_span(const EditorState &state) {
-      if (state.mode == SheetMode::Character && state.selected_sprite >= 0 &&
-          state.selected_sprite < static_cast<int>(state.sprites.size())) {
-        const auto &sp = state.sprites[static_cast<std::size_t>(state.selected_sprite)];
-        return {sp.col_span, sp.row_span};
-      }
-      return {1, 1};
-    }
+// Return {col_span, row_span} for the active selection (1,1 for sprite sheet mode).
+std::pair<int, int> active_span(const EditorState &state) {
+  if (state.mode == SheetMode::Character && state.selected_sprite >= 0 &&
+      state.selected_sprite < static_cast<int>(state.sprites.size())) {
+    const auto &sp = state.sprites[static_cast<std::size_t>(state.selected_sprite)];
+    return {sp.col_span, sp.row_span};
+  }
+  return {1, 1};
+}
 
-    // Return UV rect {u0,v0,u1,v1} covering pixel_w × pixel_h at frame (col,row).
-    std::array<float, 4> frame_uvs(const FrameCoord &fc, const EditorState &state, float tex_w, float tex_h,
-                                   int pixel_w, int pixel_h) {
-      const corundum::sprites::IntPoint origin =
-          corundum::sprites::frame_origin(state.offset_x, state.offset_y, state.frame_width, state.frame_height,
-                                          state.spacing_x, state.spacing_y, fc.col, fc.row);
-      const float px = static_cast<float>(origin.x);
-      const float py = static_cast<float>(origin.y);
-      return {px / tex_w, py / tex_h, (px + static_cast<float>(pixel_w)) / tex_w,
-              (py + static_cast<float>(pixel_h)) / tex_h};
-    }
+// Return UV rect {u0,v0,u1,v1} covering pixel_w × pixel_h at frame (col,row).
+std::array<float, 4> frame_uvs(const FrameCoord &fc, const EditorState &state, float tex_w, float tex_h, int pixel_w,
+                               int pixel_h) {
+  const corundum::sprites::IntPoint origin =
+      corundum::sprites::frame_origin(state.offset_x, state.offset_y, state.frame_width, state.frame_height,
+                                      state.spacing_x, state.spacing_y, fc.col, fc.row);
+  const float px = static_cast<float>(origin.x);
+  const float py = static_cast<float>(origin.y);
+  return {px / tex_w, py / tex_h, (px + static_cast<float>(pixel_w)) / tex_w,
+          (py + static_cast<float>(pixel_h)) / tex_h};
+}
 
-    // Atlas mode: frames are resolved sprite indices, each with its own trim/source-canvas.
-    // The trimmed quad is positioned inside a source_width x source_height virtual canvas so
-    // playback doesn't jitter as trim varies frame to frame.
-    void render_atlas_preview(const EditorState &state, ImTextureID tex, unsigned tex_w, unsigned tex_h,
-                              float dt_seconds) {
-      const auto indices = active_atlas_frame_indices(state);
-      if (indices.empty())
-        return;
+// Atlas mode: frames are resolved sprite indices, each with its own trim/source-canvas.
+// The trimmed quad is positioned inside a source_width x source_height virtual canvas so
+// playback doesn't jitter as trim varies frame to frame.
+void render_atlas_preview(const EditorState &state, ImTextureID tex, unsigned tex_w, unsigned tex_h, float dt_seconds) {
+  const auto indices = active_atlas_frame_indices(state);
+  if (indices.empty())
+    return;
 
-      static float elapsed = 0.f;
-      static int last_clip = -1;
-      if (last_clip != state.selected_atlas_clip) {
-        elapsed = 0.f;
-        last_clip = state.selected_atlas_clip;
-      }
-      elapsed += dt_seconds;
-      const float dur = frame_duration(state);
-      const int total = static_cast<int>(indices.size());
-      const int fi = static_cast<int>(elapsed / dur) % total;
-      const auto &s = state.atlas_sprites[static_cast<std::size_t>(indices[static_cast<std::size_t>(fi)])];
+  static float elapsed = 0.f;
+  static int last_clip = -1;
+  if (last_clip != state.selected_atlas_clip) {
+    elapsed = 0.f;
+    last_clip = state.selected_atlas_clip;
+  }
+  elapsed += dt_seconds;
+  const float dur = frame_duration(state);
+  const int total = static_cast<int>(indices.size());
+  const int fi = static_cast<int>(elapsed / dur) % total;
+  const auto &s = state.atlas_sprites[static_cast<std::size_t>(indices[static_cast<std::size_t>(fi)])];
 
-      const float tw = static_cast<float>(tex_w);
-      const float th = static_cast<float>(tex_h);
-      const float u0 = static_cast<float>(s.x) / tw;
-      const float v0 = static_cast<float>(s.y) / th;
-      const float u1 = static_cast<float>(s.x + s.w) / tw;
-      const float v1 = static_cast<float>(s.y + s.h) / th;
+  const float tw = static_cast<float>(tex_w);
+  const float th = static_cast<float>(tex_h);
+  const float u0 = static_cast<float>(s.x) / tw;
+  const float v0 = static_cast<float>(s.y) / th;
+  const float u1 = static_cast<float>(s.x + s.w) / tw;
+  const float v1 = static_cast<float>(s.y + s.h) / th;
 
-      const int canvas_w = s.source_width > 0 ? s.source_width : s.w;
-      const int canvas_h = s.source_height > 0 ? s.source_height : s.h;
-      const float disp_scale = std::min(200.f / static_cast<float>(canvas_w), 200.f / static_cast<float>(canvas_h));
-      const float disp_canvas_w = static_cast<float>(canvas_w) * disp_scale;
-      const float disp_canvas_h = static_cast<float>(canvas_h) * disp_scale;
-      const float disp_trim_w = static_cast<float>(s.w) * disp_scale;
-      const float disp_trim_h = static_cast<float>(s.h) * disp_scale;
+  const int canvas_w = s.source_width > 0 ? s.source_width : s.w;
+  const int canvas_h = s.source_height > 0 ? s.source_height : s.h;
+  const float disp_scale = std::min(200.f / static_cast<float>(canvas_w), 200.f / static_cast<float>(canvas_h));
+  const float disp_canvas_w = static_cast<float>(canvas_w) * disp_scale;
+  const float disp_canvas_h = static_cast<float>(canvas_h) * disp_scale;
+  const float disp_trim_w = static_cast<float>(s.w) * disp_scale;
+  const float disp_trim_h = static_cast<float>(s.h) * disp_scale;
 
-      ImGui::Text("Frame %d / %d  (%s)", fi + 1, total, s.name.c_str());
-      ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (ImGui::GetContentRegionAvail().x - disp_canvas_w) * 0.5f);
-      const ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
-      ImGui::Dummy({disp_canvas_w, disp_canvas_h});
+  ImGui::Text("Frame %d / %d  (%s)", fi + 1, total, s.name.c_str());
+  ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (ImGui::GetContentRegionAvail().x - disp_canvas_w) * 0.5f);
+  const ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
+  ImGui::Dummy({disp_canvas_w, disp_canvas_h});
 
+  ImDrawList *dl = ImGui::GetWindowDrawList();
+  const ImVec2 img_p0 = {canvas_pos.x + static_cast<float>(s.trim_x) * disp_scale,
+                         canvas_pos.y + static_cast<float>(s.trim_y) * disp_scale};
+  const ImVec2 img_p1 = {img_p0.x + disp_trim_w, img_p0.y + disp_trim_h};
+  dl->AddImage(tex, img_p0, img_p1, {u0, v0}, {u1, v1});
+}
+
+} // namespace
+
+void render_anim_preview(const EditorState &state, ImTextureID tex, unsigned tex_w, unsigned tex_h, bool has_texture,
+                         float dt_seconds) {
+  if (!has_texture)
+    return;
+
+  if (state.mode == SheetMode::Atlas) {
+    render_atlas_preview(state, tex, tex_w, tex_h, dt_seconds);
+    return;
+  }
+
+  const auto frames = active_frames(state);
+  if (frames.empty())
+    return;
+
+  static float elapsed = 0.f;
+  elapsed += dt_seconds;
+  const float dur = frame_duration(state);
+  const int total = static_cast<int>(frames.size());
+  const int fi = static_cast<int>(elapsed / dur) % total;
+  const auto &fc = frames[fi];
+
+  const auto [col_span, row_span] = active_span(state);
+  const int pixel_w = corundum::sprites::rendered_frame_width(col_span, state.frame_width, state.spacing_x);
+  const int pixel_h = corundum::sprites::rendered_frame_height(row_span, state.frame_height, state.spacing_y);
+
+  const float tw = static_cast<float>(tex_w);
+  const float th = static_cast<float>(tex_h);
+  const auto uvs = frame_uvs(fc, state, tw, th, pixel_w, pixel_h);
+
+  // Display at 4× native size, capped to 200 px per axis.
+  const float disp_w = std::min(static_cast<float>(pixel_w) * 4.f, 200.f);
+  const float disp_h = std::min(static_cast<float>(pixel_h) * 4.f, 200.f);
+
+  ImGui::Text("Frame %d / %d  (%d, %d)", fi + 1, total, fc.col, fc.row);
+  ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (ImGui::GetContentRegionAvail().x - disp_w) * 0.5f);
+  const ImVec2 img_pos = ImGui::GetCursorScreenPos();
+  ImGui::Image(tex, {disp_w, disp_h}, {uvs[0], uvs[1]}, {uvs[2], uvs[3]});
+
+  if (state.mode == SheetMode::Character && state.selected_sprite >= 0 &&
+      state.selected_sprite < static_cast<int>(state.sprites.size())) {
+    const auto &sp = state.sprites[static_cast<std::size_t>(state.selected_sprite)];
+
+    // Feet-anchor line: shows exactly where walk_around_offset places the ground-contact
+    // point at runtime (render_system.cpp: py = ey - walk_offset * entry.src.height * scale,
+    // where entry.src.height is the FULL rendered frame, not the collision box). Always
+    // drawn — independent of "Show collision box" — since this is what the slider actually
+    // controls regardless of whether a collision box is set.
+    {
+      const float anchor_y = img_pos.y + disp_h * sp.walk_around_offset;
       ImDrawList *dl = ImGui::GetWindowDrawList();
-      const ImVec2 img_p0 = {canvas_pos.x + static_cast<float>(s.trim_x) * disp_scale,
-                             canvas_pos.y + static_cast<float>(s.trim_y) * disp_scale};
-      const ImVec2 img_p1 = {img_p0.x + disp_trim_w, img_p0.y + disp_trim_h};
-      dl->AddImage(tex, img_p0, img_p1, {u0, v0}, {u1, v1});
+      dl->AddLine({img_pos.x, anchor_y}, {img_pos.x + disp_w, anchor_y}, IM_COL32(80, 255, 80, 220), 2.f);
+      dl->AddText({img_pos.x + 2.f, anchor_y - 14.f}, IM_COL32(80, 255, 80, 220), "feet");
     }
 
-  } // namespace
+    if (state.show_collision_box) {
+      // Per-axis display scale: the sprite is stretched to (disp_w, disp_h), so a ground
+      // shape has to be stretched the same way to stay comparable with the art.
+      const float scale_x = disp_w / static_cast<float>(pixel_w);
+      const float scale_y = disp_h / static_cast<float>(pixel_h);
+      const float half_tw = static_cast<float>(state.tile_diamond_w) * 0.5f;
+      const float half_th = static_cast<float>(state.tile_diamond_h) * 0.5f;
+      const ImVec2 anchor{img_pos.x + (disp_w * 0.5f), img_pos.y + (disp_h * sp.walk_around_offset)};
+      ImDrawList *dl = ImGui::GetWindowDrawList();
 
-  void render_anim_preview(const EditorState &state, ImTextureID tex, unsigned tex_w, unsigned tex_h, bool has_texture,
-                           float dt_seconds) {
-    if (!has_texture)
-      return;
-
-    if (state.mode == SheetMode::Atlas) {
-      render_atlas_preview(state, tex, tex_w, tex_h, dt_seconds);
-      return;
-    }
-
-    const auto frames = active_frames(state);
-    if (frames.empty())
-      return;
-
-    static float elapsed = 0.f;
-    elapsed += dt_seconds;
-    const float dur = frame_duration(state);
-    const int total = static_cast<int>(frames.size());
-    const int fi = static_cast<int>(elapsed / dur) % total;
-    const auto &fc = frames[fi];
-
-    const auto [col_span, row_span] = active_span(state);
-    const int pixel_w = corundum::sprites::rendered_frame_width(col_span, state.frame_width, state.spacing_x);
-    const int pixel_h = corundum::sprites::rendered_frame_height(row_span, state.frame_height, state.spacing_y);
-
-    const float tw = static_cast<float>(tex_w);
-    const float th = static_cast<float>(tex_h);
-    const auto uvs = frame_uvs(fc, state, tw, th, pixel_w, pixel_h);
-
-    // Display at 4× native size, capped to 200 px per axis.
-    const float disp_w = std::min(static_cast<float>(pixel_w) * 4.f, 200.f);
-    const float disp_h = std::min(static_cast<float>(pixel_h) * 4.f, 200.f);
-
-    ImGui::Text("Frame %d / %d  (%d, %d)", fi + 1, total, fc.col, fc.row);
-    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (ImGui::GetContentRegionAvail().x - disp_w) * 0.5f);
-    const ImVec2 img_pos = ImGui::GetCursorScreenPos();
-    ImGui::Image(tex, {disp_w, disp_h}, {uvs[0], uvs[1]}, {uvs[2], uvs[3]});
-
-    if (state.mode == SheetMode::Character && state.selected_sprite >= 0 &&
-        state.selected_sprite < static_cast<int>(state.sprites.size())) {
-      const auto &sp = state.sprites[static_cast<std::size_t>(state.selected_sprite)];
-
-      // Feet-anchor line: shows exactly where walk_around_offset places the ground-contact
-      // point at runtime (render_system.cpp: py = ey - walk_offset * entry.src.height * scale,
-      // where entry.src.height is the FULL rendered frame, not the collision box). Always
-      // drawn — independent of "Show collision box" — since this is what the slider actually
-      // controls regardless of whether a collision box is set.
-      {
-        const float anchor_y = img_pos.y + disp_h * sp.walk_around_offset;
-        ImDrawList *dl = ImGui::GetWindowDrawList();
-        dl->AddLine({img_pos.x, anchor_y}, {img_pos.x + disp_w, anchor_y}, IM_COL32(80, 255, 80, 220), 2.f);
-        dl->AddText({img_pos.x + 2.f, anchor_y - 14.f}, IM_COL32(80, 255, 80, 220), "feet");
-      }
-
-      if (state.show_collision_box) {
-        // Per-axis display scale: the sprite is stretched to (disp_w, disp_h), so a ground
-        // shape has to be stretched the same way to stay comparable with the art.
-        const float scale_x = disp_w / static_cast<float>(pixel_w);
-        const float scale_y = disp_h / static_cast<float>(pixel_h);
-        const float half_tw = static_cast<float>(state.tile_diamond_w) * 0.5f;
-        const float half_th = static_cast<float>(state.tile_diamond_h) * 0.5f;
-        const ImVec2 anchor{img_pos.x + (disp_w * 0.5f), img_pos.y + (disp_h * sp.walk_around_offset)};
-        ImDrawList *dl = ImGui::GetWindowDrawList();
-
-        // A grid rectangle projects to a parallelogram — a symmetric diamond only when its col
-        // and row spans match — so trace the four corners as offsets (±c/2, ±r/2) from the feet
-        // anchor, projected the way the runtime projects the same rect. Sprite pixels are world
-        // pixels, so this lands on the art at the size the game will use.
-        const auto ground_rect = [&](float col_span, float row_span, ImU32 colour, float thickness) {
-          const auto at = [&](float dc, float dr) {
-            return ImVec2{anchor.x + ((dc - dr) * half_tw * scale_x), anchor.y + ((dc + dr) * half_th * scale_y)};
-          };
-          const float half_c = col_span * 0.5f;
-          const float half_r = row_span * 0.5f;
-          dl->AddQuad(at(-half_c, -half_r), at(half_c, -half_r), at(half_c, half_r), at(-half_c, half_r), colour,
-                      thickness);
+      // A grid rectangle projects to a parallelogram — a symmetric diamond only when its col
+      // and row spans match — so trace the four corners as offsets (±c/2, ±r/2) from the feet
+      // anchor, projected the way the runtime projects the same rect. Sprite pixels are world
+      // pixels, so this lands on the art at the size the game will use.
+      const auto ground_rect = [&](float col_span, float row_span, ImU32 colour, float thickness) {
+        const auto at = [&](float dc, float dr) {
+          return ImVec2{anchor.x + ((dc - dr) * half_tw * scale_x), anchor.y + ((dc + dr) * half_th * scale_y)};
         };
+        const float half_c = col_span * 0.5f;
+        const float half_r = row_span * 0.5f;
+        dl->AddQuad(at(-half_c, -half_r), at(half_c, -half_r), at(half_c, half_r), at(-half_c, half_r), colour,
+                    thickness);
+      };
 
-        ground_rect(1.f, 1.f, IM_COL32(120, 120, 140, 150), 1.f); // one tile, for scale
-        ground_rect(sp.footprint_col_span, sp.footprint_row_span, IM_COL32(255, 80, 80, 220), 1.5f);
-      }
+      ground_rect(1.f, 1.f, IM_COL32(120, 120, 140, 150), 1.f); // one tile, for scale
+      ground_rect(sp.footprint_col_span, sp.footprint_row_span, IM_COL32(255, 80, 80, 220), 1.5f);
     }
   }
+}
 
 } // namespace tools::spritesmith

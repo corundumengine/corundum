@@ -11,11 +11,11 @@ using corundum::core::time::LoopTimer;
 
 namespace {
 
-  constexpr float k_fps = 60.f;
-  constexpr float k_hitch_cap_seconds = 0.25f;
+constexpr float k_fps = 60.f;
+constexpr float k_hitch_cap_seconds = 0.25f;
 
-  // An arbitrary steady-clock reading; only differences from it matter.
-  constexpr std::chrono::steady_clock::time_point k_start{std::chrono::seconds{100}};
+// An arbitrary steady-clock reading; only differences from it matter.
+constexpr std::chrono::steady_clock::time_point k_start{std::chrono::seconds{100}};
 
 } // namespace
 

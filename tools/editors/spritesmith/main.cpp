@@ -39,45 +39,45 @@ using tools::spritesmith::EditorState;
 
 namespace {
 
-  void try_load_texture(corundum::toolkit::host::ToolHost &host, EditorState &state,
-                        corundum::platform::TextureInfo &texture, std::string &loaded_path) {
-    if (state.image_path.empty())
-      return;
-    if (!loaded_path.empty())
-      host.textures().destroy(texture.id);
-    auto result = host.textures().load(state.image_path);
-    if (!result) {
-      std::println(stderr, "[Spritesmith] Cannot load image: {}", result.error());
-      loaded_path.clear();
-      return;
-    }
-    texture = *result;
-    if (texture.width == 0) {
-      std::println(stderr, "[Spritesmith] Cannot load image: {}", state.image_path);
-      loaded_path.clear();
-      return;
-    }
-    loaded_path = state.image_path;
-    state.image_pixel_w = static_cast<int>(texture.width);
-    state.image_pixel_h = static_cast<int>(texture.height);
-
-    if (state.mode == tools::spritesmith::SheetMode::SpriteSheet && state.columns == 0 && state.frame_width > 0) {
-      const int step_x = state.frame_width + state.spacing_x;
-      const int step_y = state.frame_height + state.spacing_y;
-      state.columns = (state.image_pixel_w - state.offset_x + state.spacing_x) / step_x;
-      state.rows = (state.image_pixel_h - state.offset_y + state.spacing_y) / step_y;
-    }
+void try_load_texture(corundum::toolkit::host::ToolHost &host, EditorState &state,
+                      corundum::platform::TextureInfo &texture, std::string &loaded_path) {
+  if (state.image_path.empty())
+    return;
+  if (!loaded_path.empty())
+    host.textures().destroy(texture.id);
+  auto result = host.textures().load(state.image_path);
+  if (!result) {
+    std::println(stderr, "[Spritesmith] Cannot load image: {}", result.error());
+    loaded_path.clear();
+    return;
   }
-
-  void do_open(corundum::toolkit::host::ToolHost &host, EditorState &state, const std::filesystem::path &path) {
-    try {
-      tools::spritesmith::load_sheet(state, path);
-      state.dirty = false;
-      host.set_title("Spritesmith :: " + path.filename().string());
-    } catch (const std::exception &e) {
-      std::println(stderr, "[Spritesmith] Failed to open {}: {}", path.string(), e.what());
-    }
+  texture = *result;
+  if (texture.width == 0) {
+    std::println(stderr, "[Spritesmith] Cannot load image: {}", state.image_path);
+    loaded_path.clear();
+    return;
   }
+  loaded_path = state.image_path;
+  state.image_pixel_w = static_cast<int>(texture.width);
+  state.image_pixel_h = static_cast<int>(texture.height);
+
+  if (state.mode == tools::spritesmith::SheetMode::SpriteSheet && state.columns == 0 && state.frame_width > 0) {
+    const int step_x = state.frame_width + state.spacing_x;
+    const int step_y = state.frame_height + state.spacing_y;
+    state.columns = (state.image_pixel_w - state.offset_x + state.spacing_x) / step_x;
+    state.rows = (state.image_pixel_h - state.offset_y + state.spacing_y) / step_y;
+  }
+}
+
+void do_open(corundum::toolkit::host::ToolHost &host, EditorState &state, const std::filesystem::path &path) {
+  try {
+    tools::spritesmith::load_sheet(state, path);
+    state.dirty = false;
+    host.set_title("Spritesmith :: " + path.filename().string());
+  } catch (const std::exception &e) {
+    std::println(stderr, "[Spritesmith] Failed to open {}: {}", path.string(), e.what());
+  }
+}
 
 } // namespace
 

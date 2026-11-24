@@ -15,87 +15,87 @@
 
 namespace corundum::input {
 
-  /** @brief One physical input driving one Action. */
-  struct Binding {
-    Action action{};
+/** @brief One physical input driving one Action. */
+struct Binding {
+  Action action{};
 
-    PhysicalInput input{};
+  PhysicalInput input{};
 
-    friend bool operator==(const Binding &, const Binding &) = default;
-  };
+  friend bool operator==(const Binding &, const Binding &) = default;
+};
 
-  /** @brief Ordered binding table.
-   *
-   *  Row order is display order among an action's inputs. One input may appear in several rows and
-   *  then drives every action it is bound to; bind(), rebind() and bind_swapping() each leave the
-   *  input they bind on one action only, and the Controls menu uses bind_swapping().
-   */
-  using Bindings = std::vector<Binding>;
+/** @brief Ordered binding table.
+ *
+ *  Row order is display order among an action's inputs. One input may appear in several rows and
+ *  then drives every action it is bound to; bind(), rebind() and bind_swapping() each leave the
+ *  input they bind on one action only, and the Controls menu uses bind_swapping().
+ */
+using Bindings = std::vector<Binding>;
 
-  /** @brief The engine's default desktop bindings. */
-  [[nodiscard]] Bindings default_bindings();
+/** @brief The engine's default desktop bindings. */
+[[nodiscard]] Bindings default_bindings();
 
-  /** @brief Stable JSON name of @p action: its enumerator spelling ("MoveUp", "ZoomIn"). */
-  [[nodiscard]] std::string_view action_name(Action action) noexcept;
+/** @brief Stable JSON name of @p action: its enumerator spelling ("MoveUp", "ZoomIn"). */
+[[nodiscard]] std::string_view action_name(Action action) noexcept;
 
-  /** @brief Inverse of action_name(); nullopt for an unknown name or "Count". */
-  [[nodiscard]] std::optional<Action> parse_action(std::string_view name) noexcept;
+/** @brief Inverse of action_name(); nullopt for an unknown name or "Count". */
+[[nodiscard]] std::optional<Action> parse_action(std::string_view name) noexcept;
 
-  /** @brief Inputs bound to @p action, in row order. */
-  [[nodiscard]] std::vector<PhysicalInput> inputs_for(const Bindings &bindings, Action action);
+/** @brief Inputs bound to @p action, in row order. */
+[[nodiscard]] std::vector<PhysicalInput> inputs_for(const Bindings &bindings, Action action);
 
-  /** @brief Bind @p input to @p action as a new last row.
-   *
-   *  @post @p input drives only @p action: every other row holding it is removed first.
-   */
-  void bind(Bindings &bindings, Action action, PhysicalInput input);
+/** @brief Bind @p input to @p action as a new last row.
+ *
+ *  @post @p input drives only @p action: every other row holding it is removed first.
+ */
+void bind(Bindings &bindings, Action action, PhysicalInput input);
 
-  /** @brief Replace @p from with @p to in @p action's row, keeping the row's position.
-   *
-   *  Appends a row instead when @p action has no @p from row.
-   *
-   *  @post @p to drives only @p action.
-   */
-  void rebind(Bindings &bindings, Action action, PhysicalInput from, PhysicalInput to);
+/** @brief Replace @p from with @p to in @p action's row, keeping the row's position.
+ *
+ *  Appends a row instead when @p action has no @p from row.
+ *
+ *  @post @p to drives only @p action.
+ */
+void rebind(Bindings &bindings, Action action, PhysicalInput from, PhysicalInput to);
 
-  /** @brief Remove the row binding @p input to @p action, if any. */
-  void unbind(Bindings &bindings, Action action, PhysicalInput input);
+/** @brief Remove the row binding @p input to @p action, if any. */
+void unbind(Bindings &bindings, Action action, PhysicalInput input);
 
-  /** @brief Make @p input @p action's only binding on its device, swapping it out of other actions.
-   *
-   *  Removes all of @p action's other rows on @p input's device (a Controls rebind replaces the
-   *  action's binding on that device) and every other action's row holding
-   *  @p input. Each action left with no binding on that device then gets @p action's first other
-   *  input on that device in row order, so a rebind never strands the action it takes the input
-   *  from: rebinding Cancel from gamepad B to A gives Select and Activate B. @p action's further
-   *  inputs on that device (MoveUp's Up when it also had W) are dropped, not redistributed. When
-   *  @p action had no other input on that device, the losing actions are left without one.
-   *
-   *  @post @p input drives only @p action, and @p action has no other row on @p input's device.
-   */
-  void bind_swapping(Bindings &bindings, Action action, PhysicalInput input);
+/** @brief Make @p input @p action's only binding on its device, swapping it out of other actions.
+ *
+ *  Removes all of @p action's other rows on @p input's device (a Controls rebind replaces the
+ *  action's binding on that device) and every other action's row holding
+ *  @p input. Each action left with no binding on that device then gets @p action's first other
+ *  input on that device in row order, so a rebind never strands the action it takes the input
+ *  from: rebinding Cancel from gamepad B to A gives Select and Activate B. @p action's further
+ *  inputs on that device (MoveUp's Up when it also had W) are dropped, not redistributed. When
+ *  @p action had no other input on that device, the losing actions are left without one.
+ *
+ *  @post @p input drives only @p action, and @p action has no other row on @p input's device.
+ */
+void bind_swapping(Bindings &bindings, Action action, PhysicalInput input);
 
-  /** @brief JSON array of {"action", "device", "input"} objects, in row order. */
-  [[nodiscard]] nlohmann::json serialize(const Bindings &bindings);
+/** @brief JSON array of {"action", "device", "input"} objects, in row order. */
+[[nodiscard]] nlohmann::json serialize(const Bindings &bindings);
 
-  /** @brief Parse a serialize() array, filling gaps from @p defaults.
-   *
-   *  A missing default row is restored so a newly added Action works with an older file. A plain
-   *  default is only restored for an action with no rows at all, so a deliberate partial unbind
-   *  survives a load. An input the defaults themselves share across actions (Escape = Cancel +
-   *  Menu; Enter/Space/left mouse/A = Select + Activate) is restored for any device the action has
-   *  no bindings on, since that overlap is intentional rather than a conflict, unless the file
-   *  binds that input to an action the defaults don't give it to.
-   *
-   *  The consequence is that "this action has no inputs" cannot be persisted: an action the player
-   *  fully unbound comes back with its defaults on the next load. A controls menu should therefore
-   *  forbid emptying an action, or accept this behaviour. Exact duplicate rows collapse to one.
-   *
-   *  @return The table, or an error naming the offending entry's index when @p array is not an
-   *          array, an entry is malformed, or its action, device or input name is unknown. Also an
-   *          error when the result exceeds k_max_input_sources rows.
-   */
-  [[nodiscard]] std::expected<Bindings, std::string> parse_bindings(const nlohmann::json &array,
-                                                                    const Bindings &defaults);
+/** @brief Parse a serialize() array, filling gaps from @p defaults.
+ *
+ *  A missing default row is restored so a newly added Action works with an older file. A plain
+ *  default is only restored for an action with no rows at all, so a deliberate partial unbind
+ *  survives a load. An input the defaults themselves share across actions (Escape = Cancel +
+ *  Menu; Enter/Space/left mouse/A = Select + Activate) is restored for any device the action has
+ *  no bindings on, since that overlap is intentional rather than a conflict, unless the file
+ *  binds that input to an action the defaults don't give it to.
+ *
+ *  The consequence is that "this action has no inputs" cannot be persisted: an action the player
+ *  fully unbound comes back with its defaults on the next load. A controls menu should therefore
+ *  forbid emptying an action, or accept this behaviour. Exact duplicate rows collapse to one.
+ *
+ *  @return The table, or an error naming the offending entry's index when @p array is not an
+ *          array, an entry is malformed, or its action, device or input name is unknown. Also an
+ *          error when the result exceeds k_max_input_sources rows.
+ */
+[[nodiscard]] std::expected<Bindings, std::string> parse_bindings(const nlohmann::json &array,
+                                                                  const Bindings &defaults);
 
 } // namespace corundum::input

@@ -24,46 +24,46 @@
 
 namespace {
 
-  using corundum::platform::FontId;
+using corundum::platform::FontId;
 
-  corundum::gameplay::dialogue::Graph make_talk_graph(std::string text) {
-    using namespace corundum::gameplay::dialogue;
-    Graph g;
-    g.graph_id = "reveal_test";
-    g.speaker = "NPC";
+corundum::gameplay::dialogue::Graph make_talk_graph(std::string text) {
+  using namespace corundum::gameplay::dialogue;
+  Graph g;
+  g.graph_id = "reveal_test";
+  g.speaker = "NPC";
 
-    Node first;
-    first.id = "n0";
-    first.type = NodeType::Talk;
-    first.text = std::move(text);
-    first.next_id = "n1";
-    g.id_to_index[first.id] = g.nodes.size();
-    g.nodes.push_back(std::move(first));
+  Node first;
+  first.id = "n0";
+  first.type = NodeType::Talk;
+  first.text = std::move(text);
+  first.next_id = "n1";
+  g.id_to_index[first.id] = g.nodes.size();
+  g.nodes.push_back(std::move(first));
 
-    Node second;
-    second.id = "n1";
-    second.type = NodeType::Talk;
-    second.text = "Second";
-    g.id_to_index[second.id] = g.nodes.size();
-    g.nodes.push_back(std::move(second));
-    return g;
+  Node second;
+  second.id = "n1";
+  second.type = NodeType::Talk;
+  second.text = "Second";
+  g.id_to_index[second.id] = g.nodes.size();
+  g.nodes.push_back(std::move(second));
+  return g;
+}
+
+bool contains_text(const corundum::test::RecordingRenderer &r, std::string_view needle) {
+  for (const auto &call : r.log) {
+    if (const auto *text = std::get_if<corundum::platform::DrawText>(&call); text != nullptr && text->text == needle)
+      return true;
   }
+  return false;
+}
 
-  bool contains_text(const corundum::test::RecordingRenderer &r, std::string_view needle) {
-    for (const auto &call : r.log) {
-      if (const auto *text = std::get_if<corundum::platform::DrawText>(&call); text != nullptr && text->text == needle)
-        return true;
-    }
-    return false;
+const corundum::platform::DrawText *find_text(const corundum::test::RecordingRenderer &r, std::string_view needle) {
+  for (const auto &call : r.log) {
+    if (const auto *text = std::get_if<corundum::platform::DrawText>(&call); text != nullptr && text->text == needle)
+      return text;
   }
-
-  const corundum::platform::DrawText *find_text(const corundum::test::RecordingRenderer &r, std::string_view needle) {
-    for (const auto &call : r.log) {
-      if (const auto *text = std::get_if<corundum::platform::DrawText>(&call); text != nullptr && text->text == needle)
-        return text;
-    }
-    return nullptr;
-  }
+  return nullptr;
+}
 
 } // namespace
 

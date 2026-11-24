@@ -13,57 +13,57 @@
 #include <string_view>
 
 namespace corundum::platform {
-  class GpuContext;
+class GpuContext;
 }
 
 namespace corundum::toolkit::host {
 
-  /// Parameters for ToolHost creation.
-  struct ToolHostDesc {
-    int width;
-    int height;
-    std::string_view title;
-  };
+/// Parameters for ToolHost creation.
+struct ToolHostDesc {
+  int width;
+  int height;
+  std::string_view title;
+};
 
-  /// RAII host owning the window, GPU context, texture cache, and ImGui/sokol_imgui lifecycle.
-  /// Replaces the old ToolApp with engine APIs (create_window, GpuContext, TextureCache).
-  class ToolHost {
-  public:
-    [[nodiscard]] static std::expected<std::unique_ptr<ToolHost>, std::string> create(const ToolHostDesc &desc);
-    ~ToolHost();
+/// RAII host owning the window, GPU context, texture cache, and ImGui/sokol_imgui lifecycle.
+/// Replaces the old ToolApp with engine APIs (create_window, GpuContext, TextureCache).
+class ToolHost {
+public:
+  [[nodiscard]] static std::expected<std::unique_ptr<ToolHost>, std::string> create(const ToolHostDesc &desc);
+  ~ToolHost();
 
-    ToolHost(const ToolHost &) = delete;
-    ToolHost &operator=(const ToolHost &) = delete;
-    ToolHost(ToolHost &&) = delete;
-    ToolHost &operator=(ToolHost &&) = delete;
+  ToolHost(const ToolHost &) = delete;
+  ToolHost &operator=(const ToolHost &) = delete;
+  ToolHost(ToolHost &&) = delete;
+  ToolHost &operator=(ToolHost &&) = delete;
 
-    /// Run the main loop, calling @p frame_fn each frame after ImGui new frame.
-    void run(const std::function<void()> &frame_fn);
+  /// Run the main loop, calling @p frame_fn each frame after ImGui new frame.
+  void run(const std::function<void()> &frame_fn);
 
-    /// Request that the main loop exit after the current frame.
-    void request_close();
+  /// Request that the main loop exit after the current frame.
+  void request_close();
 
-    /// Set the OS window title.
-    void set_title(std::string_view title);
+  /// Set the OS window title.
+  void set_title(std::string_view title);
 
-    /// Access the platform window.
-    [[nodiscard]] platform::Window &window();
+  /// Access the platform window.
+  [[nodiscard]] platform::Window &window();
 
-    /// Access the texture cache.
-    [[nodiscard]] platform::TextureCache &textures();
+  /// Access the texture cache.
+  [[nodiscard]] platform::TextureCache &textures();
 
-    /// Convert a texture ID to an ImTextureID for use with ImGui::Image.
-    [[nodiscard]] ImTextureID imgui_id(uint32_t texture_id);
+  /// Convert a texture ID to an ImTextureID for use with ImGui::Image.
+  [[nodiscard]] ImTextureID imgui_id(uint32_t texture_id);
 
-    /// Create a checkerboard pattern texture (RGBA8, REPEAT wrap).
-    /// @return TextureInfo on success, or std::unexpected with the reason.
-    [[nodiscard]] std::expected<platform::TextureInfo, std::string> make_checkerboard(unsigned w, unsigned h,
-                                                                                      unsigned check_size = 8);
+  /// Create a checkerboard pattern texture (RGBA8, REPEAT wrap).
+  /// @return TextureInfo on success, or std::unexpected with the reason.
+  [[nodiscard]] std::expected<platform::TextureInfo, std::string> make_checkerboard(unsigned w, unsigned h,
+                                                                                    unsigned check_size = 8);
 
-  private:
-    ToolHost();
-    struct Impl;
-    std::unique_ptr<Impl> impl_;
-  };
+private:
+  ToolHost();
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
+};
 
 } // namespace corundum::toolkit::host

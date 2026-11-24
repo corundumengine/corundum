@@ -26,69 +26,69 @@ using nlohmann::json;
 
 namespace corundum::gameplay::item {
 
-  namespace {
+namespace {
 
-    ItemCategory parse_category(const json &root) {
-      if (root.contains("category"))
-        return category_from_string(root["category"].get<std::string>());
-      return ItemCategory::Misc;
-    }
+ItemCategory parse_category(const json &root) {
+  if (root.contains("category"))
+    return category_from_string(root["category"].get<std::string>());
+  return ItemCategory::Misc;
+}
 
-    WeaponData parse_weapon(const json &j) {
-      WeaponData weapon;
-      if (j.contains("damage"))
-        weapon.damage = j["damage"].get<int>();
-      return weapon;
-    }
+WeaponData parse_weapon(const json &j) {
+  WeaponData weapon;
+  if (j.contains("damage"))
+    weapon.damage = j["damage"].get<int>();
+  return weapon;
+}
 
-    ApparelData parse_apparel(const json &j) {
-      ApparelData apparel;
-      if (j.contains("slot"))
-        apparel.slot = j["slot"].get<std::string>();
-      if (j.contains("defense"))
-        apparel.defense = j["defense"].get<int>();
-      return apparel;
-    }
+ApparelData parse_apparel(const json &j) {
+  ApparelData apparel;
+  if (j.contains("slot"))
+    apparel.slot = j["slot"].get<std::string>();
+  if (j.contains("defense"))
+    apparel.defense = j["defense"].get<int>();
+  return apparel;
+}
 
-    PotionData parse_potion(const json &j) {
-      PotionData potion;
-      if (j.contains("effect"))
-        potion.effect = j["effect"].get<std::string>();
-      if (j.contains("magnitude"))
-        potion.magnitude = j["magnitude"].get<int>();
-      return potion;
-    }
+PotionData parse_potion(const json &j) {
+  PotionData potion;
+  if (j.contains("effect"))
+    potion.effect = j["effect"].get<std::string>();
+  if (j.contains("magnitude"))
+    potion.magnitude = j["magnitude"].get<int>();
+  return potion;
+}
 
-    Item parse_item_element(const json &root) {
-      // Schema guarantees: id and name are present and non-empty.
-      Item item;
-      item.id = root["id"].get<std::string>();
-      item.name = root["name"].get<std::string>();
+Item parse_item_element(const json &root) {
+  // Schema guarantees: id and name are present and non-empty.
+  Item item;
+  item.id = root["id"].get<std::string>();
+  item.name = root["name"].get<std::string>();
 
-      if (root.contains("description"))
-        item.description = root["description"].get<std::string>();
+  if (root.contains("description"))
+    item.description = root["description"].get<std::string>();
 
-      if (root.contains("icon"))
-        item.icon = root["icon"].get<std::string>();
+  if (root.contains("icon"))
+    item.icon = root["icon"].get<std::string>();
 
-      if (root.contains("price"))
-        item.price = root["price"].get<int>();
+  if (root.contains("price"))
+    item.price = root["price"].get<int>();
 
-      // Schema guarantees: category enum, and the payload object present when category
-      // is declared. Absent category → Misc, absent payload → defaulted struct.
-      item.category = parse_category(root);
+  // Schema guarantees: category enum, and the payload object present when category
+  // is declared. Absent category → Misc, absent payload → defaulted struct.
+  item.category = parse_category(root);
 
-      if (item.category == ItemCategory::Weapon && root.contains("weapon"))
-        item.weapon = parse_weapon(root["weapon"]);
-      else if (item.category == ItemCategory::Apparel && root.contains("apparel"))
-        item.apparel = parse_apparel(root["apparel"]);
-      else if (item.category == ItemCategory::Potion && root.contains("potion"))
-        item.potion = parse_potion(root["potion"]);
+  if (item.category == ItemCategory::Weapon && root.contains("weapon"))
+    item.weapon = parse_weapon(root["weapon"]);
+  else if (item.category == ItemCategory::Apparel && root.contains("apparel"))
+    item.apparel = parse_apparel(root["apparel"]);
+  else if (item.category == ItemCategory::Potion && root.contains("potion"))
+    item.potion = parse_potion(root["potion"]);
 
-      return item;
-    }
+  return item;
+}
 
-    constexpr std::string_view k_item_schema = R"({
+constexpr std::string_view k_item_schema = R"({
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://corundum.dev/schemas/item",
   "type": "object",
@@ -111,174 +111,174 @@ namespace corundum::gameplay::item {
   ]
 })";
 
-    /// One batch file's items and the file name, so a duplicate can say which file shadowed it.
-    struct LoadedBatch {
-      std::string file_name{};
+/// One batch file's items and the file name, so a duplicate can say which file shadowed it.
+struct LoadedBatch {
+  std::string file_name{};
 
-      std::vector<Item> items{};
-    };
+  std::vector<Item> items{};
+};
 
-    /// Every batch file under @p dir, each with the items it produced; a file that fails to load is skipped.
-    std::vector<LoadedBatch> load_batch_files(const core::ContentSource &content, const std::filesystem::path &dir,
-                                              ItemCategory category, const Loader &loader) {
-      std::vector<LoadedBatch> batches;
-      const auto files = content.list(dir, {.extensions = {"json"}});
-      if (!files)
-        return batches;
+/// Every batch file under @p dir, each with the items it produced; a file that fails to load is skipped.
+std::vector<LoadedBatch> load_batch_files(const core::ContentSource &content, const std::filesystem::path &dir,
+                                          ItemCategory category, const Loader &loader) {
+  std::vector<LoadedBatch> batches;
+  const auto files = content.list(dir, {.extensions = {"json"}});
+  if (!files)
+    return batches;
 
-      for (const core::DirEntry &file_entry : *files) {
-        if (file_entry.is_dir)
-          continue;
+  for (const core::DirEntry &file_entry : *files) {
+    if (file_entry.is_dir)
+      continue;
 
-        auto result = loader.load(content, file_entry.path, category);
-        if (!result) {
-          corundum::detail::warn_log("[item] skipping '{}': {}", file_entry.name, result.error());
-          continue;
-        }
-
-        batches.push_back({.file_name = file_entry.name, .items = std::move(*result)});
-      }
-      return batches;
+    auto result = loader.load(content, file_entry.path, category);
+    if (!result) {
+      corundum::detail::warn_log("[item] skipping '{}': {}", file_entry.name, result.error());
+      continue;
     }
 
-  } // namespace
+    batches.push_back({.file_name = file_entry.name, .items = std::move(*result)});
+  }
+  return batches;
+}
 
-  ItemCategory category_from_string(std::string_view name) noexcept {
-    if (name == "weapon")
-      return ItemCategory::Weapon;
-    if (name == "apparel")
-      return ItemCategory::Apparel;
-    if (name == "potion")
-      return ItemCategory::Potion;
-    // "misc" and anything unrecognized — schema enum checked up front.
+} // namespace
+
+ItemCategory category_from_string(std::string_view name) noexcept {
+  if (name == "weapon")
+    return ItemCategory::Weapon;
+  if (name == "apparel")
+    return ItemCategory::Apparel;
+  if (name == "potion")
+    return ItemCategory::Potion;
+  // "misc" and anything unrecognized — schema enum checked up front.
+  return ItemCategory::Misc;
+}
+
+std::string_view to_string(ItemCategory category) noexcept {
+  switch (category) {
+    case ItemCategory::Weapon: return "weapon";
+    case ItemCategory::Apparel: return "apparel";
+    case ItemCategory::Potion: return "potion";
+    case ItemCategory::Misc: return "misc";
+  }
+  return "misc";
+}
+
+std::string_view category_dir_name(ItemCategory category) noexcept {
+  switch (category) {
+    case ItemCategory::Weapon: return "weapons";
+    case ItemCategory::Apparel: return "apparel";
+    case ItemCategory::Potion: return "potions";
+    case ItemCategory::Misc: return "misc";
+  }
+  return "misc";
+}
+
+std::optional<ItemCategory> category_from_dir_name(std::string_view name) noexcept {
+  if (name == "weapons")
+    return ItemCategory::Weapon;
+  if (name == "apparel")
+    return ItemCategory::Apparel;
+  if (name == "potions")
+    return ItemCategory::Potion;
+  if (name == "misc")
     return ItemCategory::Misc;
-  }
+  return std::nullopt;
+}
 
-  std::string_view to_string(ItemCategory category) noexcept {
-    switch (category) {
-      case ItemCategory::Weapon: return "weapon";
-      case ItemCategory::Apparel: return "apparel";
-      case ItemCategory::Potion: return "potion";
-      case ItemCategory::Misc: return "misc";
-    }
-    return "misc";
-  }
+Loader::Loader() : schema_(core::SchemaValidator::from_embedded(k_item_schema)) {}
 
-  std::string_view category_dir_name(ItemCategory category) noexcept {
-    switch (category) {
-      case ItemCategory::Weapon: return "weapons";
-      case ItemCategory::Apparel: return "apparel";
-      case ItemCategory::Potion: return "potions";
-      case ItemCategory::Misc: return "misc";
-    }
-    return "misc";
-  }
+std::expected<std::vector<Item>, std::string>
+Loader::load(const core::ContentSource &content, const std::filesystem::path &path, ItemCategory category) const {
+  const auto path_string = path.string();
 
-  std::optional<ItemCategory> category_from_dir_name(std::string_view name) noexcept {
-    if (name == "weapons")
-      return ItemCategory::Weapon;
-    if (name == "apparel")
-      return ItemCategory::Apparel;
-    if (name == "potions")
-      return ItemCategory::Potion;
-    if (name == "misc")
-      return ItemCategory::Misc;
-    return std::nullopt;
-  }
+  auto root_result = core::read_json(content, path, "item JSON");
+  if (!root_result)
+    return std::unexpected(std::move(root_result).error());
+  json root = std::move(*root_result);
 
-  Loader::Loader() : schema_(core::SchemaValidator::from_embedded(k_item_schema)) {}
+  if (!root.contains("schema_version"))
+    return std::unexpected(std::format("item file '{}' missing 'schema_version'", path_string));
+  if (!root["schema_version"].is_number_integer())
+    return std::unexpected(std::format("item file '{}' field 'schema_version' has wrong type", path_string));
+  const int schema_version = root["schema_version"].get<int>();
+  if (schema_version != k_item_schema_version)
+    return std::unexpected(std::format("item file '{}' has schema_version {}, but this engine expects {}", path_string,
+                                       schema_version, k_item_schema_version));
 
-  std::expected<std::vector<Item>, std::string>
-  Loader::load(const core::ContentSource &content, const std::filesystem::path &path, ItemCategory category) const {
-    const auto path_string = path.string();
+  if (!root.contains("items"))
+    return std::unexpected(std::format("item file '{}' missing 'items'", path_string));
+  const auto &items_arr = root["items"];
+  if (!items_arr.is_array())
+    return std::unexpected(std::format("item file '{}' 'items' must be an array", path_string));
 
-    auto root_result = core::read_json(content, path, "item JSON");
-    if (!root_result)
-      return std::unexpected(std::move(root_result).error());
-    json root = std::move(*root_result);
+  std::vector<Item> items;
+  items.reserve(items_arr.size());
 
-    if (!root.contains("schema_version"))
-      return std::unexpected(std::format("item file '{}' missing 'schema_version'", path_string));
-    if (!root["schema_version"].is_number_integer())
-      return std::unexpected(std::format("item file '{}' field 'schema_version' has wrong type", path_string));
-    const int schema_version = root["schema_version"].get<int>();
-    if (schema_version != k_item_schema_version)
-      return std::unexpected(std::format("item file '{}' has schema_version {}, but this engine expects {}",
-                                         path_string, schema_version, k_item_schema_version));
+  for (const auto &elem : items_arr) {
+    json element = elem;
+    if (element.contains("category"))
+      corundum::detail::warn_log("[item] '{}': explicit 'category' is overridden by the folder; use category folders "
+                                 "instead of writing 'category' by hand",
+                                 path_string);
+    // The category folder is authoritative; inject it before validating.
+    element["category"] = to_string(category);
 
-    if (!root.contains("items"))
-      return std::unexpected(std::format("item file '{}' missing 'items'", path_string));
-    const auto &items_arr = root["items"];
-    if (!items_arr.is_array())
-      return std::unexpected(std::format("item file '{}' 'items' must be an array", path_string));
-
-    std::vector<Item> items;
-    items.reserve(items_arr.size());
-
-    for (const auto &elem : items_arr) {
-      json element = elem;
-      if (element.contains("category"))
-        corundum::detail::warn_log("[item] '{}': explicit 'category' is overridden by the folder; use category folders "
-                                   "instead of writing 'category' by hand",
-                                   path_string);
-      // The category folder is authoritative; inject it before validating.
-      element["category"] = to_string(category);
-
-      auto validation = schema_.validate(element);
-      if (!validation) {
-        corundum::detail::warn_log("[item] skipping invalid item in '{}': {}", path_string, validation.error());
-        continue;
-      }
-
-      items.push_back(parse_item_element(element));
+    auto validation = schema_.validate(element);
+    if (!validation) {
+      corundum::detail::warn_log("[item] skipping invalid item in '{}': {}", path_string, validation.error());
+      continue;
     }
 
-    return items;
+    items.push_back(parse_item_element(element));
   }
 
-  int Registry::load_all(const core::ContentSource &content, const std::filesystem::path &dir) {
-    const auto categories = content.list(dir, {});
-    if (!categories) {
-      corundum::detail::warn_log("[item] no item directory at '{}'", dir.string());
-      return 0;
+  return items;
+}
+
+int Registry::load_all(const core::ContentSource &content, const std::filesystem::path &dir) {
+  const auto categories = content.list(dir, {});
+  if (!categories) {
+    corundum::detail::warn_log("[item] no item directory at '{}'", dir.string());
+    return 0;
+  }
+
+  int loaded = 0;
+  const Loader loader;
+  for (const core::DirEntry &category_entry : *categories) {
+    if (!category_entry.is_dir)
+      continue;
+
+    const auto category = category_from_dir_name(category_entry.name);
+    if (!category) {
+      corundum::detail::warn_log("[item] unknown category folder '{}', skipping", category_entry.name);
+      continue;
     }
 
-    int loaded = 0;
-    const Loader loader;
-    for (const core::DirEntry &category_entry : *categories) {
-      if (!category_entry.is_dir)
-        continue;
+    for (LoadedBatch &batch : load_batch_files(content, category_entry.path, *category, loader))
+      loaded += add_batch(batch.items, batch.file_name);
+  }
 
-      const auto category = category_from_dir_name(category_entry.name);
-      if (!category) {
-        corundum::detail::warn_log("[item] unknown category folder '{}', skipping", category_entry.name);
-        continue;
-      }
+  return loaded;
+}
 
-      for (LoadedBatch &batch : load_batch_files(content, category_entry.path, *category, loader))
-        loaded += add_batch(batch.items, batch.file_name);
+int Registry::add_batch(std::vector<Item> &batch, const std::string &file_name) {
+  int added = 0;
+  for (Item &item : batch) {
+    const std::string id = item.id;
+    if (items_.contains(id)) {
+      corundum::detail::warn_log("[item] duplicate item id '{}' — '{}' is shadowed", id, file_name);
+      continue;
     }
-
-    return loaded;
+    items_.emplace(id, std::move(item));
+    ++added;
   }
+  return added;
+}
 
-  int Registry::add_batch(std::vector<Item> &batch, const std::string &file_name) {
-    int added = 0;
-    for (Item &item : batch) {
-      const std::string id = item.id;
-      if (items_.contains(id)) {
-        corundum::detail::warn_log("[item] duplicate item id '{}' — '{}' is shadowed", id, file_name);
-        continue;
-      }
-      items_.emplace(id, std::move(item));
-      ++added;
-    }
-    return added;
-  }
-
-  const Item *Registry::find(std::string_view id) const {
-    const auto it = items_.find(id);
-    return it != items_.end() ? &it->second : nullptr;
-  }
+const Item *Registry::find(std::string_view id) const {
+  const auto it = items_.find(id);
+  return it != items_.end() ? &it->second : nullptr;
+}
 
 } // namespace corundum::gameplay::item

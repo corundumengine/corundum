@@ -35,108 +35,108 @@ namespace fs = std::filesystem;
 
 namespace {
 
-  using corundum::test::initialize_with_world;
-  using corundum::test::k_frame_time;
+using corundum::test::initialize_with_world;
+using corundum::test::k_frame_time;
 
-  /// Build a GameConfig pointing at the headless fixtures bundled with the
-  /// test target. sprites_dir ends at the parent directory so that
-  /// `<sprites_dir>/characters/<sheet>.json` resolves correctly.
-  corundum::core::GameConfig make_fixture_config(const fs::path &fixtures_root) {
-    corundum::core::GameConfig cfg{};
-    cfg.window_title = "lifecycle_test";
-    cfg.win_w = 320;
-    cfg.win_h = 240;
-    cfg.show_title = false;
-    cfg.paths.sprites_dir = (fixtures_root / "sprites").string();
-    cfg.paths.tilemap_path = (fixtures_root / "tilemaps/lifecycle_test.json").string();
-    cfg.paths.font_dir = (fixtures_root / "fonts").string();
-    corundum::test::set_missing_fonts(cfg.paths);
-    cfg.paths.world_manifest_path.clear();
-    cfg.paths.spawn_points_dir = (fixtures_root / "spawn_points").string();
-    cfg.paths.portals_dir = (fixtures_root / "portals").string();
-    cfg.paths.dialogue_dir.clear();
-    cfg.paths.quests_dir.clear();
-    cfg.paths.sounds_dir.clear();
-    return cfg;
+/// Build a GameConfig pointing at the headless fixtures bundled with the
+/// test target. sprites_dir ends at the parent directory so that
+/// `<sprites_dir>/characters/<sheet>.json` resolves correctly.
+corundum::core::GameConfig make_fixture_config(const fs::path &fixtures_root) {
+  corundum::core::GameConfig cfg{};
+  cfg.window_title = "lifecycle_test";
+  cfg.win_w = 320;
+  cfg.win_h = 240;
+  cfg.show_title = false;
+  cfg.paths.sprites_dir = (fixtures_root / "sprites").string();
+  cfg.paths.tilemap_path = (fixtures_root / "tilemaps/lifecycle_test.json").string();
+  cfg.paths.font_dir = (fixtures_root / "fonts").string();
+  corundum::test::set_missing_fonts(cfg.paths);
+  cfg.paths.world_manifest_path.clear();
+  cfg.paths.spawn_points_dir = (fixtures_root / "spawn_points").string();
+  cfg.paths.portals_dir = (fixtures_root / "portals").string();
+  cfg.paths.dialogue_dir.clear();
+  cfg.paths.quests_dir.clear();
+  cfg.paths.sounds_dir.clear();
+  return cfg;
+}
+
+/// Adopt the NullPlatform into @p engine and reset engine state between tests.
+void adopt_platform(corundum::Engine &engine, unsigned w, unsigned h) {
+  corundum::platform::null::NullPlatform platform{corundum::platform::null::make_null_platform(w, h)};
+  corundum::platform::null::adopt_null_platform(engine, platform);
+}
+
+/// The concrete null window behind @p engine, so a test can script platform events.
+[[nodiscard]] corundum::platform::null::NullWindow *null_window(corundum::Engine &engine) {
+  return dynamic_cast<corundum::platform::null::NullWindow *>(&engine.window());
+}
+
+/// Records every platform-event hook invocation for assertions.
+struct EventRecorder {
+  int calls{0};
+  corundum::platform::PlatformEvents seen{};
+
+  void operator()(corundum::Engine & /*engine*/, const corundum::platform::PlatformEvents &events) {
+    ++calls;
+    seen = events;
+  }
+};
+
+/// Audio backend double that records pause transitions for the focus tests.
+class RecordingAudioBackend final : public corundum::audio::AudioBackend {
+public:
+  std::expected<corundum::audio::SoundHandle, std::string> load_sound(std::string_view /*path*/) override {
+    return corundum::audio::SoundHandle{.value = 1};
   }
 
-  /// Adopt the NullPlatform into @p engine and reset engine state between tests.
-  void adopt_platform(corundum::Engine &engine, unsigned w, unsigned h) {
-    corundum::platform::null::NullPlatform platform{corundum::platform::null::make_null_platform(w, h)};
-    corundum::platform::null::adopt_null_platform(engine, platform);
+  corundum::audio::SoundInstanceId play(corundum::audio::SoundHandle /*handle*/, float /*volume*/, bool /*loop*/,
+                                        corundum::audio::AudioBus /*bus*/) override {
+    return {};
   }
 
-  /// The concrete null window behind @p engine, so a test can script platform events.
-  [[nodiscard]] corundum::platform::null::NullWindow *null_window(corundum::Engine &engine) {
-    return dynamic_cast<corundum::platform::null::NullWindow *>(&engine.window());
+  void stop(corundum::audio::SoundInstanceId /*id*/, float /*fade_out_seconds*/) override {}
+
+  void set_volume(corundum::audio::SoundInstanceId /*id*/, float /*volume*/) override {}
+
+  void set_pitch(corundum::audio::SoundInstanceId /*id*/, float /*pitch*/) override {}
+
+  void set_bus_volume(corundum::audio::AudioBus /*bus*/, float /*volume*/) override {}
+
+  void set_paused(bool paused) override { last_paused = paused; }
+
+  std::expected<void, std::string> play_music(std::string_view /*path*/,
+                                              const corundum::audio::MusicPlayback & /*playback*/) override {
+    return {};
   }
 
-  /// Records every platform-event hook invocation for assertions.
-  struct EventRecorder {
-    int calls{0};
-    corundum::platform::PlatformEvents seen{};
+  void stop_music(float /*fade_out_seconds*/) override {}
 
-    void operator()(corundum::Engine & /*engine*/, const corundum::platform::PlatformEvents &events) {
-      ++calls;
-      seen = events;
-    }
-  };
+  void update() override {}
 
-  /// Audio backend double that records pause transitions for the focus tests.
-  class RecordingAudioBackend final : public corundum::audio::AudioBackend {
-  public:
-    std::expected<corundum::audio::SoundHandle, std::string> load_sound(std::string_view /*path*/) override {
-      return corundum::audio::SoundHandle{.value = 1};
-    }
+  bool last_paused{false};
+};
 
-    corundum::audio::SoundInstanceId play(corundum::audio::SoundHandle /*handle*/, float /*volume*/, bool /*loop*/,
-                                          corundum::audio::AudioBus /*bus*/) override {
-      return {};
-    }
+/// Adopt a RecordingAudioBackend into @p engine's audio system; returns the
+/// raw pointer for assertions (owned by the system).
+[[nodiscard]] RecordingAudioBackend *adopt_recording_audio(corundum::Engine &engine) {
+  auto backend = std::make_unique<RecordingAudioBackend>();
+  RecordingAudioBackend *raw = backend.get();
+  engine.audio.adopt_backend(std::move(backend));
+  return raw;
+}
 
-    void stop(corundum::audio::SoundInstanceId /*id*/, float /*fade_out_seconds*/) override {}
+/// Press A on the gamepad (making it the last-used device), then remove the pad and report the
+/// disconnect, leaving the engine paused for PauseReason::Controller.
+void disconnect_active_controller(corundum::Engine &engine) {
+  corundum::input::GamepadState pressed{};
+  pressed.buttons[static_cast<std::size_t>(corundum::input::GamepadControl::A)] = true;
+  null_window(engine)->gamepad = pressed;
+  static_cast<void>(engine.run_frame(k_frame_time));
 
-    void set_volume(corundum::audio::SoundInstanceId /*id*/, float /*volume*/) override {}
-
-    void set_pitch(corundum::audio::SoundInstanceId /*id*/, float /*pitch*/) override {}
-
-    void set_bus_volume(corundum::audio::AudioBus /*bus*/, float /*volume*/) override {}
-
-    void set_paused(bool paused) override { last_paused = paused; }
-
-    std::expected<void, std::string> play_music(std::string_view /*path*/,
-                                                const corundum::audio::MusicPlayback & /*playback*/) override {
-      return {};
-    }
-
-    void stop_music(float /*fade_out_seconds*/) override {}
-
-    void update() override {}
-
-    bool last_paused{false};
-  };
-
-  /// Adopt a RecordingAudioBackend into @p engine's audio system; returns the
-  /// raw pointer for assertions (owned by the system).
-  [[nodiscard]] RecordingAudioBackend *adopt_recording_audio(corundum::Engine &engine) {
-    auto backend = std::make_unique<RecordingAudioBackend>();
-    RecordingAudioBackend *raw = backend.get();
-    engine.audio.adopt_backend(std::move(backend));
-    return raw;
-  }
-
-  /// Press A on the gamepad (making it the last-used device), then remove the pad and report the
-  /// disconnect, leaving the engine paused for PauseReason::Controller.
-  void disconnect_active_controller(corundum::Engine &engine) {
-    corundum::input::GamepadState pressed{};
-    pressed.buttons[static_cast<std::size_t>(corundum::input::GamepadControl::A)] = true;
-    null_window(engine)->gamepad = pressed;
-    static_cast<void>(engine.run_frame(k_frame_time));
-
-    null_window(engine)->gamepad = std::nullopt;
-    null_window(engine)->scripted_events.controller_disconnected = true;
-    static_cast<void>(engine.run_frame(k_frame_time));
-  }
+  null_window(engine)->gamepad = std::nullopt;
+  null_window(engine)->scripted_events.controller_disconnected = true;
+  static_cast<void>(engine.run_frame(k_frame_time));
+}
 
 } // namespace
 

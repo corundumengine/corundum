@@ -34,123 +34,123 @@ using corundum::world::FlagStore;
 
 namespace {
 
-  quest::Quest make_test_quest() {
-    quest::Quest q;
-    q.quest_id = "test_quest";
-    q.name = "Test Quest";
-    q.description = "A test quest.";
+quest::Quest make_test_quest() {
+  quest::Quest q;
+  q.quest_id = "test_quest";
+  q.name = "Test Quest";
+  q.description = "A test quest.";
 
-    q.stages.push_back({.failed = false, .name = "start", .objectives = {}, .resolved = false, .sequence = 1});
-    q.stages.push_back({.failed = false, .name = "middle", .objectives = {}, .resolved = false, .sequence = 2});
-    q.stages.push_back({.failed = false, .name = "complete", .objectives = {}, .resolved = true, .sequence = 3});
-    q.stages.push_back({.failed = true, .name = "failed", .objectives = {}, .resolved = true, .sequence = 4});
+  q.stages.push_back({.failed = false, .name = "start", .objectives = {}, .resolved = false, .sequence = 1});
+  q.stages.push_back({.failed = false, .name = "middle", .objectives = {}, .resolved = false, .sequence = 2});
+  q.stages.push_back({.failed = false, .name = "complete", .objectives = {}, .resolved = true, .sequence = 3});
+  q.stages.push_back({.failed = true, .name = "failed", .objectives = {}, .resolved = true, .sequence = 4});
 
-    return q;
-  }
+  return q;
+}
 
-  quest::Quest make_quest_with_objectives() {
-    quest::Quest q;
-    q.quest_id = "obj_quest";
-    q.name = "Obj Quest";
-    q.description = "A quest with journal objectives.";
+quest::Quest make_quest_with_objectives() {
+  quest::Quest q;
+  q.quest_id = "obj_quest";
+  q.name = "Obj Quest";
+  q.description = "A quest with journal objectives.";
 
-    q.stages.push_back({
-        .name = "start",
-        .objectives =
-            {
-                {.done_condition = std::nullopt, .text = "Bare objective"},
-                {
-                    .done_condition = *corundum::gameplay::dialogue::compile("ember_tracks_found >= 1"),
-                    .text = "Conditioned objective",
-                },
-            },
-        .sequence = 1,
-    });
-    q.stages.push_back({.name = "complete", .resolved = true, .sequence = 2});
+  q.stages.push_back({
+      .name = "start",
+      .objectives =
+          {
+              {.done_condition = std::nullopt, .text = "Bare objective"},
+              {
+                  .done_condition = *corundum::gameplay::dialogue::compile("ember_tracks_found >= 1"),
+                  .text = "Conditioned objective",
+              },
+          },
+      .sequence = 1,
+  });
+  q.stages.push_back({.name = "complete", .resolved = true, .sequence = 2});
 
-    return q;
-  }
+  return q;
+}
 
-  /// A single-stage quest whose sole objective is auto-checked by @p condition.
-  quest::Quest make_quest_with_condition(std::string_view condition) {
-    quest::Quest q;
-    q.quest_id = "cond_quest";
-    q.name = "Conditional Quest";
-    q.description = "A quest driven by a done_condition.";
+/// A single-stage quest whose sole objective is auto-checked by @p condition.
+quest::Quest make_quest_with_condition(std::string_view condition) {
+  quest::Quest q;
+  q.quest_id = "cond_quest";
+  q.name = "Conditional Quest";
+  q.description = "A quest driven by a done_condition.";
 
-    q.stages.push_back({
-        .name = "start",
-        .objectives = {{.done_condition = *corundum::gameplay::dialogue::compile(condition), .text = "Conditioned"}},
-        .sequence = 1,
-    });
-    q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
+  q.stages.push_back({
+      .name = "start",
+      .objectives = {{.done_condition = *corundum::gameplay::dialogue::compile(condition), .text = "Conditioned"}},
+      .sequence = 1,
+  });
+  q.stages.push_back({.name = "done", .resolved = true, .sequence = 2});
 
-    return q;
-  }
+  return q;
+}
 
-  /// Condition source text for an objective, or empty when it carries no condition.
-  std::string_view condition_source(const quest::Objective &objective) {
-    return objective.done_condition.has_value() ? objective.done_condition->source() : std::string_view{};
-  }
+/// Condition source text for an objective, or empty when it carries no condition.
+std::string_view condition_source(const quest::Objective &objective) {
+  return objective.done_condition.has_value() ? objective.done_condition->source() : std::string_view{};
+}
 
-  void check_objective_matches(const quest::Objective &actual, const quest::Objective &expected) {
-    CHECK(actual.text == expected.text);
-    CHECK(actual.done_condition.has_value() == expected.done_condition.has_value());
-    CHECK(condition_source(actual) == condition_source(expected));
-  }
+void check_objective_matches(const quest::Objective &actual, const quest::Objective &expected) {
+  CHECK(actual.text == expected.text);
+  CHECK(actual.done_condition.has_value() == expected.done_condition.has_value());
+  CHECK(condition_source(actual) == condition_source(expected));
+}
 
-  void check_objectives_match(const std::vector<quest::Objective> &actual,
-                              const std::vector<quest::Objective> &expected) {
-    REQUIRE(actual.size() == expected.size());
-    for (std::size_t i = 0; i < expected.size(); ++i)
-      check_objective_matches(actual[i], expected[i]);
-  }
+void check_objectives_match(const std::vector<quest::Objective> &actual,
+                            const std::vector<quest::Objective> &expected) {
+  REQUIRE(actual.size() == expected.size());
+  for (std::size_t i = 0; i < expected.size(); ++i)
+    check_objective_matches(actual[i], expected[i]);
+}
 
-  void check_stage_name_matches(const quest::Stage &actual, const quest::Stage &expected) {
-    CHECK(actual.name == expected.name);
-    CHECK(actual.sequence == expected.sequence);
-  }
+void check_stage_name_matches(const quest::Stage &actual, const quest::Stage &expected) {
+  CHECK(actual.name == expected.name);
+  CHECK(actual.sequence == expected.sequence);
+}
 
-  void check_stage_flags_match(const quest::Stage &actual, const quest::Stage &expected) {
-    CHECK(actual.resolved == expected.resolved);
-    CHECK(actual.failed == expected.failed);
-  }
+void check_stage_flags_match(const quest::Stage &actual, const quest::Stage &expected) {
+  CHECK(actual.resolved == expected.resolved);
+  CHECK(actual.failed == expected.failed);
+}
 
-  void check_stage_identity_matches(const quest::Stage &actual, const quest::Stage &expected) {
-    check_stage_name_matches(actual, expected);
-    check_stage_flags_match(actual, expected);
-  }
+void check_stage_identity_matches(const quest::Stage &actual, const quest::Stage &expected) {
+  check_stage_name_matches(actual, expected);
+  check_stage_flags_match(actual, expected);
+}
 
-  void check_stage_edges_match(const quest::Stage &actual, const quest::Stage &expected) {
-    CHECK(actual.advances_to == expected.advances_to);
-    CHECK(actual.auto_advance_to == expected.auto_advance_to);
-  }
+void check_stage_edges_match(const quest::Stage &actual, const quest::Stage &expected) {
+  CHECK(actual.advances_to == expected.advances_to);
+  CHECK(actual.auto_advance_to == expected.auto_advance_to);
+}
 
-  void check_stages_match(const quest::Stage &actual, const quest::Stage &expected) {
-    check_stage_identity_matches(actual, expected);
-    check_stage_edges_match(actual, expected);
-    check_objectives_match(actual.objectives, expected.objectives);
-  }
+void check_stages_match(const quest::Stage &actual, const quest::Stage &expected) {
+  check_stage_identity_matches(actual, expected);
+  check_stage_edges_match(actual, expected);
+  check_objectives_match(actual.objectives, expected.objectives);
+}
 
-  void check_quest_identity_matches(const quest::Quest &actual, const quest::Quest &expected) {
-    CHECK(actual.quest_id == expected.quest_id);
-    CHECK(actual.name == expected.name);
-    CHECK(actual.description == expected.description);
-  }
+void check_quest_identity_matches(const quest::Quest &actual, const quest::Quest &expected) {
+  CHECK(actual.quest_id == expected.quest_id);
+  CHECK(actual.name == expected.name);
+  CHECK(actual.description == expected.description);
+}
 
-  void check_quests_match(const quest::Quest &actual, const quest::Quest &expected) {
-    check_quest_identity_matches(actual, expected);
+void check_quests_match(const quest::Quest &actual, const quest::Quest &expected) {
+  check_quest_identity_matches(actual, expected);
 
-    REQUIRE(actual.stages.size() == expected.stages.size());
-    for (std::size_t i = 0; i < expected.stages.size(); ++i)
-      check_stages_match(actual.stages[i], expected.stages[i]);
-  }
+  REQUIRE(actual.stages.size() == expected.stages.size());
+  for (std::size_t i = 0; i < expected.stages.size(); ++i)
+    check_stages_match(actual.stages[i], expected.stages[i]);
+}
 
-  /// One loader per case keeps cases independent; compiling the schema per case is cheap enough for tests.
-  std::expected<quest::Quest, std::string> load_with_fresh_loader(const corundum::core::ContentSource &content,
-                                                                  const std::filesystem::path &path) {
-    return quest::Loader{}.load(content, path);
-  }
+/// One loader per case keeps cases independent; compiling the schema per case is cheap enough for tests.
+std::expected<quest::Quest, std::string> load_with_fresh_loader(const corundum::core::ContentSource &content,
+                                                                const std::filesystem::path &path) {
+  return quest::Loader{}.load(content, path);
+}
 
 } // namespace
 

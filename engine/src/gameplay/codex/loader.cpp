@@ -23,20 +23,20 @@ using nlohmann::json;
 
 namespace corundum::gameplay::codex {
 
-  namespace {
+namespace {
 
-    CodexEntry parse_entry(const json &element) {
-      CodexEntry entry;
-      entry.id = element["id"].get<std::string>();
-      entry.title = element["title"].get<std::string>();
-      if (element.contains("category"))
-        entry.category = element["category"].get<std::string>();
-      if (element.contains("body"))
-        entry.body = element["body"].get<std::string>();
-      return entry;
-    }
+CodexEntry parse_entry(const json &element) {
+  CodexEntry entry;
+  entry.id = element["id"].get<std::string>();
+  entry.title = element["title"].get<std::string>();
+  if (element.contains("category"))
+    entry.category = element["category"].get<std::string>();
+  if (element.contains("body"))
+    entry.body = element["body"].get<std::string>();
+  return entry;
+}
 
-    constexpr std::string_view k_codex_schema = R"({
+constexpr std::string_view k_codex_schema = R"({
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://corundum.dev/schemas/codex",
   "type": "object",
@@ -62,30 +62,30 @@ namespace corundum::gameplay::codex {
   }
 })";
 
-  } // namespace
+} // namespace
 
-  Loader::Loader() : schema_(core::SchemaValidator::from_embedded(k_codex_schema)) {}
+Loader::Loader() : schema_(core::SchemaValidator::from_embedded(k_codex_schema)) {}
 
-  std::expected<std::vector<CodexEntry>, std::string> Loader::load(const core::ContentSource &content,
-                                                                   const std::filesystem::path &path) const {
-    const std::string path_string = path.string();
+std::expected<std::vector<CodexEntry>, std::string> Loader::load(const core::ContentSource &content,
+                                                                 const std::filesystem::path &path) const {
+  const std::string path_string = path.string();
 
-    auto root_result = core::read_json(content, path, "codex JSON");
-    if (!root_result)
-      return std::unexpected(std::move(root_result).error());
-    json root = std::move(*root_result);
+  auto root_result = core::read_json(content, path, "codex JSON");
+  if (!root_result)
+    return std::unexpected(std::move(root_result).error());
+  json root = std::move(*root_result);
 
-    if (auto prepared = core::prepare_schema_version(root, k_codex_schema_version, "Codex", path_string, {}); !prepared)
-      return std::unexpected(std::move(prepared).error());
+  if (auto prepared = core::prepare_schema_version(root, k_codex_schema_version, "Codex", path_string, {}); !prepared)
+    return std::unexpected(std::move(prepared).error());
 
-    if (auto validated = schema_.validate(root); !validated)
-      return std::unexpected(std::format("[schema] {}: {}", path_string, validated.error()));
+  if (auto validated = schema_.validate(root); !validated)
+    return std::unexpected(std::format("[schema] {}: {}", path_string, validated.error()));
 
-    std::vector<CodexEntry> entries;
-    entries.reserve(root["entries"].size());
-    for (const auto &element : root["entries"])
-      entries.push_back(parse_entry(element));
-    return entries;
-  }
+  std::vector<CodexEntry> entries;
+  entries.reserve(root["entries"].size());
+  for (const auto &element : root["entries"])
+    entries.push_back(parse_entry(element));
+  return entries;
+}
 
 } // namespace corundum::gameplay::codex

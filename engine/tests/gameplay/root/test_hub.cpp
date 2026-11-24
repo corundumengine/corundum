@@ -30,27 +30,27 @@
 
 namespace {
 
-  using corundum::test::adopt_platform;
-  using corundum::test::make_world_config;
-  using corundum::world::GameMode;
-  namespace screens = corundum::gameplay::screens;
+using corundum::test::adopt_platform;
+using corundum::test::make_world_config;
+using corundum::world::GameMode;
+namespace screens = corundum::gameplay::screens;
 
-  /// Route one physical action press through the engine's UI step, exactly as the fixed-step
-  /// loop does. The hub tabs are engine-owned, so the shared advance_with() helper cannot drive
-  /// them.
-  bool press(corundum::Engine &engine, corundum::input::Action action) {
-    corundum::input::InputState state{};
-    state.pressed.set(static_cast<std::size_t>(action));
-    engine.input_state = state;
-    const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
-    return engine.update_engine_screens(intent);
-  }
+/// Route one physical action press through the engine's UI step, exactly as the fixed-step
+/// loop does. The hub tabs are engine-owned, so the shared advance_with() helper cannot drive
+/// them.
+bool press(corundum::Engine &engine, corundum::input::Action action) {
+  corundum::input::InputState state{};
+  state.pressed.set(static_cast<std::size_t>(action));
+  engine.input_state = state;
+  const auto intent = corundum::input::make_input_intent(engine.input_state, engine.input_mapper.last_device());
+  return engine.update_engine_screens(intent);
+}
 
-  void init_engine(corundum::Engine &engine) {
-    adopt_platform(engine, 320, 240);
-    const std::filesystem::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-    REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
-  }
+void init_engine(corundum::Engine &engine) {
+  adopt_platform(engine, 320, 240);
+  const std::filesystem::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
+  REQUIRE(engine.initialize(make_world_config(fixtures)).has_value());
+}
 
 } // namespace
 

@@ -18,23 +18,23 @@ namespace render_data = corundum::render;
 
 namespace {
 
-  constexpr int k_width = 3;
+constexpr int k_width = 3;
 
-  constexpr int k_height = 2;
+constexpr int k_height = 2;
 
-  tilemap::TilemapLayer make_layer(std::string name) {
-    tilemap::TilemapLayer layer;
-    layer.name = std::move(name);
-    return layer;
-  }
+tilemap::TilemapLayer make_layer(std::string name) {
+  tilemap::TilemapLayer layer;
+  layer.name = std::move(name);
+  return layer;
+}
 
-  tilemap::Tilemap make_map(std::vector<tilemap::TilemapLayer> layers) {
-    tilemap::Tilemap tm;
-    tm.width = k_width;
-    tm.height = k_height;
-    tm.layers = std::move(layers);
-    return tm;
-  }
+tilemap::Tilemap make_map(std::vector<tilemap::TilemapLayer> layers) {
+  tilemap::Tilemap tm;
+  tm.width = k_width;
+  tm.height = k_height;
+  tm.layers = std::move(layers);
+  return tm;
+}
 
 } // namespace
 

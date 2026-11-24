@@ -10,24 +10,24 @@
 #include <string>
 
 namespace corundum::core {
-  class ContentSource;
+class ContentSource;
 }
 
 namespace corundum::gameplay::credits {
 
-  /** @brief Load a credits file.
-   *
-   *  The document is `{ "title": "...", "background": "...", "sections": [ { "heading": "...",
-   *  "lines": ["..."] } ] }`.
-   *
-   *  A one-shot, side-effect-scoped read (free function, no state), so the Credits screen can
-   *  hide itself when the file is absent or malformed rather than opening in a broken state.
-   *
-   *  @param path Credits JSON file.
-   *  @return The credits file (title and sections), or an error describing why the file could
-   *          not be read or parsed.
-   */
-  [[nodiscard]] std::expected<CreditsFile, std::string> load_credits_file(const core::ContentSource &content,
-                                                                          const std::filesystem::path &path);
+/** @brief Load a credits file.
+ *
+ *  The document is `{ "title": "...", "background": "...", "sections": [ { "heading": "...",
+ *  "lines": ["..."] } ] }`.
+ *
+ *  A one-shot, side-effect-scoped read (free function, no state), so the Credits screen can
+ *  hide itself when the file is absent or malformed rather than opening in a broken state.
+ *
+ *  @param path Credits JSON file.
+ *  @return The credits file (title and sections), or an error describing why the file could
+ *          not be read or parsed.
+ */
+[[nodiscard]] std::expected<CreditsFile, std::string> load_credits_file(const core::ContentSource &content,
+                                                                        const std::filesystem::path &path);
 
 } // namespace corundum::gameplay::credits

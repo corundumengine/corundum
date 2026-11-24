@@ -16,83 +16,83 @@
 
 namespace corundum::gameplay::screens {
 
-  /** @brief Every unlocked codex entry, ordered by (category, title).
-   *
-   *  Only entries whose `codex.<id>` flag is set are included. Pure derivation over
-   *  the registry and flags; the row count is what the codex cursor wraps against.
-   *
-   *  @param registry Loaded codex registry.
-   *  @param flags    Active FlagStore.
-   *  @return One entry per unlocked codex entry, empty when none are unlocked.
-   */
-  [[nodiscard]] std::vector<gameplay::codex::CodexEntry> build_codex_entries(const gameplay::codex::Registry &registry,
-                                                                             const world::FlagStore &flags);
+/** @brief Every unlocked codex entry, ordered by (category, title).
+ *
+ *  Only entries whose `codex.<id>` flag is set are included. Pure derivation over
+ *  the registry and flags; the row count is what the codex cursor wraps against.
+ *
+ *  @param registry Loaded codex registry.
+ *  @param flags    Active FlagStore.
+ *  @return One entry per unlocked codex entry, empty when none are unlocked.
+ */
+[[nodiscard]] std::vector<gameplay::codex::CodexEntry> build_codex_entries(const gameplay::codex::Registry &registry,
+                                                                           const world::FlagStore &flags);
 
-  /** @brief Codex-screen state: the highlighted row and the cached unlocked-entry list.
-   *
-   *  A stateful class — the cached rows outlive a single call and are
-   *  invalidated only by an unlock or an explicit open, mirroring WorldArea::above_z_cache.
-   *  Rebuild through refresh_codex() rather than mutating @c entries directly.
-   */
-  struct CodexState {
-    int cursor{};
+/** @brief Codex-screen state: the highlighted row and the cached unlocked-entry list.
+ *
+ *  A stateful class — the cached rows outlive a single call and are
+ *  invalidated only by an unlock or an explicit open, mirroring WorldArea::above_z_cache.
+ *  Rebuild through refresh_codex() rather than mutating @c entries directly.
+ */
+struct CodexState {
+  int cursor{};
 
-    float scroll{};
+  float scroll{};
 
-    /// True when @c entries no longer reflects the registry + flags; refresh_codex() rebuilds.
-    bool dirty{true};
+  /// True when @c entries no longer reflects the registry + flags; refresh_codex() rebuilds.
+  bool dirty{true};
 
-    /// Cached unlocked entries, ordered by (category, title).
-    std::vector<gameplay::codex::CodexEntry> entries{};
-  };
+  /// Cached unlocked entries, ordered by (category, title).
+  std::vector<gameplay::codex::CodexEntry> entries{};
+};
 
-  /** @brief Rebuild @p state's cached rows when they are stale. No-cost when not dirty. */
-  void refresh_codex(CodexState &state, const gameplay::codex::Registry &registry, const world::FlagStore &flags);
+/** @brief Rebuild @p state's cached rows when they are stale. No-cost when not dirty. */
+void refresh_codex(CodexState &state, const gameplay::codex::Registry &registry, const world::FlagStore &flags);
 
-  /** @brief Mark @p state's cached rows stale (call on open and on every codex unlock). */
-  inline void codex_mark_dirty(CodexState &state) noexcept {
-    state.dirty = true;
-  }
+/** @brief Mark @p state's cached rows stale (call on open and on every codex unlock). */
+inline void codex_mark_dirty(CodexState &state) noexcept {
+  state.dirty = true;
+}
 
-  /** @brief One visible list row of the codex, flattened for hit-testing. */
-  struct CodexListRow {
-    ui::RowRect rect{};
+/** @brief One visible list row of the codex, flattened for hit-testing. */
+struct CodexListRow {
+  ui::RowRect rect{};
 
-    int entry_index{-1}; ///< Entry the row selects, or -1 for a category header (not selectable).
-  };
+  int entry_index{-1}; ///< Entry the row selects, or -1 for a category header (not selectable).
+};
 
-  /** @brief Screen-space geometry of the codex panel, shared by render and mouse hit-testing. */
-  struct CodexLayout {
-    core::math::Vec2 panel_pos{};
+/** @brief Screen-space geometry of the codex panel, shared by render and mouse hit-testing. */
+struct CodexLayout {
+  core::math::Vec2 panel_pos{};
 
-    core::math::Vec2 panel_size{};
+  core::math::Vec2 panel_size{};
 
-    ui::RowRect body_rect{}; ///< Right-hand detail pane; wheel over it scrolls the body.
+  ui::RowRect body_rect{}; ///< Right-hand detail pane; wheel over it scrolls the body.
 
-    std::vector<CodexListRow> list_rows{}; ///< Only the rows currently visible, in draw order.
-  };
+  std::vector<CodexListRow> list_rows{}; ///< Only the rows currently visible, in draw order.
+};
 
-  /** @brief Compute the codex panel's visible geometry for @p viewport. */
-  [[nodiscard]] CodexLayout codex_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
-                                               const std::vector<gameplay::codex::CodexEntry> &entries, int cursor,
-                                               core::math::Vec2 viewport, input::InputDevice last_device);
+/** @brief Compute the codex panel's visible geometry for @p viewport. */
+[[nodiscard]] CodexLayout codex_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
+                                             const std::vector<gameplay::codex::CodexEntry> &entries, int cursor,
+                                             core::math::Vec2 viewport, input::InputDevice last_device);
 
-  /** @brief Draw the codex as a centered two-pane panel: unlocked entries left, body right.
-   *
-   *  Pure render. An empty codex renders a single "(no entries)" line. The selected entry's
-   *  body is word-wrapped into the right pane; the cursor is clamped into range locally.
-   *
-   *  @param r           Platform renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
-   *  @param style       Dialog text style; reused so the codex matches dialogue.
-   *  @param border      Pre-loaded nine-patch frame; the same one the dialogue box uses.
-   *  @param entries     Unlocked rows, as refresh_codex() stores them.
-   *  @param cursor      Highlighted row index into @p entries; clamped into range locally.
-   *  @param scroll      First body line to draw; clamped to the wrapped body length.
-   *  @param viewport    Screen size in pixels; the panel is centered within this.
-   *  @param last_device Device of the player's most recent press; picks the footer glyphs.
-   */
-  void codex_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
-                          const std::vector<gameplay::codex::CodexEntry> &entries, int cursor, float scroll,
-                          core::math::Vec2 viewport, input::InputDevice last_device = input::InputDevice::Keyboard);
+/** @brief Draw the codex as a centered two-pane panel: unlocked entries left, body right.
+ *
+ *  Pure render. An empty codex renders a single "(no entries)" line. The selected entry's
+ *  body is word-wrapped into the right pane; the cursor is clamped into range locally.
+ *
+ *  @param r           Platform renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
+ *  @param style       Dialog text style; reused so the codex matches dialogue.
+ *  @param border      Pre-loaded nine-patch frame; the same one the dialogue box uses.
+ *  @param entries     Unlocked rows, as refresh_codex() stores them.
+ *  @param cursor      Highlighted row index into @p entries; clamped into range locally.
+ *  @param scroll      First body line to draw; clamped to the wrapped body length.
+ *  @param viewport    Screen size in pixels; the panel is centered within this.
+ *  @param last_device Device of the player's most recent press; picks the footer glyphs.
+ */
+void codex_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+                        const std::vector<gameplay::codex::CodexEntry> &entries, int cursor, float scroll,
+                        core::math::Vec2 viewport, input::InputDevice last_device = input::InputDevice::Keyboard);
 
 } // namespace corundum::gameplay::screens

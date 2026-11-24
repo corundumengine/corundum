@@ -11,8 +11,8 @@
 
 namespace {
 
-  constexpr std::string_view k_first = "first,a:b0,platform:Mac OS X,";
-  constexpr std::string_view k_second = "second,b:b0,platform:Mac OS X,";
+constexpr std::string_view k_first = "first,a:b0,platform:Mac OS X,";
+constexpr std::string_view k_second = "second,b:b0,platform:Mac OS X,";
 
 } // namespace
 

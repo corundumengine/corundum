@@ -26,54 +26,54 @@ namespace fs = std::filesystem;
 
 namespace {
 
-  using corundum::test::initialize_with_world;
-  using corundum::test::run_one_step;
+using corundum::test::initialize_with_world;
+using corundum::test::run_one_step;
 
-  /// Single-map config matching the lifecycle fixtures (interior tilemap).
-  corundum::core::GameConfig make_single_map_config(const fs::path &fixtures) {
-    corundum::core::GameConfig cfg{};
-    cfg.window_title = "player_absent_test";
-    cfg.win_w = 320;
-    cfg.win_h = 240;
-    cfg.paths.sprites_dir = (fixtures / "sprites").string();
-    cfg.paths.tilemap_path = (fixtures / "tilemaps/lifecycle_test.json").string();
-    cfg.paths.font_dir = (fixtures / "fonts").string();
-    corundum::test::set_missing_fonts(cfg.paths);
-    cfg.paths.world_manifest_path.clear();
-    cfg.paths.spawn_points_dir = (fixtures / "spawn_points").string();
-    cfg.paths.portals_dir = (fixtures / "portals").string();
-    cfg.paths.dialogue_dir.clear();
-    cfg.paths.quests_dir.clear();
-    cfg.paths.sounds_dir.clear();
-    return cfg;
-  }
+/// Single-map config matching the lifecycle fixtures (interior tilemap).
+corundum::core::GameConfig make_single_map_config(const fs::path &fixtures) {
+  corundum::core::GameConfig cfg{};
+  cfg.window_title = "player_absent_test";
+  cfg.win_w = 320;
+  cfg.win_h = 240;
+  cfg.paths.sprites_dir = (fixtures / "sprites").string();
+  cfg.paths.tilemap_path = (fixtures / "tilemaps/lifecycle_test.json").string();
+  cfg.paths.font_dir = (fixtures / "fonts").string();
+  corundum::test::set_missing_fonts(cfg.paths);
+  cfg.paths.world_manifest_path.clear();
+  cfg.paths.spawn_points_dir = (fixtures / "spawn_points").string();
+  cfg.paths.portals_dir = (fixtures / "portals").string();
+  cfg.paths.dialogue_dir.clear();
+  cfg.paths.quests_dir.clear();
+  cfg.paths.sounds_dir.clear();
+  return cfg;
+}
 
-  /// Streaming-world config matching test_world_transition's 5×1 manifest.
-  corundum::core::GameConfig make_streaming_config(const fs::path &fixtures) {
-    corundum::core::GameConfig cfg{};
-    cfg.window_title = "player_absent_streaming_test";
-    cfg.win_w = 320;
-    cfg.win_h = 240;
-    cfg.paths.sprites_dir = (fixtures / "sprites").string();
-    cfg.paths.font_dir = (fixtures / "fonts").string();
-    corundum::test::set_missing_fonts(cfg.paths);
-    cfg.paths.world_manifest_path = (fixtures / "worlds/streaming/manifest.json").string();
-    cfg.paths.spawn_points_dir = (fixtures / "spawn_points").string();
-    cfg.paths.portals_dir = (fixtures / "portals").string();
-    cfg.paths.dialogue_dir.clear();
-    cfg.paths.quests_dir.clear();
-    cfg.paths.sounds_dir.clear();
-    return cfg;
-  }
+/// Streaming-world config matching test_world_transition's 5×1 manifest.
+corundum::core::GameConfig make_streaming_config(const fs::path &fixtures) {
+  corundum::core::GameConfig cfg{};
+  cfg.window_title = "player_absent_streaming_test";
+  cfg.win_w = 320;
+  cfg.win_h = 240;
+  cfg.paths.sprites_dir = (fixtures / "sprites").string();
+  cfg.paths.font_dir = (fixtures / "fonts").string();
+  corundum::test::set_missing_fonts(cfg.paths);
+  cfg.paths.world_manifest_path = (fixtures / "worlds/streaming/manifest.json").string();
+  cfg.paths.spawn_points_dir = (fixtures / "spawn_points").string();
+  cfg.paths.portals_dir = (fixtures / "portals").string();
+  cfg.paths.dialogue_dir.clear();
+  cfg.paths.quests_dir.clear();
+  cfg.paths.sounds_dir.clear();
+  return cfg;
+}
 
-  void adopt_platform(corundum::Engine &engine, unsigned w, unsigned h) {
-    corundum::platform::null::NullPlatform platform = corundum::platform::null::make_null_platform(w, h);
-    corundum::platform::null::adopt_null_platform(engine, platform);
-  }
+void adopt_platform(corundum::Engine &engine, unsigned w, unsigned h) {
+  corundum::platform::null::NullPlatform platform = corundum::platform::null::make_null_platform(w, h);
+  corundum::platform::null::adopt_null_platform(engine, platform);
+}
 
-  corundum::platform::null::NullWindow *null_window(corundum::Engine &engine) {
-    return dynamic_cast<corundum::platform::null::NullWindow *>(&engine.window());
-  }
+corundum::platform::null::NullWindow *null_window(corundum::Engine &engine) {
+  return dynamic_cast<corundum::platform::null::NullWindow *>(&engine.window());
+}
 
 } // namespace
 

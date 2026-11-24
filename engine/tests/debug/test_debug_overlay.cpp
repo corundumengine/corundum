@@ -33,89 +33,89 @@ namespace fs = std::filesystem;
 
 namespace {
 
-  /// Bundle the lifecycle setup used by every case here so each TEST_CASE reads
-  /// as a single focused scenario. With @p load_world the configured initial scene is built, as a
-  /// no-title boot does; pass false to exercise the no-world Title state.
-  corundum::Engine make_initialised_engine(const fs::path &fixtures, bool load_world = true) {
-    corundum::Engine engine{};
-    corundum::platform::null::NullPlatform platform = corundum::platform::null::make_null_platform(320, 240);
-    corundum::platform::null::adopt_null_platform(engine, platform);
+/// Bundle the lifecycle setup used by every case here so each TEST_CASE reads
+/// as a single focused scenario. With @p load_world the configured initial scene is built, as a
+/// no-title boot does; pass false to exercise the no-world Title state.
+corundum::Engine make_initialised_engine(const fs::path &fixtures, bool load_world = true) {
+  corundum::Engine engine{};
+  corundum::platform::null::NullPlatform platform = corundum::platform::null::make_null_platform(320, 240);
+  corundum::platform::null::adopt_null_platform(engine, platform);
 
-    corundum::core::GameConfig cfg{};
-    cfg.window_title = "hud_overlay_test";
-    cfg.win_w = 320;
-    cfg.win_h = 240;
-    cfg.paths.sprites_dir = (fixtures / "sprites").string();
-    cfg.paths.tilemap_path = (fixtures / "tilemaps/lifecycle_test.json").string();
-    cfg.paths.font_dir = (fixtures / "fonts").string();
-    corundum::test::set_missing_fonts(cfg.paths);
-    cfg.paths.world_manifest_path.clear();
-    cfg.paths.spawn_points_dir = (fixtures / "spawn_points").string();
-    cfg.paths.portals_dir = (fixtures / "portals").string();
-    cfg.paths.dialogue_dir.clear();
-    cfg.paths.quests_dir.clear();
-    cfg.paths.sounds_dir.clear();
+  corundum::core::GameConfig cfg{};
+  cfg.window_title = "hud_overlay_test";
+  cfg.win_w = 320;
+  cfg.win_h = 240;
+  cfg.paths.sprites_dir = (fixtures / "sprites").string();
+  cfg.paths.tilemap_path = (fixtures / "tilemaps/lifecycle_test.json").string();
+  cfg.paths.font_dir = (fixtures / "fonts").string();
+  corundum::test::set_missing_fonts(cfg.paths);
+  cfg.paths.world_manifest_path.clear();
+  cfg.paths.spawn_points_dir = (fixtures / "spawn_points").string();
+  cfg.paths.portals_dir = (fixtures / "portals").string();
+  cfg.paths.dialogue_dir.clear();
+  cfg.paths.quests_dir.clear();
+  cfg.paths.sounds_dir.clear();
 
-    const auto result = engine.initialize(std::move(cfg));
-    if (!result)
-      throw std::runtime_error(std::string{"hud_overlay_test setup failed: "} + result.error());
-    if (load_world) {
-      const auto world_result = corundum::world::load_initial_scene(engine);
-      if (!world_result)
-        throw std::runtime_error(std::string{"hud_overlay_test world setup failed: "} + world_result.error());
-    }
-    return engine;
+  const auto result = engine.initialize(std::move(cfg));
+  if (!result)
+    throw std::runtime_error(std::string{"hud_overlay_test setup failed: "} + result.error());
+  if (load_world) {
+    const auto world_result = corundum::world::load_initial_scene(engine);
+    if (!world_result)
+      throw std::runtime_error(std::string{"hud_overlay_test world setup failed: "} + world_result.error());
+  }
+  return engine;
+}
+
+/// Renderer double that records the viewport each world view is set with, so a test can prove the
+/// overlay projects world geometry with the live viewport rather than the configured window size.
+class ViewportRecordingRenderer final : public corundum::platform::Renderer {
+public:
+  std::vector<corundum::core::math::Vec2> viewports{};
+
+  [[nodiscard]] std::expected<corundum::platform::TextureId, std::string>
+  load_texture(std::string_view /*path*/) override {
+    return corundum::platform::TextureId{1};
   }
 
-  /// Renderer double that records the viewport each world view is set with, so a test can prove the
-  /// overlay projects world geometry with the live viewport rather than the configured window size.
-  class ViewportRecordingRenderer final : public corundum::platform::Renderer {
-  public:
-    std::vector<corundum::core::math::Vec2> viewports{};
+  [[nodiscard]] std::expected<corundum::platform::FontId, std::string> load_font(std::string_view /*path*/) override {
+    return corundum::platform::FontId{1};
+  }
 
-    [[nodiscard]] std::expected<corundum::platform::TextureId, std::string>
-    load_texture(std::string_view /*path*/) override {
-      return corundum::platform::TextureId{1};
-    }
+  [[nodiscard]] corundum::core::math::Vec2 texture_size(corundum::platform::TextureId /*texture_id*/) const override {
+    return {};
+  }
 
-    [[nodiscard]] std::expected<corundum::platform::FontId, std::string> load_font(std::string_view /*path*/) override {
-      return corundum::platform::FontId{1};
-    }
+  void release_texture(corundum::platform::TextureId /*texture_id*/) override {}
 
-    [[nodiscard]] corundum::core::math::Vec2 texture_size(corundum::platform::TextureId /*texture_id*/) const override {
-      return {};
-    }
+  void purge_unused_textures() override {}
 
-    void release_texture(corundum::platform::TextureId /*texture_id*/) override {}
+  void set_world_view(corundum::core::math::Vec2 /*top_left*/, corundum::core::math::Vec2 viewport_size,
+                      float /*zoom*/) override {
+    viewports.push_back(viewport_size);
+  }
 
-    void purge_unused_textures() override {}
+  void reset_screen_view() override {}
 
-    void set_world_view(corundum::core::math::Vec2 /*top_left*/, corundum::core::math::Vec2 viewport_size,
-                        float /*zoom*/) override {
-      viewports.push_back(viewport_size);
-    }
+  [[nodiscard]] bool begin_frame(corundum::core::math::Colour /*clear_colour*/) override { return true; }
 
-    void reset_screen_view() override {}
+  void end_frame() override {}
 
-    [[nodiscard]] bool begin_frame(corundum::core::math::Colour /*clear_colour*/) override { return true; }
+  void draw(const corundum::platform::DrawSprite & /*cmd*/) override {}
 
-    void end_frame() override {}
+  void draw(const corundum::platform::DrawText & /*cmd*/) override {}
 
-    void draw(const corundum::platform::DrawSprite & /*cmd*/) override {}
+  void draw(const corundum::platform::DrawRect & /*cmd*/) override {}
 
-    void draw(const corundum::platform::DrawText & /*cmd*/) override {}
+  void draw(const corundum::platform::DrawLine & /*cmd*/) override {}
 
-    void draw(const corundum::platform::DrawRect & /*cmd*/) override {}
+  [[nodiscard]] float measure_text(corundum::platform::FontId /*font_id*/, std::string_view text,
+                                   uint32_t /*char_size*/) const override {
+    return static_cast<float>(text.size()) * 8.f;
+  }
 
-    void draw(const corundum::platform::DrawLine & /*cmd*/) override {}
-
-    [[nodiscard]] float measure_text(corundum::platform::FontId /*font_id*/, std::string_view text,
-                                     uint32_t /*char_size*/) const override {
-      return static_cast<float>(text.size()) * 8.f;
-    }
-
-    [[nodiscard]] corundum::platform::RendererStats stats() const override { return {}; }
-  };
+  [[nodiscard]] corundum::platform::RendererStats stats() const override { return {}; }
+};
 
 } // namespace
 
