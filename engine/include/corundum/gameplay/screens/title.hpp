@@ -77,7 +77,7 @@ struct TitleLayout {
  *                 matches title_panel_render exactly. The game supplies it (GameConfig::title,
  *                 falling back to window_title), so the framework carries no branding of its own.
  */
-[[nodiscard]] TitleLayout title_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
+[[nodiscard]] TitleLayout title_panel_layout(const platform::Renderer &renderer, const ui::PanelStyle &style,
                                              const TitleState &state, std::string_view title, core::math::Vec2 viewport,
                                              input::InputDevice last_device);
 
@@ -86,7 +86,7 @@ struct TitleLayout {
  *  Pure render, invoked only while Title is on top of the UI stack. Disabled rows (Continue
  *  with no save) draw dimmed and cannot be selected.
  *
- *  @param r            Renderer; emits a full-viewport backdrop, the panel chrome and text.
+ *  @param renderer     Renderer; emits a full-viewport backdrop, the panel chrome and text.
  *  @param style        Panel style supplying fonts, sizes and colours.
  *  @param border       Pre-loaded nine-patch frame.
  *  @param state        Highlighted row, Continue availability and credits visibility.
@@ -94,7 +94,7 @@ struct TitleLayout {
  *  @param viewport     Screen size in logical pixels.
  *  @param last_device  Device of the player's most recent press; picks the footer glyphs.
  */
-void title_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+void title_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                         const TitleState &state, std::string_view title, core::math::Vec2 viewport,
                         input::InputDevice last_device = input::InputDevice::Keyboard);
 

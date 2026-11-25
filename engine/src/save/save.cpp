@@ -171,7 +171,7 @@ std::expected<void, std::string> save_game(const Engine &engine, core::UserStora
                                            std::chrono::system_clock::time_point saved_at) {
   SaveState state;
   state.version = k_save_version;
-  state.game_id = engine.cfg.game_id;
+  state.game_id = engine.config.game_id;
   state.meta.location_name = std::string{location_name};
   state.meta.playtime_seconds = playtime_seconds;
   state.meta.saved_at_unix = std::chrono::duration_cast<std::chrono::seconds>(saved_at.time_since_epoch()).count();
@@ -179,7 +179,7 @@ std::expected<void, std::string> save_game(const Engine &engine, core::UserStora
                                                                         : std::string{k_mode_single_map};
 
   if (state.mode == k_mode_world) {
-    state.map_or_world_id = engine.cfg.paths.world_manifest_path;
+    state.map_or_world_id = engine.config.paths.world_manifest_path;
   } else {
     const auto *tm = render::active_tilemap(engine.render);
     if (tm == nullptr)
@@ -251,14 +251,14 @@ std::expected<SaveMeta, std::string> load_game(Engine &engine, const core::UserS
   if (!state)
     return std::unexpected(std::move(state).error());
 
-  if (state->game_id != engine.cfg.game_id)
+  if (state->game_id != engine.config.game_id)
     return std::unexpected(
-        std::format("save '{}' is for game '{}', not '{}'", slot_id, state->game_id, engine.cfg.game_id));
+        std::format("save '{}' is for game '{}', not '{}'", slot_id, state->game_id, engine.config.game_id));
 
   if (state->mode == k_mode_world && !state->map_or_world_id.empty() &&
-      state->map_or_world_id != engine.cfg.paths.world_manifest_path)
+      state->map_or_world_id != engine.config.paths.world_manifest_path)
     return std::unexpected(std::format("save '{}' is for world '{}', not '{}'", slot_id, state->map_or_world_id,
-                                       engine.cfg.paths.world_manifest_path));
+                                       engine.config.paths.world_manifest_path));
 
   // Rebuild the scene first: apply_spawn reads no flag state, so committing flags
   // only after it succeeds keeps a failed load from leaving the engine with the

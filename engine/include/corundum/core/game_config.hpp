@@ -293,6 +293,6 @@ struct GameConfig {
  *  that sets neither gets k_default_game_title. load_game_config() resolves both fields already,
  *  so this only matters for a GameConfig built by hand (tests, embeddings).
  */
-[[nodiscard]] std::string_view game_title(const GameConfig &cfg) noexcept;
+[[nodiscard]] std::string_view game_title(const GameConfig &config) noexcept;
 
 } // namespace corundum::core

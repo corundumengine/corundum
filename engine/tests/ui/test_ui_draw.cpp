@@ -33,20 +33,20 @@ using corundum::test::RecordingRenderer;
  */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("ui_draw: panel_chrome emits exactly one DrawRect then the border's sprite commands") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::NinePatchBorder border = make_border();
   const corundum::core::math::Colour bg{.r = 20, .g = 20, .b = 20, .a = 200};
   const corundum::core::math::Vec2 pos{.x = 10.f, .y = 20.f};
   const corundum::core::math::Vec2 size{.x = 100.f, .y = 60.f};
 
-  corundum::ui::panel_chrome(r, bg, border, pos, size);
+  corundum::ui::panel_chrome(renderer, bg, border, pos, size);
 
   // The border draws 8 sprites (4 corners + 2 horizontal edges + 2 vertical edges).
-  REQUIRE(r.log.size() == 9);
+  REQUIRE(renderer.log.size() == 9);
 
   // First call is the fill rect, then the border's sprites — render order matters
   // because the fill must be behind the frame.
-  const DrawRect &first = std::get<DrawRect>(r.log[0]);
+  const DrawRect &first = std::get<DrawRect>(renderer.log[0]);
   CHECK(first.position.x == pos.x);
   CHECK(first.position.y == pos.y);
   CHECK(first.size.x == size.x);
@@ -54,35 +54,35 @@ TEST_CASE("ui_draw: panel_chrome emits exactly one DrawRect then the border's sp
   CHECK(first.colour.r == bg.r);
   CHECK(first.colour.a == bg.a);
 
-  for (std::size_t i = 1; i < r.log.size(); ++i)
-    CHECK(std::holds_alternative<DrawSprite>(r.log[i]));
+  for (std::size_t i = 1; i < renderer.log.size(); ++i)
+    CHECK(std::holds_alternative<DrawSprite>(renderer.log[i]));
 }
 
 TEST_CASE("ui_draw: panel_chrome is a no-op for the sprite half when the border has no texture") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   corundum::ui::NinePatchBorder border{};
   border.texture_id = TextureId::Invalid;
   border.tile_w = 4;
   border.tile_h = 4;
 
-  corundum::ui::panel_chrome(r, {.r = 0, .g = 0, .b = 0, .a = 255}, border, {.x = 0.f, .y = 0.f},
+  corundum::ui::panel_chrome(renderer, {.r = 0, .g = 0, .b = 0, .a = 255}, border, {.x = 0.f, .y = 0.f},
                              {.x = 50.f, .y = 50.f});
 
   // The fill still goes out; only the border is skipped.
-  REQUIRE(r.log.size() == 1);
-  CHECK(std::holds_alternative<DrawRect>(r.log[0]));
+  REQUIRE(renderer.log.size() == 1);
+  CHECK(std::holds_alternative<DrawRect>(renderer.log[0]));
 }
 
 TEST_CASE("ui_draw: panel_fill emits exactly one DrawRect") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::core::math::Colour bg{.r = 20, .g = 20, .b = 20, .a = 200};
   const corundum::core::math::Vec2 pos{.x = 10.f, .y = 20.f};
   const corundum::core::math::Vec2 size{.x = 100.f, .y = 60.f};
 
-  corundum::ui::panel_fill(r, bg, pos, size);
+  corundum::ui::panel_fill(renderer, bg, pos, size);
 
-  REQUIRE(r.log.size() == 1);
-  const DrawRect &rect = std::get<DrawRect>(r.log[0]);
+  REQUIRE(renderer.log.size() == 1);
+  const DrawRect &rect = std::get<DrawRect>(renderer.log[0]);
   CHECK(rect.position.x == pos.x);
   CHECK(rect.position.y == pos.y);
   CHECK(rect.size.x == size.x);
@@ -92,31 +92,31 @@ TEST_CASE("ui_draw: panel_fill emits exactly one DrawRect") {
 }
 
 TEST_CASE("ui_draw: panel_frame emits only the border's sprites, with no fill") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::NinePatchBorder border = make_border();
 
-  corundum::ui::panel_frame(r, border, {.x = 10.f, .y = 20.f}, {.x = 100.f, .y = 60.f});
+  corundum::ui::panel_frame(renderer, border, {.x = 10.f, .y = 20.f}, {.x = 100.f, .y = 60.f});
 
-  REQUIRE(r.log.size() == 8);
-  for (const auto &call : r.log)
+  REQUIRE(renderer.log.size() == 8);
+  for (const auto &call : renderer.log)
     CHECK(std::holds_alternative<DrawSprite>(call));
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
 TEST_CASE("ui_draw: nine_patch_render emits corners and correctly stretched edges") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::NinePatchBorder border = make_border(); // 4×4 cells
   const corundum::core::math::Vec2 pos{.x = 10.f, .y = 20.f};
   const corundum::core::math::Vec2 size{.x = 100.f, .y = 60.f};
 
-  corundum::ui::nine_patch_render(r, border, pos.x, pos.y, size.x, size.y);
+  corundum::ui::nine_patch_render(renderer, border, pos.x, pos.y, size.x, size.y);
 
   // Order: four corners at natural size (TL, TR, BL, BR), then horizontal edges, then vertical edges.
-  REQUIRE(r.log.size() == 8);
-  for (const auto &call : r.log)
+  REQUIRE(renderer.log.size() == 8);
+  for (const auto &call : renderer.log)
     REQUIRE(std::holds_alternative<DrawSprite>(call));
 
-  const auto sprite = [&](std::size_t i) -> const DrawSprite & { return std::get<DrawSprite>(r.log[i]); };
+  const auto sprite = [&](std::size_t i) -> const DrawSprite & { return std::get<DrawSprite>(renderer.log[i]); };
 
   // Top-left corner sits at the rect origin at natural size.
   CHECK(sprite(0).source.x == 0);
@@ -152,51 +152,51 @@ TEST_CASE("ui_draw: nine_patch_render emits corners and correctly stretched edge
 }
 
 TEST_CASE("ui_draw: nine_patch_render is a no-op without a texture or with non-positive cell size") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   corundum::ui::NinePatchBorder no_texture{};
   no_texture.tile_w = 4;
   no_texture.tile_h = 4;
-  corundum::ui::nine_patch_render(r, no_texture, 0.f, 0.f, 100.f, 60.f);
+  corundum::ui::nine_patch_render(renderer, no_texture, 0.f, 0.f, 100.f, 60.f);
 
   corundum::ui::NinePatchBorder zero_cell{};
   zero_cell.texture_id = TextureId{1};
-  corundum::ui::nine_patch_render(r, zero_cell, 0.f, 0.f, 100.f, 60.f);
+  corundum::ui::nine_patch_render(renderer, zero_cell, 0.f, 0.f, 100.f, 60.f);
 
-  CHECK(r.log.empty());
+  CHECK(renderer.log.empty());
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
 TEST_CASE("ui_draw: nine_patch_render clamps a sub-cell rect instead of emitting negative scales") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::NinePatchBorder border = make_border(); // 4×4 cells
 
   // 4×4 is narrower/shorter than two 4px corners, so both inner spans clamp to 0.
-  corundum::ui::nine_patch_render(r, border, 0.f, 0.f, 4.f, 4.f);
+  corundum::ui::nine_patch_render(renderer, border, 0.f, 0.f, 4.f, 4.f);
 
-  REQUIRE(r.log.size() == 8);
-  for (const auto &call : r.log) {
+  REQUIRE(renderer.log.size() == 8);
+  for (const auto &call : renderer.log) {
     const auto &s = std::get<DrawSprite>(call);
     CHECK(s.scale.x >= 0.f);
     CHECK(s.scale.y >= 0.f);
   }
-  CHECK(std::get<DrawSprite>(r.log[4]).scale.x == 0.f); // top-middle edge
-  CHECK(std::get<DrawSprite>(r.log[6]).scale.y == 0.f); // left-middle edge
+  CHECK(std::get<DrawSprite>(renderer.log[4]).scale.x == 0.f); // top-middle edge
+  CHECK(std::get<DrawSprite>(renderer.log[6]).scale.y == 0.f); // left-middle edge
 }
 
 TEST_CASE("ui_draw: draw_option emits two DrawTexts with selected colours when selected=true") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
   // style.selected defaults to (255, 255, 0, 255); style.choice defaults to (200, 200, 200, 255).
 
-  const float cursor_w = corundum::ui::cursor_advance(r, style);
-  corundum::ui::draw_option(r, style, "Hello", {.x = 5.f, .y = 7.f}, true);
+  const float cursor_w = corundum::ui::cursor_advance(renderer, style);
+  corundum::ui::draw_option(renderer, style, "Hello", {.x = 5.f, .y = 7.f}, true);
 
-  REQUIRE(r.log.size() == 2);
-  REQUIRE(std::holds_alternative<DrawText>(r.log[0]));
-  REQUIRE(std::holds_alternative<DrawText>(r.log[1]));
+  REQUIRE(renderer.log.size() == 2);
+  REQUIRE(std::holds_alternative<DrawText>(renderer.log[0]));
+  REQUIRE(std::holds_alternative<DrawText>(renderer.log[1]));
 
   // First draw: cursor prefix "> ".
-  const DrawText &cursor = std::get<DrawText>(r.log[0]);
+  const DrawText &cursor = std::get<DrawText>(renderer.log[0]);
   CHECK(cursor.text == "> ");
   CHECK(cursor.position.x == 5.f);
   CHECK(cursor.position.y == 7.f);
@@ -204,7 +204,7 @@ TEST_CASE("ui_draw: draw_option emits two DrawTexts with selected colours when s
   CHECK(cursor.colour.g == style.selected.g);
   CHECK(cursor.colour.b == style.selected.b);
   // Second draw: label at pos.x + cursor_w, same colour as cursor.
-  const DrawText &label = std::get<DrawText>(r.log[1]);
+  const DrawText &label = std::get<DrawText>(renderer.log[1]);
   CHECK(label.text == "Hello");
   CHECK(label.position.x == 5.f + cursor_w);
   CHECK(label.position.y == 7.f);
@@ -214,19 +214,19 @@ TEST_CASE("ui_draw: draw_option emits two DrawTexts with selected colours when s
 }
 
 TEST_CASE("ui_draw: draw_option emits two DrawTexts with choice colours and two-space cursor when selected=false") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
 
-  const float cursor_w = corundum::ui::cursor_advance(r, style);
-  corundum::ui::draw_option(r, style, "World", {.x = 0.f, .y = 0.f}, false);
+  const float cursor_w = corundum::ui::cursor_advance(renderer, style);
+  corundum::ui::draw_option(renderer, style, "World", {.x = 0.f, .y = 0.f}, false);
 
-  REQUIRE(r.log.size() == 2);
-  REQUIRE(std::holds_alternative<DrawText>(r.log[0]));
-  REQUIRE(std::holds_alternative<DrawText>(r.log[1]));
+  REQUIRE(renderer.log.size() == 2);
+  REQUIRE(std::holds_alternative<DrawText>(renderer.log[0]));
+  REQUIRE(std::holds_alternative<DrawText>(renderer.log[1]));
 
   // Cursor is the two-space placeholder; label follows at +cursor_w.
-  const DrawText &cursor = std::get<DrawText>(r.log[0]);
-  const DrawText &label = std::get<DrawText>(r.log[1]);
+  const DrawText &cursor = std::get<DrawText>(renderer.log[0]);
+  const DrawText &label = std::get<DrawText>(renderer.log[1]);
   CHECK(cursor.text == "  ");
   CHECK(label.text == "World");
   CHECK(label.position.x == cursor_w);
@@ -244,16 +244,16 @@ TEST_CASE("ui_draw: draw_option aligns the label at cursor_advance whether or no
   // column, so the label x is pos.x + cursor_advance in both branches. If a font rendered
   // "> " and "  " at different widths this would surface here — cursor_advance always
   // measures k_choice_cursor, which is the point.
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
-  const float advance = corundum::ui::cursor_advance(r, style);
+  const float advance = corundum::ui::cursor_advance(renderer, style);
 
-  corundum::ui::draw_option(r, style, "A", {.x = 0.f, .y = 0.f}, true);
-  corundum::ui::draw_option(r, style, "A", {.x = 100.f, .y = 0.f}, false);
+  corundum::ui::draw_option(renderer, style, "A", {.x = 0.f, .y = 0.f}, true);
+  corundum::ui::draw_option(renderer, style, "A", {.x = 100.f, .y = 0.f}, false);
 
-  REQUIRE(r.log.size() == 4);
-  const DrawText &selected_label = std::get<DrawText>(r.log[1]);
-  const DrawText &unselected_label = std::get<DrawText>(r.log[3]);
+  REQUIRE(renderer.log.size() == 4);
+  const DrawText &selected_label = std::get<DrawText>(renderer.log[1]);
+  const DrawText &unselected_label = std::get<DrawText>(renderer.log[3]);
   CHECK(selected_label.position.x == advance);
   CHECK(unselected_label.position.x == 100.f + advance);
   CHECK(advance > 0.f);
@@ -262,15 +262,15 @@ TEST_CASE("ui_draw: draw_option aligns the label at cursor_advance whether or no
 TEST_CASE("ui_draw: draw_option without a cursor keeps the selected colour and the hanging indent") {
   // Continuation lines of a wrapped selected option: the whole option stays highlighted
   // (style.selected) even though only the first line shows the "> " cursor.
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
-  const float advance = corundum::ui::cursor_advance(r, style);
+  const float advance = corundum::ui::cursor_advance(renderer, style);
 
-  corundum::ui::draw_option(r, style, "continuation", {.x = 3.f, .y = 9.f}, true, false);
+  corundum::ui::draw_option(renderer, style, "continuation", {.x = 3.f, .y = 9.f}, true, false);
 
-  REQUIRE(r.log.size() == 2);
-  const DrawText &cursor = std::get<DrawText>(r.log[0]);
-  const DrawText &label = std::get<DrawText>(r.log[1]);
+  REQUIRE(renderer.log.size() == 2);
+  const DrawText &cursor = std::get<DrawText>(renderer.log[0]);
+  const DrawText &label = std::get<DrawText>(renderer.log[1]);
   CHECK(cursor.text == "  ");
   CHECK(label.text == "continuation");
   CHECK(label.position.x == 3.f + advance);
@@ -282,27 +282,27 @@ TEST_CASE("ui_draw: draw_option without a cursor keeps the selected colour and t
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
 TEST_CASE("prompt_box_render: chrome, question, then the Yes/No option pairs") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::NinePatchBorder border = make_border();
   const corundum::ui::PanelStyle style{};
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
 
-  corundum::ui::prompt_box_render(r, style, border, "Enter?", true, viewport);
+  corundum::ui::prompt_box_render(renderer, style, border, "Enter?", true, viewport);
 
   // Chrome (1 DrawRect + 8 DrawSprite), question, then Yes (cursor+label) and No (cursor+label).
-  REQUIRE(r.log.size() == 9 + 1 + 4);
-  CHECK(std::holds_alternative<DrawRect>(r.log[0]));
+  REQUIRE(renderer.log.size() == 9 + 1 + 4);
+  CHECK(std::holds_alternative<DrawRect>(renderer.log[0]));
   for (std::size_t i = 1; i < 9; ++i)
-    CHECK(std::holds_alternative<DrawSprite>(r.log[i]));
+    CHECK(std::holds_alternative<DrawSprite>(renderer.log[i]));
 
-  const DrawText &question = std::get<DrawText>(r.log[9]);
+  const DrawText &question = std::get<DrawText>(renderer.log[9]);
   CHECK(question.text == "Enter?");
   CHECK(question.colour.r == style.body.r);
 
-  const DrawText &yes_cursor = std::get<DrawText>(r.log[10]);
-  const DrawText &yes_label = std::get<DrawText>(r.log[11]);
-  const DrawText &no_cursor = std::get<DrawText>(r.log[12]);
-  const DrawText &no_label = std::get<DrawText>(r.log[13]);
+  const DrawText &yes_cursor = std::get<DrawText>(renderer.log[10]);
+  const DrawText &yes_label = std::get<DrawText>(renderer.log[11]);
+  const DrawText &no_cursor = std::get<DrawText>(renderer.log[12]);
+  const DrawText &no_label = std::get<DrawText>(renderer.log[13]);
 
   CHECK(yes_cursor.text == "> ");
   CHECK(yes_label.text == "Yes");
@@ -317,19 +317,19 @@ TEST_CASE("prompt_box_render: chrome, question, then the Yes/No option pairs") {
 TEST_CASE("prompt_box_render: the option row is centered within the panel") {
   // Regression: the row's width must count the cursor column ahead of both labels, or the
   // row is placed half a cursor-width right of center.
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::NinePatchBorder border = make_border();
   const corundum::ui::PanelStyle style{};
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
 
-  corundum::ui::prompt_box_render(r, style, border, "Enter?", true, viewport);
+  corundum::ui::prompt_box_render(renderer, style, border, "Enter?", true, viewport);
 
-  const DrawRect &panel = std::get<DrawRect>(r.log[0]);
-  const DrawText &yes_cursor = std::get<DrawText>(r.log[10]);
-  const DrawText &no_label = std::get<DrawText>(r.log[13]);
+  const DrawRect &panel = std::get<DrawRect>(renderer.log[0]);
+  const DrawText &yes_cursor = std::get<DrawText>(renderer.log[10]);
+  const DrawText &no_label = std::get<DrawText>(renderer.log[13]);
 
-  const float no_w = r.measure_text(style.family(corundum::ui::FontRole::Ui).get(corundum::ui::FontStyle::Regular),
-                                    "No", style.font_size_body);
+  const float no_w = renderer.measure_text(
+      style.family(corundum::ui::FontRole::Ui).get(corundum::ui::FontStyle::Regular), "No", style.font_size_body);
   const float row_left = yes_cursor.position.x;
   const float row_right = no_label.position.x + no_w;
   const float panel_center = panel.position.x + (panel.size.x * 0.5f);
@@ -368,17 +368,18 @@ TEST_CASE("prompt_box_render: panel respects the minimum width and grows for a l
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
 
   {
-    RecordingRenderer r;
-    corundum::ui::prompt_box_render(r, style, border, "Enter?", true, viewport);
-    CHECK(std::get<DrawRect>(r.log[0]).size.x == 200.f);
+    RecordingRenderer renderer;
+    corundum::ui::prompt_box_render(renderer, style, border, "Enter?", true, viewport);
+    CHECK(std::get<DrawRect>(renderer.log[0]).size.x == 200.f);
   }
   {
-    RecordingRenderer r;
+    RecordingRenderer renderer;
     const std::string_view long_question = "A considerably longer question?";
-    corundum::ui::prompt_box_render(r, style, border, long_question, true, viewport);
-    const float q_w = r.measure_text(style.family(corundum::ui::FontRole::Ui).get(corundum::ui::FontStyle::Regular),
-                                     long_question, style.font_size_body);
-    CHECK(std::get<DrawRect>(r.log[0]).size.x == q_w + 64.f); // content + 2 × k_pad_x
+    corundum::ui::prompt_box_render(renderer, style, border, long_question, true, viewport);
+    const float q_w =
+        renderer.measure_text(style.family(corundum::ui::FontRole::Ui).get(corundum::ui::FontStyle::Regular),
+                              long_question, style.font_size_body);
+    CHECK(std::get<DrawRect>(renderer.log[0]).size.x == q_w + 64.f); // content + 2 × k_pad_x
   }
 }
 
@@ -444,17 +445,17 @@ TEST_CASE("scroll_row_delta: wheel up moves up one row per notch and truncates f
 }
 
 TEST_CASE("ui_draw: draw_option with a role and style draws the label in that face") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   corundum::ui::PanelStyle style{};
   style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)] = corundum::test::make_font_family(5);
 
-  const float advance = corundum::ui::cursor_advance(r, style, corundum::ui::FontRole::Quest);
-  corundum::ui::draw_option(r, style, corundum::ui::FontRole::Quest, corundum::ui::FontStyle::Bold, "Ember",
+  const float advance = corundum::ui::cursor_advance(renderer, style, corundum::ui::FontRole::Quest);
+  corundum::ui::draw_option(renderer, style, corundum::ui::FontRole::Quest, corundum::ui::FontStyle::Bold, "Ember",
                             {.x = 4.f, .y = 9.f}, true);
 
-  REQUIRE(r.log.size() == 2);
-  const auto &cursor = std::get<DrawText>(r.log[0]);
-  const auto &label = std::get<DrawText>(r.log[1]);
+  REQUIRE(renderer.log.size() == 2);
+  const auto &cursor = std::get<DrawText>(renderer.log[0]);
+  const auto &label = std::get<DrawText>(renderer.log[1]);
   CHECK(cursor.text == "> ");
   CHECK(cursor.font_id == FontId{5}); // role regular, not the bold label face
   CHECK(label.text == "Ember");
@@ -463,24 +464,24 @@ TEST_CASE("ui_draw: draw_option with a role and style draws the label in that fa
 }
 
 TEST_CASE("ui_draw: measure_styled sums each run at its own style") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::FontFamily family = corundum::test::make_font_family(5);
   const auto runs = corundum::ui::parse_styled("a **bb** c");
   // RecordingRenderer measures every glyph at 8px, so the total is 8 * character count.
-  CHECK(corundum::ui::measure_styled(r, family, runs, 22) == doctest::Approx(8.f * 6.f));
+  CHECK(corundum::ui::measure_styled(renderer, family, runs, 22) == doctest::Approx(8.f * 6.f));
 }
 
 TEST_CASE("ui_draw: draw_styled advances x across runs and uses each run's face") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::FontFamily family = corundum::test::make_font_family(5);
   const auto runs = corundum::ui::parse_styled("a **bb** c");
 
-  corundum::ui::draw_styled(r, family, runs, 22, corundum::core::math::Colour{.r = 10}, {.x = 3.f, .y = 4.f});
+  corundum::ui::draw_styled(renderer, family, runs, 22, corundum::core::math::Colour{.r = 10}, {.x = 3.f, .y = 4.f});
 
-  REQUIRE(r.log.size() == 3);
-  const auto &first = std::get<DrawText>(r.log[0]);
-  const auto &second = std::get<DrawText>(r.log[1]);
-  const auto &third = std::get<DrawText>(r.log[2]);
+  REQUIRE(renderer.log.size() == 3);
+  const auto &first = std::get<DrawText>(renderer.log[0]);
+  const auto &second = std::get<DrawText>(renderer.log[1]);
+  const auto &third = std::get<DrawText>(renderer.log[2]);
   CHECK(first.text == "a ");
   CHECK(first.font_id == FontId{5});
   CHECK(first.position.x == 3.f);

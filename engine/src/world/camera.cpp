@@ -61,8 +61,8 @@ void Camera::follow_player(float player_x, float player_y, const MapView &map, f
   const float effective_horizontal_margin{k_horizontal_margin / zoom};
   const float effective_vertical_margin{k_vertical_margin / zoom};
 
-  x = follow_axis(player_x, x, map.world_w_px, effective_w, effective_horizontal_margin);
-  y = follow_axis(player_y, y, map.world_h_px, effective_h, effective_vertical_margin);
+  x = follow_axis(player_x, x, map.world_bounds.width_px, effective_w, effective_horizontal_margin);
+  y = follow_axis(player_y, y, map.world_bounds.height_px, effective_h, effective_vertical_margin);
 }
 
 void Camera::apply_zoom(float zoom_delta, float anchor_x, float anchor_y, float min_zoom, float max_zoom) noexcept {

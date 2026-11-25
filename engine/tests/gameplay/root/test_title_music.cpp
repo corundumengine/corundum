@@ -80,12 +80,12 @@ MusicRecorder &boot(corundum::Engine &engine, bool show_title,
   MusicRecorder *raw = recorder.get();
   engine.audio.adopt_backend(std::move(recorder));
 
-  corundum::core::GameConfig cfg = make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
-  cfg.game_id = "test_game";
-  cfg.title_music = std::move(music);
-  cfg.show_title = show_title;
-  cfg.paths.splash_images = std::move(splash_images);
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config = make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
+  config.game_id = "test_game";
+  config.title_music = std::move(music);
+  config.show_title = show_title;
+  config.paths.splash_images = std::move(splash_images);
+  REQUIRE(engine.initialize(std::move(config)).has_value());
   return *raw;
 }
 

@@ -45,10 +45,10 @@ TEST_CASE("engine events: on_event hook handles custom event and returns true") 
   bool hook_called = false;
 
   gameplay.on_event = [&hook_called, &captured_name, &captured_args](corundum::Engine &,
-                                                                     const dialogue::EventAction &ev) {
+                                                                     const dialogue::EventAction &event) {
     hook_called = true;
-    captured_name = ev.name;
-    captured_args = ev.args;
+    captured_name = event.name;
+    captured_args = event.args;
     return true;
   };
 
@@ -341,9 +341,9 @@ TEST_CASE("engine events: an event a hook queues during dispatch waits for the n
   adopt_null_platform(*engine);
   corundum::gameplay::Gameplay gameplay{*engine};
   std::vector<std::string> dispatched;
-  gameplay.on_event = [&gameplay, &dispatched](corundum::Engine &, const dialogue::EventAction &ev) {
-    dispatched.push_back(ev.name);
-    if (ev.name == "first")
+  gameplay.on_event = [&gameplay, &dispatched](corundum::Engine &, const dialogue::EventAction &event) {
+    dispatched.push_back(event.name);
+    if (event.name == "first")
       gameplay.pending_dialogue_events.push_back(dialogue::EventAction{.name = "second", .args = {"queued"}});
     return true;
   };

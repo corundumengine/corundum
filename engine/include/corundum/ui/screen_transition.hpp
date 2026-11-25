@@ -118,10 +118,11 @@ private:
  *
  *  Emits one DrawRect when alpha() > 0 and nothing otherwise, so the idle cost is a compare.
  *
- *  @param r          Renderer; receives the overlay DrawRect.
+ *  @param renderer   Renderer; receives the overlay DrawRect.
  *  @param transition Supplies the opacity.
  *  @param viewport   Screen size in logical pixels.
  */
-void render_screen_transition(platform::Renderer &r, const ScreenTransition &transition, core::math::Vec2 viewport);
+void render_screen_transition(platform::Renderer &renderer, const ScreenTransition &transition,
+                              core::math::Vec2 viewport);
 
 } // namespace corundum::ui

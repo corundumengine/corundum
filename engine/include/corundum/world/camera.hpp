@@ -46,7 +46,7 @@ public:
    *
    *   @param player_x Target X world position in px.
    *   @param player_y Target Y world position in px.
-   *   @param map      Map dimensions for viewport clamping (world_w_px, world_h_px).
+   *   @param map      Map dimensions for viewport clamping (`world_bounds`).
    *   @param win_w    Viewport width in px.
    *   @param win_h    Viewport height in px.
    *   @pre zoom > 0.

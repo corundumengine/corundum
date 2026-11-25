@@ -42,16 +42,16 @@ using corundum::platform::DrawSprite;
 using corundum::platform::DrawText;
 using corundum::test::RecordingRenderer;
 
-std::size_t sprite_count(const RecordingRenderer &r) {
+std::size_t sprite_count(const RecordingRenderer &renderer) {
   std::size_t count = 0;
-  for (const RecordingRenderer::DrawCall &call : r.log)
+  for (const RecordingRenderer::DrawCall &call : renderer.log)
     if (std::get_if<DrawSprite>(&call) != nullptr)
       ++count;
   return count;
 }
 
-std::optional<corundum::core::math::Colour> text_colour(const RecordingRenderer &r, std::string_view text) {
-  for (const RecordingRenderer::DrawCall &call : r.log) {
+std::optional<corundum::core::math::Colour> text_colour(const RecordingRenderer &renderer, std::string_view text) {
+  for (const RecordingRenderer::DrawCall &call : renderer.log) {
     if (const auto *draw = std::get_if<DrawText>(&call); draw != nullptr && draw->text == text)
       return draw->colour;
   }
@@ -170,11 +170,11 @@ TEST_CASE("credits render: a background image is drawn over the backdrop and swi
   state.background_texture = corundum::platform::TextureId{1};
   state.background_size = {.x = 2560.f, .y = 1440.f};
 
-  RecordingRenderer r;
-  corundum::gameplay::screens::credits_panel_render(r, style, {.x = 1280.f, .y = 720.f}, state);
+  RecordingRenderer renderer;
+  corundum::gameplay::screens::credits_panel_render(renderer, style, {.x = 1280.f, .y = 720.f}, state);
 
-  CHECK(sprite_count(r) == 1);
-  const std::optional<corundum::core::math::Colour> colour = text_colour(r, "Title");
+  CHECK(sprite_count(renderer) == 1);
+  const std::optional<corundum::core::math::Colour> colour = text_colour(renderer, "Title");
   REQUIRE(colour.has_value());
   const corundum::core::math::Colour ink = colour.value_or(corundum::core::math::Colour{});
   CHECK(ink.r == 90);
@@ -187,11 +187,11 @@ TEST_CASE("credits render: without a background the flat backdrop and light text
   corundum::gameplay::screens::CreditsState state;
   state.title = "Title";
 
-  RecordingRenderer r;
-  corundum::gameplay::screens::credits_panel_render(r, style, {.x = 1280.f, .y = 720.f}, state);
+  RecordingRenderer renderer;
+  corundum::gameplay::screens::credits_panel_render(renderer, style, {.x = 1280.f, .y = 720.f}, state);
 
-  CHECK(sprite_count(r) == 0);
-  const std::optional<corundum::core::math::Colour> colour = text_colour(r, "Title");
+  CHECK(sprite_count(renderer) == 0);
+  const std::optional<corundum::core::math::Colour> colour = text_colour(renderer, "Title");
   REQUIRE(colour.has_value());
   const corundum::core::math::Colour ink = colour.value_or(corundum::core::math::Colour{});
   CHECK(ink.r == style.speaker.r);

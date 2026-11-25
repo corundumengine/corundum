@@ -181,20 +181,21 @@ SaveLoadLayout save_load_panel_layout(const platform::Renderer & /*r*/, const ui
   return layout;
 }
 
-void save_load_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
-                            const SaveLoadState &state, core::math::Vec2 viewport, input::InputDevice last_device) {
-  const SaveLoadLayout layout = save_load_panel_layout(r, style, state, viewport, last_device);
+void save_load_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style,
+                            const ui::NinePatchBorder &border, const SaveLoadState &state, core::math::Vec2 viewport,
+                            input::InputDevice last_device) {
+  const SaveLoadLayout layout = save_load_panel_layout(renderer, style, state, viewport, last_device);
   const float line_h = layout.rows.row_height;
   const platform::FontId font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
   const std::string title = state.saving ? "Save Game" : "Load Game";
   const std::string footer = std::format("{} Select   {} Close", ui::input_glyph(input::Action::Activate, last_device),
                                          ui::input_glyph(input::Action::Cancel, last_device));
 
-  ui::screen_backdrop(r, style, viewport);
-  ui::panel_chrome(r, style.bg, border, layout.panel_pos, layout.panel_size);
+  ui::screen_backdrop(renderer, style, viewport);
+  ui::panel_chrome(renderer, style.bg, border, layout.panel_pos, layout.panel_size);
 
-  const float title_w = r.measure_text(font_id, title, style.font_size_speaker);
-  r.draw(platform::DrawText{
+  const float title_w = renderer.measure_text(font_id, title, style.font_size_speaker);
+  renderer.draw(platform::DrawText{
       .font_id = font_id,
       .text = title,
       .position =
@@ -206,13 +207,13 @@ void save_load_panel_render(platform::Renderer &r, const ui::PanelStyle &style, 
       .colour = style.speaker,
   });
 
-  r.draw(platform::DrawText{
+  renderer.draw(platform::DrawText{
       .font_id = font_id,
       .text = footer,
       .position =
           {
               .x = layout.panel_pos.x +
-                   ((layout.panel_size.x - r.measure_text(font_id, footer, style.font_size_body)) * 0.5f),
+                   ((layout.panel_size.x - renderer.measure_text(font_id, footer, style.font_size_body)) * 0.5f),
               .y = layout.panel_pos.y + layout.panel_size.y - k_save_load_pad_y - line_h,
           },
       .char_size = style.font_size_body,
@@ -220,7 +221,7 @@ void save_load_panel_render(platform::Renderer &r, const ui::PanelStyle &style, 
   });
 
   if (state.slots.empty()) {
-    r.draw(platform::DrawText{
+    renderer.draw(platform::DrawText{
         .font_id = font_id,
         .text = "(no saves)",
         .position = layout.rows.row_pos,
@@ -234,7 +235,7 @@ void save_load_panel_render(platform::Renderer &r, const ui::PanelStyle &style, 
   float y = layout.rows.row_pos.y;
   const int last_row = std::min(layout.rows.first_row + layout.rows.visible_rows, static_cast<int>(state.slots.size()));
   for (int i = layout.rows.first_row; i < last_row; ++i) {
-    ui::draw_option(r, style, slot_list_label(state.slots[static_cast<std::size_t>(i)]),
+    ui::draw_option(renderer, style, slot_list_label(state.slots[static_cast<std::size_t>(i)]),
                     {.x = layout.rows.row_pos.x, .y = y}, i == clamped_cursor);
     y += line_h;
   }
@@ -243,7 +244,7 @@ void save_load_panel_render(platform::Renderer &r, const ui::PanelStyle &style, 
   const std::vector<std::string> lines = detail_lines(selected);
   float detail_y = layout.detail.pos.y;
   for (const std::string &line : lines) {
-    r.draw(platform::DrawText{
+    renderer.draw(platform::DrawText{
         .font_id = font_id,
         .text = line,
         .position = {.x = layout.detail.pos.x, .y = detail_y},

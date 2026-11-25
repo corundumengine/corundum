@@ -179,18 +179,18 @@ spawn_actors_from_file(const core::ContentSource &content, World &world, const C
   return spawn_actors(world, registry, spawn_points->actors, col_off, row_off);
 }
 
-/** Spawn the player (collision, facing, animation, motion sprite) from `cfg`'s player sprite names. */
+/** Spawn the player (collision, facing, animation, motion sprite) from `config`'s player sprite names. */
 std::expected<EntityId, std::string> spawn_player(World &world, const CharacterRegistry &registry,
-                                                  const corundum::core::GameConfig &cfg, Position spawn_pos) {
-  const SpriteId walk_id = registry.get_sprite_id(cfg.player.walk_sprite);
+                                                  const corundum::core::GameConfig &config, Position spawn_pos) {
+  const SpriteId walk_id = registry.get_sprite_id(config.player.walk_sprite);
   if (walk_id == corundum::sprites::k_null_sprite_id)
-    return std::unexpected(
-        std::format("[engine] unknown player walk sprite '{}' (game.json player.walk_sprite)", cfg.player.walk_sprite));
+    return std::unexpected(std::format("[engine] unknown player walk sprite '{}' (game.json player.walk_sprite)",
+                                       config.player.walk_sprite));
 
-  const SpriteId idle_id = registry.get_sprite_id(cfg.player.idle_sprite);
+  const SpriteId idle_id = registry.get_sprite_id(config.player.idle_sprite);
   if (idle_id == corundum::sprites::k_null_sprite_id)
-    return std::unexpected(
-        std::format("[engine] unknown player idle sprite '{}' (game.json player.idle_sprite)", cfg.player.idle_sprite));
+    return std::unexpected(std::format("[engine] unknown player idle sprite '{}' (game.json player.idle_sprite)",
+                                       config.player.idle_sprite));
 
   const SpriteStats walk = read_sprite_stats(registry, walk_id);
   const SpriteStats idle = read_sprite_stats(registry, idle_id);
@@ -241,13 +241,13 @@ void despawn_departed_chunks(Scene &scene, const corundum::render::ChunkWindow &
  *  this residency.
  */
 void spawn_new_chunks(const core::ContentSource &content, Scene &scene, const corundum::render::ChunkWindow &chunks,
-                      const corundum::core::GameConfig &cfg, const CharacterRegistry &registry, int chunk_size) {
+                      const corundum::core::GameConfig &config, const CharacterRegistry &registry, int chunk_size) {
   for (const auto &entry : chunks.active()) {
     const auto set = std::ranges::find(scene.chunk_actors, entry.coord, &ChunkActorSet::coord);
     if (set != scene.chunk_actors.end() && (!set->departed || any_live(scene.world, set->entities)))
       continue;
 
-    const auto path = std::filesystem::path(cfg.paths.spawn_points_dir) /
+    const auto path = std::filesystem::path(config.paths.spawn_points_dir) /
                       std::format("chunk_{}_{}.json", entry.coord.col, entry.coord.row);
     auto spawned = spawn_actors_from_file(content, scene.world, registry, path, entry.coord.col * chunk_size,
                                           entry.coord.row * chunk_size);
@@ -284,14 +284,14 @@ void prune_departed_chunks(Scene &scene, const corundum::render::ChunkWindow &ch
 } // namespace
 
 std::expected<std::unique_ptr<Scene>, std::string>
-spawn_world(const corundum::core::ContentSource &content, const corundum::core::GameConfig &cfg,
+spawn_world(const corundum::core::ContentSource &content, const corundum::core::GameConfig &config,
             const corundum::sprites::CharacterRegistry &registry, const corundum::world::tilemap::Tilemap &tilemap,
             std::optional<corundum::entities::Position> player_pos, bool spawn_file_actors) {
   auto scene = std::make_unique<Scene>();
   World &world = scene->world;
 
   const std::string map_stem = std::filesystem::path(tilemap.path).stem().string();
-  const auto actors_path = std::filesystem::path(cfg.paths.spawn_points_dir) / (map_stem + ".json");
+  const auto actors_path = std::filesystem::path(config.paths.spawn_points_dir) / (map_stem + ".json");
 
   auto spawn_points_result = load_spawn_points(content, actors_path);
   if (!spawn_points_result)
@@ -309,9 +309,9 @@ spawn_world(const corundum::core::ContentSource &content, const corundum::core::
   // Spawn position precedence: explicit arg > per-map spawn_points > game.json > built-in (8,8).
   const Position spawn_pos = player_pos.value_or(
       spawn_points.player ? Position{.col = spawn_points.player->col, .row = spawn_points.player->row}
-                          : Position{.col = cfg.player.col, .row = cfg.player.row});
+                          : Position{.col = config.player.col, .row = config.player.row});
 
-  auto player = spawn_player(world, registry, cfg, spawn_pos);
+  auto player = spawn_player(world, registry, config, spawn_pos);
   if (!player)
     return std::unexpected(player.error());
 
@@ -332,7 +332,7 @@ spawn_world(const corundum::core::ContentSource &content, const corundum::core::
 }
 
 void sync_chunk_actors(const corundum::core::ContentSource &content, Scene &scene,
-                       const corundum::render::RenderState &render, const corundum::core::GameConfig &cfg,
+                       const corundum::render::RenderState &render, const corundum::core::GameConfig &config,
                        const corundum::sprites::CharacterRegistry &registry) {
   const auto *world_area = std::get_if<corundum::render::WorldArea>(&render.area);
   if (world_area == nullptr || world_area->chunks.active_empty())
@@ -343,7 +343,7 @@ void sync_chunk_actors(const corundum::core::ContentSource &content, Scene &scen
   const int chunk_size = world_area->manifest.chunk_size;
 
   despawn_departed_chunks(scene, world_area->chunks);
-  spawn_new_chunks(content, scene, world_area->chunks, cfg, registry, chunk_size);
+  spawn_new_chunks(content, scene, world_area->chunks, config, registry, chunk_size);
   prune_departed_chunks(scene, world_area->chunks);
 }
 

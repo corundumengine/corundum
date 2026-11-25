@@ -95,9 +95,9 @@ TEST_CASE("load_fonts resolves every style and falls back to regular") {
   paths.fonts[role_index(FontRole::Quest)] = FontFamilyPaths{.regular = "q_regular.ttf"};
   paths.fonts[role_index(FontRole::Ui)] = FontFamilyPaths{.regular = "u_regular.ttf"};
 
-  CountingRenderer r;
+  CountingRenderer renderer;
   corundum::render::RenderState state;
-  REQUIRE(corundum::render::load_fonts(r, state, paths).has_value());
+  REQUIRE(corundum::render::load_fonts(renderer, state, paths).has_value());
 
   const auto &dialogue = state.fonts[role_index(FontRole::Dialogue)];
   CHECK(dialogue.get(FontStyle::Regular) == corundum::platform::FontId{1});
@@ -126,9 +126,9 @@ TEST_CASE("load_fonts loads the display family and falls back its optional style
   paths.fonts[role_index(FontRole::Ui)] = FontFamilyPaths{.regular = "u.ttf"};
   paths.fonts[role_index(FontRole::Display)] = FontFamilyPaths{.bold = "x_bold.ttf", .regular = "x.ttf"};
 
-  CountingRenderer r;
+  CountingRenderer renderer;
   corundum::render::RenderState state;
-  REQUIRE(corundum::render::load_fonts(r, state, paths).has_value());
+  REQUIRE(corundum::render::load_fonts(renderer, state, paths).has_value());
 
   const auto &display = state.fonts[role_index(FontRole::Display)];
   CHECK(display.get(FontStyle::Regular) == corundum::platform::FontId{4});
@@ -138,14 +138,14 @@ TEST_CASE("load_fonts loads the display family and falls back its optional style
 }
 
 TEST_CASE("configure_panel_style scales the display sizes independently of the body sizes") {
-  corundum::core::GameConfig cfg;
-  cfg.dialogue_render.font_size_body = 22;
-  cfg.display.heading_size = 48;
-  cfg.display.banner_size = 64;
+  corundum::core::GameConfig config;
+  config.dialogue_render.font_size_body = 22;
+  config.display.heading_size = 48;
+  config.display.banner_size = 64;
 
   corundum::render::RenderState state;
   state.ui_scale = 2.f;
-  corundum::render::configure_panel_style(state, cfg);
+  corundum::render::configure_panel_style(state, config);
 
   const auto &style = state.panel_skin.style;
   CHECK(style.font_size_body == 44u);
@@ -160,9 +160,9 @@ TEST_CASE("load_fonts falls back bold-italic to italic when bold is absent") {
   paths.fonts[role_index(FontRole::Quest)] = FontFamilyPaths{.italic = "q_i.ttf", .regular = "q.ttf"};
   paths.fonts[role_index(FontRole::Ui)] = FontFamilyPaths{.regular = "u.ttf"};
 
-  CountingRenderer r;
+  CountingRenderer renderer;
   corundum::render::RenderState state;
-  REQUIRE(corundum::render::load_fonts(r, state, paths).has_value());
+  REQUIRE(corundum::render::load_fonts(renderer, state, paths).has_value());
 
   const auto &quest = state.fonts[role_index(FontRole::Quest)];
   CHECK(quest.get(FontStyle::Regular) == corundum::platform::FontId{2});
@@ -185,9 +185,9 @@ TEST_CASE("load_fonts reports a missing regular face as an error") {
   paths.fonts[role_index(FontRole::Quest)] = FontFamilyPaths{.regular = "q.ttf"};
   paths.fonts[role_index(FontRole::Ui)] = FontFamilyPaths{.regular = "u.ttf"};
 
-  CountingRenderer r;
+  CountingRenderer renderer;
   corundum::render::RenderState state;
-  const auto result = corundum::render::load_fonts(r, state, paths);
+  const auto result = corundum::render::load_fonts(renderer, state, paths);
   REQUIRE_FALSE(result.has_value());
   CHECK_MESSAGE(result.error().starts_with("[renderer] could not load dialogue font '': "), result.error());
 }

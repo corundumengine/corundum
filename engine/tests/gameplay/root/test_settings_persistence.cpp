@@ -66,7 +66,7 @@ TEST_CASE("settings persistence: closing the settings screen writes settings.jso
   const ScratchUserData user_data;
   user_data.attach(engine);
   init_engine(engine);
-  engine.cfg.game_id = "settings_save_game";
+  engine.config.game_id = "settings_save_game";
 
   // Menu → Settings.
   press(engine, Action::Menu);
@@ -96,7 +96,7 @@ TEST_CASE("settings persistence: closing the settings screen writes settings.jso
 TEST_CASE("settings persistence: a project with no user storage saves nothing on close") {
   corundum::Engine engine{};
   init_engine(engine);
-  REQUIRE(engine.cfg.game_id.empty());
+  REQUIRE(engine.config.game_id.empty());
   REQUIRE_FALSE(engine.user_storage.has_value()); // No game_id, so no user storage.
 
   press(engine, Action::Menu);

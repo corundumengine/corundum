@@ -47,7 +47,7 @@ struct HubTabStrip {
 };
 
 /** Compute hub strip geometry for `viewport`. */
-[[nodiscard]] HubTabStrip hub_tab_strip(const platform::Renderer &r, const ui::PanelStyle &style,
+[[nodiscard]] HubTabStrip hub_tab_strip(const platform::Renderer &renderer, const ui::PanelStyle &style,
                                         core::math::Vec2 viewport);
 
 /** Height of the top gap a hub panel leaves clear for the tab strip.
@@ -64,13 +64,13 @@ struct HubTabStrip {
  *
  *  Drawn in the top margin so it never overlaps the centered hub panels.
  *
- *  @param r           Platform renderer; receives DrawText commands.
+ *  @param renderer    Platform renderer; receives DrawText commands.
  *  @param style       Dialog text style; reused so the strip matches the panels.
  *  @param active      Hub mode to highlight (one of k_hub_tab_modes).
  *  @param viewport    Screen size in pixels.
  *  @param last_device Device of the player's most recent press; picks the bumper glyphs.
  */
-void hub_tab_strip_render(platform::Renderer &r, const ui::PanelStyle &style, world::GameMode active,
+void hub_tab_strip_render(platform::Renderer &renderer, const ui::PanelStyle &style, world::GameMode active,
                           core::math::Vec2 viewport, input::InputDevice last_device);
 
 } // namespace corundum::gameplay::screens

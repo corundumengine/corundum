@@ -99,8 +99,8 @@ struct ParseCursor {
  */
 EventAction parse_call(ParseCursor &ctx, std::string name) {
   ctx.consume(); // '('
-  EventAction ev;
-  ev.name = std::move(name);
+  EventAction event;
+  event.name = std::move(name);
 
   ctx.skip_ws();
   while (!ctx.at_end() && ctx.peek() != ')') {
@@ -116,7 +116,7 @@ EventAction parse_call(ParseCursor &ctx, std::string name) {
       if (arg.empty())
         throw std::runtime_error(std::format("unexpected character '{}' in function arguments", ctx.peek()));
     }
-    ev.args.push_back(std::move(arg));
+    event.args.push_back(std::move(arg));
     ctx.skip_ws();
     if (ctx.peek() == ',') {
       ctx.consume();
@@ -126,7 +126,7 @@ EventAction parse_call(ParseCursor &ctx, std::string name) {
   if (ctx.peek() != ')')
     throw std::runtime_error("expected ')' to close function call");
   ctx.consume();
-  return ev;
+  return event;
 }
 
 Action parse_impl(std::string_view src) {

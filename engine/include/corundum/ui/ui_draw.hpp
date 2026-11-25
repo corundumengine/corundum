@@ -110,61 +110,63 @@ struct ListHit {
  *  Callers that lay out several columns (prompt/inventory) use this instead of re-measuring
  *  the glyph, keeping the one definition of the advance beside draw_option().
  *
- *  @param r     Renderer used for font metrics.
- *  @param style Supplies the role's font family and font_size_body.
- *  @param role  Font role the option is drawn in; defaults to the UI role.
+ *  @param renderer Renderer used for font metrics.
+ *  @param style    Supplies the role's font family and font_size_body.
+ *  @param role     Font role the option is drawn in; defaults to the UI role.
  *  @return Width in pixels reserved for the cursor prefix.
  */
-[[nodiscard]] float cursor_advance(const platform::Renderer &r, const PanelStyle &style, FontRole role = FontRole::Ui);
+[[nodiscard]] float cursor_advance(const platform::Renderer &renderer, const PanelStyle &style,
+                                   FontRole role = FontRole::Ui);
 
 /** Fill `pos`/`size` with `bg` — the tint behind a panel's frame.
  *
  *  A translucent `bg` lets the scene show through and tint the panel; an opaque one makes a
  *  solid box. Kept separate from panel_frame() so a caller can draw either alone.
- *  @param r    Renderer; emits one DrawRect.
- *  @param bg   Fill colour.
- *  @param pos  Top-left in screen pixels.
- *  @param size Width/height in screen pixels.
+ *  @param renderer Renderer; emits one DrawRect.
+ *  @param bg       Fill colour.
+ *  @param pos      Top-left in screen pixels.
+ *  @param size     Width/height in screen pixels.
  */
-void panel_fill(platform::Renderer &r, core::math::Colour bg, core::math::Vec2 pos, core::math::Vec2 size);
+void panel_fill(platform::Renderer &renderer, core::math::Colour bg, core::math::Vec2 pos, core::math::Vec2 size);
 
 /** Draw the `border` nine-patch frame around `pos`/`size`, with no fill.
  *
  *  A texture_id of TextureId::Invalid or a non-positive cell size skips the frame.
- *  @param r      Renderer; emits the border's DrawSprite commands.
- *  @param border Nine-patch frame texture/tile dims.
- *  @param pos    Top-left in screen pixels.
- *  @param size   Width/height in screen pixels.
+ *  @param renderer Renderer; emits the border's DrawSprite commands.
+ *  @param border   Nine-patch frame texture/tile dims.
+ *  @param pos      Top-left in screen pixels.
+ *  @param size     Width/height in screen pixels.
  */
-void panel_frame(platform::Renderer &r, const NinePatchBorder &border, core::math::Vec2 pos, core::math::Vec2 size);
+void panel_frame(platform::Renderer &renderer, const NinePatchBorder &border, core::math::Vec2 pos,
+                 core::math::Vec2 size);
 
 /** panel_fill() then panel_frame() — the shared chrome of every nine-patch modal panel.
- *  @param r       Renderer; emits one DrawRect then the border's DrawSprite commands.
- *  @param bg      Panel fill colour (e.g. PanelStyle::bg).
- *  @param border  Nine-patch frame.
- *  @param pos     Top-left of the panel in screen pixels.
- *  @param size    Panel width/height in screen pixels.
+ *  @param renderer Renderer; emits one DrawRect then the border's DrawSprite commands.
+ *  @param bg       Panel fill colour (e.g. PanelStyle::bg).
+ *  @param border   Nine-patch frame.
+ *  @param pos      Top-left of the panel in screen pixels.
+ *  @param size     Panel width/height in screen pixels.
  */
-void panel_chrome(platform::Renderer &r, core::math::Colour bg, const NinePatchBorder &border, core::math::Vec2 pos,
-                  core::math::Vec2 size);
+void panel_chrome(platform::Renderer &renderer, core::math::Colour bg, const NinePatchBorder &border,
+                  core::math::Vec2 pos, core::math::Vec2 size);
 
 /** Fill the whole viewport with an opaque PanelStyle::bg.
  *
  *  Drawn behind a viewport-filling screen panel so the world does not show through the
  *  translucent PanelStyle::bg used for content-sized modals. One DrawRect per call.
  *
- *  @param r        Renderer; emits one DrawRect.
+ *  @param renderer Renderer; emits one DrawRect.
  *  @param style    Supplies bg; only its alpha is forced opaque.
  *  @param viewport Screen size in logical pixels.
  */
-void screen_backdrop(platform::Renderer &r, const PanelStyle &style, core::math::Vec2 viewport);
+void screen_backdrop(platform::Renderer &renderer, const PanelStyle &style, core::math::Vec2 viewport);
 
 /** Draw one selectable menu option: a "> " cursor (or two spaces when
  *         `show_cursor` is false) followed by `label`, coloured by `selected`.
  *
- *  The label always begins at `pos.x + cursor_advance(r, style)`.
+ *  The label always begins at `pos.x + cursor_advance(renderer, style)`.
  *
- *  @param r           Renderer; receives two DrawText commands (cursor, then label).
+ *  @param renderer    Renderer; receives two DrawText commands (cursor, then label).
  *  @param style       Supplies the UI font family, font_size_body, and the selected/choice colours.
  *  @param label       Option text; drawn verbatim (no wrapping).
  *  @param pos         Top-left where the cursor starts.
@@ -173,7 +175,7 @@ void screen_backdrop(platform::Renderer &r, const PanelStyle &style, core::math:
  *                     Pass false for continuation lines of a wrapped option so they keep
  *                     the selected colour without repeating the cursor.
  */
-void draw_option(platform::Renderer &r, const PanelStyle &style, std::string_view label, core::math::Vec2 pos,
+void draw_option(platform::Renderer &renderer, const PanelStyle &style, std::string_view label, core::math::Vec2 pos,
                  bool selected, bool show_cursor = true);
 
 /** draw_option() in an explicit `role` and `label_style`, for role-owned lists.
@@ -182,7 +184,7 @@ void draw_option(platform::Renderer &r, const PanelStyle &style, std::string_vie
  *  Used by the quest-role screens (journal, codex) so their list rows follow the Quest
  *  family while every other list keeps the UI defaults.
  *
- *  @param r           Renderer; receives two DrawText commands (cursor, then label).
+ *  @param renderer    Renderer; receives two DrawText commands (cursor, then label).
  *  @param style       Supplies the requested family, font_size_body, and colours.
  *  @param role        Font role for the row.
  *  @param label_style Style the label is drawn in (e.g. Bold for a title).
@@ -191,25 +193,25 @@ void draw_option(platform::Renderer &r, const PanelStyle &style, std::string_vie
  *  @param selected    True → style.selected; false → style.choice.
  *  @param show_cursor Pass false for continuation lines of a wrapped option.
  */
-void draw_option(platform::Renderer &r, const PanelStyle &style, FontRole role, FontStyle label_style,
+void draw_option(platform::Renderer &renderer, const PanelStyle &style, FontRole role, FontStyle label_style,
                  std::string_view label, core::math::Vec2 pos, bool selected, bool show_cursor = true);
 
 /** Rendered width of `runs` at `char_size`, each measured in its own style. */
-[[nodiscard]] float measure_styled(const platform::Renderer &r, const FontFamily &family,
+[[nodiscard]] float measure_styled(const platform::Renderer &renderer, const FontFamily &family,
                                    std::span<const StyledRun> runs, unsigned char_size);
 
 /** Rendered width of `segments` at `char_size`, each measured in its own style. */
-[[nodiscard]] float measure_styled(const platform::Renderer &r, const FontFamily &family,
+[[nodiscard]] float measure_styled(const platform::Renderer &renderer, const FontFamily &family,
                                    std::span<const StyledSegment> segments, unsigned char_size);
 
 /** Draws `runs` left-to-right from `pos`, advancing x by each run's measured width. */
-void draw_styled(platform::Renderer &r, const FontFamily &family, std::span<const StyledRun> runs, unsigned char_size,
-                 core::math::Colour colour, core::math::Vec2 pos);
+void draw_styled(platform::Renderer &renderer, const FontFamily &family, std::span<const StyledRun> runs,
+                 unsigned char_size, core::math::Colour colour, core::math::Vec2 pos);
 
 /** Draws `segments` left-to-right from `pos`. `segment.x` is ignored in favour of the
  *  accumulated measured width, so the layout matches wrap_styled().
  */
-void draw_styled(platform::Renderer &r, const FontFamily &family, std::span<const StyledSegment> segments,
+void draw_styled(platform::Renderer &renderer, const FontFamily &family, std::span<const StyledSegment> segments,
                  unsigned char_size, core::math::Colour colour, core::math::Vec2 pos);
 
 } // namespace corundum::ui

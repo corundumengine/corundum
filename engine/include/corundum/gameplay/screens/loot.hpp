@@ -46,7 +46,7 @@ struct LootLayout {
 };
 
 /** Compute the loot panel's geometry for `viewport`. */
-[[nodiscard]] LootLayout loot_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
+[[nodiscard]] LootLayout loot_panel_layout(const platform::Renderer &renderer, const ui::PanelStyle &style,
                                            std::string_view container_name, const std::vector<InventoryLine> &container,
                                            const std::vector<InventoryLine> &player, core::math::Vec2 viewport,
                                            input::InputDevice last_device);
@@ -56,7 +56,7 @@ struct LootLayout {
  *  Pure render, like inventory_panel_render. The active pane's rows are drawn with a cursor;
  *  the inactive pane's are plain. Rows are "name xcount", as build_item_lines() produces.
  *
- *  @param r              Platform renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
+ *  @param renderer       Platform renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
  *  @param style          Dialog text style; reused so the screen matches dialogue.
  *  @param border         Pre-loaded nine-patch frame; the same one the dialogue box uses.
  *  @param container_name Heading for the left pane (e.g. a chest or corpse name).
@@ -66,7 +66,7 @@ struct LootLayout {
  *  @param viewport       Screen size in pixels; the panel is centered within this.
  *  @param last_device    Device of the player's most recent press; picks the footer glyphs.
  */
-void loot_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+void loot_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                        std::string_view container_name, const std::vector<InventoryLine> &container,
                        const std::vector<InventoryLine> &player, const LootState &state, core::math::Vec2 viewport,
                        input::InputDevice last_device = input::InputDevice::Keyboard);

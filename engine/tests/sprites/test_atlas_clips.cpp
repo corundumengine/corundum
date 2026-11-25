@@ -77,7 +77,7 @@ TEST_CASE("load_atlas_clips - malformed JSON fails") {
   CHECK(result.error().find(path.string()) != std::string::npos);
 }
 
-TEST_CASE("load_atlas_clips - missing 'schema_version' is treated as legacy version 1") {
+TEST_CASE("load_atlas_clips - missing 'schema_version' reads as version 1") {
   const auto dir = temp_dir("missing_schema_version");
   const auto path = dir / "sidecar.json";
   write_file(path, R"({"clips":[{"name":"a","frames":["x"]}]})");

@@ -37,17 +37,18 @@ void snapshot_previous_step(render::RenderState &state, const corundum::world::S
                                                              core::math::TilePos current, float alpha) noexcept;
 
 /** Render the world for one frame; the caller owns screen-space overlays.
- *  @param r              Renderer for all draw calls.
+ *  @param renderer       Renderer for all draw calls.
  *  @param state          Writes frame scratch and WorldArea::above_z_cache, and records
  *                        world_view. Never changes chunk residency.
- *  @param cfg            Game config.
+ *  @param config         Game config.
  *  @param scene          Scene (camera, entities, dialogue mode).
  *  @param alpha          Interpolation factor in [0,1] for render smoothing.
  *  @param window_logical Live window size in logical points.
  *  @post The renderer's view is reset to screen space, ready for overlay drawing.
  *  @post state.world_view holds the view the world was drawn with.
  */
-void render(corundum::platform::Renderer &r, render::RenderState &state, const corundum::core::GameConfig &cfg,
-            const corundum::world::Scene &scene, float alpha, core::math::IntSize window_logical);
+void render(corundum::platform::Renderer &renderer, render::RenderState &state,
+            const corundum::core::GameConfig &config, const corundum::world::Scene &scene, float alpha,
+            core::math::IntSize window_logical);
 
 } // namespace corundum::render

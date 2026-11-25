@@ -75,7 +75,7 @@ struct CombatHud {
  *
  *  Pure render, invoked only while Combat or CombatPaused is on top of the UI stack.
  */
-void combat_hud_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+void combat_hud_render(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                        const CombatHud &hud, core::math::Vec2 viewport, input::InputDevice device,
                        std::string_view banner);
 

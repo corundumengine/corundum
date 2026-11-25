@@ -42,22 +42,22 @@ corundum::Engine make_initialised_engine(const fs::path &fixtures, bool load_wor
   corundum::platform::null::NullPlatform platform = corundum::platform::null::make_null_platform(320, 240);
   corundum::platform::null::adopt_null_platform(engine, platform);
 
-  corundum::core::GameConfig cfg{};
-  cfg.window_title = "hud_overlay_test";
-  cfg.win_w = 320;
-  cfg.win_h = 240;
-  cfg.paths.sprites_dir = (fixtures / "sprites").string();
-  cfg.paths.tilemap_path = (fixtures / "tilemaps/lifecycle_test.json").string();
-  cfg.paths.font_dir = (fixtures / "fonts").string();
-  corundum::test::set_missing_fonts(cfg.paths);
-  cfg.paths.world_manifest_path.clear();
-  cfg.paths.spawn_points_dir = (fixtures / "spawn_points").string();
-  cfg.paths.portals_dir = (fixtures / "portals").string();
-  cfg.paths.dialogue_dir.clear();
-  cfg.paths.quests_dir.clear();
-  cfg.paths.sounds_dir.clear();
+  corundum::core::GameConfig config{};
+  config.window_title = "hud_overlay_test";
+  config.win_w = 320;
+  config.win_h = 240;
+  config.paths.sprites_dir = (fixtures / "sprites").string();
+  config.paths.tilemap_path = (fixtures / "tilemaps/lifecycle_test.json").string();
+  config.paths.font_dir = (fixtures / "fonts").string();
+  corundum::test::set_missing_fonts(config.paths);
+  config.paths.world_manifest_path.clear();
+  config.paths.spawn_points_dir = (fixtures / "spawn_points").string();
+  config.paths.portals_dir = (fixtures / "portals").string();
+  config.paths.dialogue_dir.clear();
+  config.paths.quests_dir.clear();
+  config.paths.sounds_dir.clear();
 
-  const auto result = engine.initialize(std::move(cfg));
+  const auto result = engine.initialize(std::move(config));
   if (!result)
     throw std::runtime_error(std::string{"hud_overlay_test setup failed: "} + result.error());
   if (load_world) {
@@ -155,7 +155,7 @@ TEST_CASE("HudOverlay::render on NullRenderer draws without crashing and updates
 
   const corundum::debug::OverlayInput input{
       .render_state = &engine.render,
-      .cfg = &engine.cfg,
+      .config = &engine.config,
       .scene = &engine.scene,
       .timer = &engine.timer,
       .viewport = {.x = 320.f, .y = 240.f},
@@ -181,7 +181,7 @@ TEST_CASE("HudOverlay::render is a no-op on the renderer when smoothed_fps start
 
   const corundum::debug::OverlayInput input{
       .render_state = &engine.render,
-      .cfg = &engine.cfg,
+      .config = &engine.config,
       .scene = &engine.scene,
       .timer = &engine.timer,
       .viewport = {.x = 320.f, .y = 240.f},
@@ -207,7 +207,7 @@ TEST_CASE("HudOverlay::render handles a zero last_frame_dt without dividing by z
 
   const corundum::debug::OverlayInput input{
       .render_state = &engine.render,
-      .cfg = &engine.cfg,
+      .config = &engine.config,
       .scene = &engine.scene,
       .timer = &engine.timer,
       .viewport = {.x = 320.f, .y = 240.f},
@@ -235,7 +235,7 @@ TEST_CASE("HudOverlay: counts only the frames whose step budget was exhausted") 
   const auto render_with = [&engine](const bool budget_exhausted) {
     const corundum::debug::OverlayInput input{
         .render_state = &engine.render,
-        .cfg = &engine.cfg,
+        .config = &engine.config,
         .scene = &engine.scene,
         .timer = &engine.timer,
         .viewport = {.x = 320.f, .y = 240.f},
@@ -265,7 +265,7 @@ TEST_CASE("HudOverlay::render advances the FPS EMA but skips drawing while disab
 
   const corundum::debug::OverlayInput input{
       .render_state = &engine.render,
-      .cfg = &engine.cfg,
+      .config = &engine.config,
       .scene = &engine.scene,
       .timer = &engine.timer,
       .viewport = {.x = 320.f, .y = 240.f},
@@ -292,13 +292,13 @@ TEST_CASE("HudOverlay: world geometry uses the live viewport, not the configured
   corundum::Engine engine = make_initialised_engine(fixtures);
   engine.hud.enabled = true;
 
-  // cfg.win_w/win_h stay 320x240 (the startup size) while the live window is larger, as after a
-  // switch to fullscreen. Projecting with cfg's size desyncs the debug geometry from the sprites,
+  // config.win_w/win_h stay 320x240 (the startup size) while the live window is larger, as after a
+  // switch to fullscreen. Projecting with config's size desyncs the debug geometry from the sprites,
   // which the main render draws with the live viewport, so the overlay must use input.viewport.
   const corundum::core::math::Vec2 live_viewport{.x = 640.f, .y = 480.f};
   const corundum::debug::OverlayInput input{
       .render_state = &engine.render,
-      .cfg = &engine.cfg,
+      .config = &engine.config,
       .scene = &engine.scene,
       .timer = &engine.timer,
       .viewport = live_viewport,
@@ -329,7 +329,7 @@ TEST_CASE("HudOverlay: with no world the panel shows only the frame-rate, World 
 
   const corundum::debug::OverlayInput input{
       .render_state = &engine.render,
-      .cfg = &engine.cfg,
+      .config = &engine.config,
       .scene = &engine.scene,
       .timer = &engine.timer,
       .viewport = {.x = 320.f, .y = 240.f},

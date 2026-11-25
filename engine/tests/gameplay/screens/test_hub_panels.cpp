@@ -76,14 +76,14 @@ bool within_panel(const corundum::ui::RowRect &row, Vec2 panel_pos, Vec2 panel_s
  */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("journal_panel_layout: fills the viewport and windows rows to keep the cursor visible") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
   const std::vector<JournalEntry> entries = make_journal_entries(30);
 
   JournalState state{};
   state.cursor = 25;
   state.scroll = 0;
-  const JournalLayout layout = screens::journal_panel_layout(r, style, entries, state, {.x = 1280.f, .y = 720.f},
+  const JournalLayout layout = screens::journal_panel_layout(renderer, style, entries, state, {.x = 1280.f, .y = 720.f},
                                                              corundum::input::InputDevice::Keyboard);
 
   // The panel spans the viewport minus margins; the tab strip inset is reserved at the top.
@@ -107,14 +107,14 @@ TEST_CASE("journal_panel_layout: fills the viewport and windows rows to keep the
 }
 
 TEST_CASE("journal_panel_layout: a scroll offset moves first_row") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
   const std::vector<JournalEntry> entries = make_journal_entries(30);
 
   JournalState state{};
   state.cursor = 10;
   state.scroll = 8;
-  const JournalLayout layout = screens::journal_panel_layout(r, style, entries, state, {.x = 1280.f, .y = 720.f},
+  const JournalLayout layout = screens::journal_panel_layout(renderer, style, entries, state, {.x = 1280.f, .y = 720.f},
                                                              corundum::input::InputDevice::Keyboard);
 
   CHECK(layout.first_row == 8); // cursor 10 still inside the window, so the offset holds
@@ -125,14 +125,15 @@ TEST_CASE("journal_panel_layout: a scroll offset moves first_row") {
  */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("inventory_panel_layout: windows item rows and keeps hit rects inside the panel") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
   std::vector<screens::InventoryLine> lines;
   lines.reserve(30);
   for (int i = 0; i < 30; ++i)
     lines.push_back(screens::InventoryLine{.count = 1, .name = "Item " + std::to_string(i)});
 
-  const InventoryLayout layout = screens::inventory_panel_layout(r, style, lines, {}, 24, 0, {.x = 1280.f, .y = 720.f});
+  const InventoryLayout layout =
+      screens::inventory_panel_layout(renderer, style, lines, {}, 24, 0, {.x = 1280.f, .y = 720.f});
 
   CHECK(layout.panel_pos.y == style.margin + screens::hub_panel_top_inset(style));
   REQUIRE(layout.visible_rows > 0);
@@ -148,7 +149,7 @@ TEST_CASE("inventory_panel_layout: windows item rows and keeps hit rects inside 
 }
 
 TEST_CASE("inventory_panel_layout: a scroll offset moves first_row") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
   std::vector<screens::InventoryLine> lines;
   lines.reserve(30);
@@ -156,7 +157,8 @@ TEST_CASE("inventory_panel_layout: a scroll offset moves first_row") {
     lines.push_back(screens::InventoryLine{.count = 1, .name = "Item " + std::to_string(i)});
 
   // Cursor 10 is inside the window starting at 8, so the offset holds.
-  const InventoryLayout layout = screens::inventory_panel_layout(r, style, lines, {}, 10, 8, {.x = 1280.f, .y = 720.f});
+  const InventoryLayout layout =
+      screens::inventory_panel_layout(renderer, style, lines, {}, 10, 8, {.x = 1280.f, .y = 720.f});
   CHECK(layout.first_row == 8);
 }
 
@@ -165,11 +167,11 @@ TEST_CASE("inventory_panel_layout: a scroll offset moves first_row") {
  */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("map_panel_layout: fills the viewport, windows rows, and scrolls") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
   const std::vector<MapEntry> entries = make_map_entries(30);
 
-  const MapLayout layout = screens::map_panel_layout(r, style, entries, /*cursor=*/26, /*scroll=*/0,
+  const MapLayout layout = screens::map_panel_layout(renderer, style, entries, /*cursor=*/26, /*scroll=*/0,
                                                      {.x = 1280.f, .y = 720.f}, corundum::input::InputDevice::Keyboard);
 
   CHECK(layout.panel_pos.y == style.margin + screens::hub_panel_top_inset(style));
@@ -186,7 +188,7 @@ TEST_CASE("map_panel_layout: fills the viewport, windows rows, and scrolls") {
 
   // The wheel/scroll offset moves first_row when the cursor is at the offset.
   const MapLayout scrolled =
-      screens::map_panel_layout(r, style, entries, /*cursor=*/10, /*scroll=*/10, {.x = 1280.f, .y = 720.f},
+      screens::map_panel_layout(renderer, style, entries, /*cursor=*/10, /*scroll=*/10, {.x = 1280.f, .y = 720.f},
                                 corundum::input::InputDevice::Keyboard);
   CHECK(scrolled.rows.first_row == 10);
 }
@@ -253,12 +255,12 @@ TEST_CASE("inventory_panel_render: the equipment column draws the equipped item 
       {.slot = "feet", .item_name = ""},
   };
 
-  RecordingRenderer r;
-  screens::inventory_panel_render(r, style, border, lines, equipment, 0, 0, {.x = 1280.f, .y = 720.f});
+  RecordingRenderer renderer;
+  screens::inventory_panel_render(renderer, style, border, lines, equipment, 0, 0, {.x = 1280.f, .y = 720.f});
 
   bool body = false;
   bool feet = false;
-  for (const auto &call : r.log) {
+  for (const auto &call : renderer.log) {
     if (const auto *text = std::get_if<corundum::platform::DrawText>(&call); text != nullptr) {
       body = body || text->text == "body: Cloak";
       feet = feet || text->text == "feet: (empty)";

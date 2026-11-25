@@ -59,7 +59,7 @@ Absent keys aren't written at all; on load, a missing flag reads as `0`.
 
 The gameplay framework layers named slots over the raw `save_game()` / `load_game()` API.
 
-- **Directory** — `core::user_data_dir(game_id) / "saves"`, from `save::saves_directory(cfg)`.
+- **Directory** — `core::user_data_dir(game_id) / "saves"`, from `save::saves_directory(config)`.
   An empty `game_id` is an error, matching `settings::default_path`.
 - **Slot names** — ten manual slots `slot_01.json` … `slot_10.json`
   (`k_manual_slot_count`), plus `autosave.json` and `quicksave.json`. A slot's id is its file stem.

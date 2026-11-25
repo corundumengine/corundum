@@ -65,15 +65,16 @@ void dialog_box_advance(DialogBoxState &ds, const gameplay::dialogue::Conversati
  *  @param skin       Panel style and border the layout measures against.
  *  @param text_speed RenderState::text_speed multiplier; zero or less reveals instantly.
  */
-void dialog_box_update(DialogBoxState &ds, const gameplay::dialogue::Conversation &conversation, platform::Renderer &r,
-                       core::math::Vec2 viewport, const ui::PanelSkin &skin, float text_speed);
+void dialog_box_update(DialogBoxState &ds, const gameplay::dialogue::Conversation &conversation,
+                       platform::Renderer &renderer, core::math::Vec2 viewport, const ui::PanelSkin &skin,
+                       float text_speed);
 
 /** Emit platform::DrawRect, nine-patch border, and platform::DrawText commands for the current frame.
  *  No-op when ds.visible is false or layout is absent.
  *
  *  @param last_device Device of the player's most recent press; selects the footer glyphs.
  */
-void dialog_box_render(const DialogBoxState &ds, platform::Renderer &r, const ui::PanelSkin &skin,
+void dialog_box_render(const DialogBoxState &ds, platform::Renderer &renderer, const ui::PanelSkin &skin,
                        input::InputDevice last_device);
 
 /** Hide the box without clearing the cached layout. */

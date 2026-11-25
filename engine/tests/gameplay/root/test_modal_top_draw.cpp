@@ -47,8 +47,8 @@ corundum::gameplay::dialogue::Graph make_talk_graph(std::string text) {
   return graph;
 }
 
-bool contains_text(const RecordingRenderer &r, std::string_view needle) {
-  for (const auto &call : r.log) {
+bool contains_text(const RecordingRenderer &renderer, std::string_view needle) {
+  for (const auto &call : renderer.log) {
     if (const auto *text = std::get_if<corundum::platform::DrawText>(&call); text != nullptr && text->text == needle)
       return true;
   }
@@ -76,20 +76,20 @@ TEST_CASE("modal draw: the dialogue box hides under a pushed screen and resumes 
   engine.render.text_speed = 0.f; // reveal instantly so the full body is drawn
 
   const corundum::core::math::Vec2 viewport{.x = 320.f, .y = 240.f};
-  RecordingRenderer r;
+  RecordingRenderer renderer;
 
   // Dialogue is the top mode: the Modal hook draws the box.
   engine.scene.ui.push(screens::Dialogue);
-  engine.screens.render_layer(corundum::RenderLayer::Modal, engine, r, viewport);
-  CHECK(contains_text(r, "Hello world"));
+  engine.screens.render_layer(corundum::RenderLayer::Modal, engine, renderer, viewport);
+  CHECK(contains_text(renderer, "Hello world"));
 
   // Give the box non-default reveal progress, then push a screen over it.
   gameplay.dialog_box.reveal_chars = 3.f;
   engine.scene.ui.push(corundum::world::GameMode::Menu);
 
-  r.log.clear();
-  engine.screens.render_layer(corundum::RenderLayer::Modal, engine, r, viewport);
-  CHECK_FALSE(contains_text(r, "Hello world"));
+  renderer.log.clear();
+  engine.screens.render_layer(corundum::RenderLayer::Modal, engine, renderer, viewport);
+  CHECK_FALSE(contains_text(renderer, "Hello world"));
   CHECK_FALSE(screens::dialog_box_visible(gameplay.dialog_box));
   // Hiding clears visibility only — layout and reveal progress stay cached for a resume.
   CHECK(gameplay.dialog_box.reveal_chars == doctest::Approx(3.f));
@@ -97,9 +97,9 @@ TEST_CASE("modal draw: the dialogue box hides under a pushed screen and resumes 
 
   // Popping the menu restores the box exactly.
   engine.scene.ui.pop();
-  r.log.clear();
-  engine.screens.render_layer(corundum::RenderLayer::Modal, engine, r, viewport);
-  CHECK(contains_text(r, "Hello world"));
+  renderer.log.clear();
+  engine.screens.render_layer(corundum::RenderLayer::Modal, engine, renderer, viewport);
+  CHECK(contains_text(renderer, "Hello world"));
   CHECK(gameplay.dialog_box.reveal_chars == doctest::Approx(3.f));
 
   engine.cleanup();

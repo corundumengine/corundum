@@ -88,9 +88,9 @@ platform::FontId regular_font(const ui::PanelStyle &style) noexcept {
   return style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
 }
 
-void draw_text(platform::Renderer &r, const ui::PanelStyle &style, std::string_view text, core::math::Vec2 pos,
+void draw_text(platform::Renderer &renderer, const ui::PanelStyle &style, std::string_view text, core::math::Vec2 pos,
                unsigned char_size, core::math::Colour colour) {
-  r.draw(platform::DrawText{
+  renderer.draw(platform::DrawText{
       .font_id = regular_font(style),
       .text = text,
       .position = pos,
@@ -99,24 +99,24 @@ void draw_text(platform::Renderer &r, const ui::PanelStyle &style, std::string_v
   });
 }
 
-void draw_section_header(platform::Renderer &r, const ui::PanelStyle &style, std::string_view title,
+void draw_section_header(platform::Renderer &renderer, const ui::PanelStyle &style, std::string_view title,
                          const ui::RowRect &section) {
-  draw_text(r, style, title, section.pos, style.font_size_speaker, style.speaker);
+  draw_text(renderer, style, title, section.pos, style.font_size_speaker, style.speaker);
 }
 
 /** Draw one "label: value" row and return the y of the next row. */
-float draw_labeled_row(platform::Renderer &r, const ui::PanelStyle &style, const ui::RowRect &section, float y,
+float draw_labeled_row(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::RowRect &section, float y,
                        std::string_view label, std::string_view value) {
   const std::string text = std::format("{}: {}", label, value);
-  draw_text(r, style, text, {.x = section.pos.x, .y = y}, style.font_size_body, style.choice);
+  draw_text(renderer, style, text, {.x = section.pos.x, .y = y}, style.font_size_body, style.choice);
   return y + body_line_height(style);
 }
 
 /** Draw `rows` from `first_y` down `section`, scrolling so `cursor` stays visible.
  *  A negative `cursor` draws every row unselected (a section the cursor is not in).
  */
-void draw_section_rows(platform::Renderer &r, const ui::PanelStyle &style, const ui::RowRect &section, float first_y,
-                       const std::vector<std::string> &rows, int cursor) {
+void draw_section_rows(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::RowRect &section,
+                       float first_y, const std::vector<std::string> &rows, int cursor) {
   if (rows.empty())
     return;
   const float line_h = body_line_height(style);
@@ -126,7 +126,7 @@ void draw_section_rows(platform::Renderer &r, const ui::PanelStyle &style, const
   const int first = ui::clamp_scroll_to_cursor(0, std::max(0, cursor), count, capacity);
   const int last = std::min(count, first + capacity);
   for (int i = first; i < last; ++i) {
-    ui::draw_option(r, style, rows[static_cast<std::size_t>(i)],
+    ui::draw_option(renderer, style, rows[static_cast<std::size_t>(i)],
                     {.x = section.pos.x, .y = first_y + (static_cast<float>(i - first) * line_h)}, i == cursor);
   }
 }
@@ -188,25 +188,25 @@ CharacterSheetLayout character_sheet_layout(const ui::PanelStyle &style, core::m
   };
 }
 
-void character_sheet_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
-                            const CharacterInfo &info, core::math::Vec2 viewport, input::InputDevice last_device,
-                            const CharacterSheetState &state) {
+void character_sheet_render(platform::Renderer &renderer, const ui::PanelStyle &style,
+                            const ui::NinePatchBorder &border, const CharacterInfo &info, core::math::Vec2 viewport,
+                            input::InputDevice last_device, const CharacterSheetState &state) {
   const ui::PanelRect panel = ui::screen_panel_rect(viewport, style);
   const SectionGeometry sections = compute_sections(style, panel);
 
-  ui::screen_backdrop(r, style, viewport);
-  ui::panel_chrome(r, style.bg, border, panel.pos, panel.size);
+  ui::screen_backdrop(renderer, style, viewport);
+  ui::panel_chrome(renderer, style.bg, border, panel.pos, panel.size);
 
-  const float title_w = r.measure_text(regular_font(style), k_panel_header, style.font_size_speaker);
-  draw_text(r, style, k_panel_header,
+  const float title_w = renderer.measure_text(regular_font(style), k_panel_header, style.font_size_speaker);
+  draw_text(renderer, style, k_panel_header,
             {.x = panel.pos.x + ((panel.size.x - title_w) * 0.5f), .y = panel.pos.y + k_pad_y}, style.font_size_speaker,
             style.speaker);
 
-  draw_section_header(r, style, "Stats", sections.stats);
-  draw_section_rows(r, style, sections.stats, sections.stats.pos.y + header_line_height(style), build_stats_rows(info),
-                    state.section == 0 ? state.row : -1);
+  draw_section_header(renderer, style, "Stats", sections.stats);
+  draw_section_rows(renderer, style, sections.stats, sections.stats.pos.y + header_line_height(style),
+                    build_stats_rows(info), state.section == 0 ? state.row : -1);
 
-  draw_section_header(r, style, "Equipment", sections.equipment);
+  draw_section_header(renderer, style, "Equipment", sections.equipment);
   std::vector<std::string> equipment_rows;
   if (info.equipment.empty()) {
     equipment_rows.push_back(std::format("Slots: {}", k_empty_label));
@@ -216,12 +216,12 @@ void character_sheet_render(platform::Renderer &r, const ui::PanelStyle &style, 
           std::format("{}: {}", line.slot, line.item_name.empty() ? k_empty_label : line.item_name));
     }
   }
-  draw_section_rows(r, style, sections.equipment, sections.equipment.pos.y + header_line_height(style), equipment_rows,
-                    state.section == 1 ? state.row : -1);
+  draw_section_rows(renderer, style, sections.equipment, sections.equipment.pos.y + header_line_height(style),
+                    equipment_rows, state.section == 1 ? state.row : -1);
 
-  draw_section_header(r, style, "Inventory", sections.inventory);
+  draw_section_header(renderer, style, "Inventory", sections.inventory);
   float y = sections.inventory.pos.y + header_line_height(style);
-  y = draw_labeled_row(r, style, sections.inventory, y, "Items",
+  y = draw_labeled_row(renderer, style, sections.inventory, y, "Items",
                        info.inventory_capacity > 0
                            ? std::format("{} / {}", info.inventory_count, info.inventory_capacity)
                            : std::format("{}", info.inventory_count));
@@ -230,14 +230,14 @@ void character_sheet_render(platform::Renderer &r, const ui::PanelStyle &style, 
   for (const InventoryLine &line : info.inventory) {
     inventory_rows.push_back(line.count > 1 ? std::format("{} x{}", line.name, line.count) : line.name);
   }
-  draw_section_rows(r, style, sections.inventory, y, inventory_rows, state.section == 2 ? state.row : -1);
+  draw_section_rows(renderer, style, sections.inventory, y, inventory_rows, state.section == 2 ? state.row : -1);
 
   const std::string footer = std::format(
       "{} Navigate   {} Section   {} Select   {} Close", ui::input_glyph(input::Action::MoveUp, last_device),
       ui::input_glyph(input::Action::MoveLeft, last_device), ui::input_glyph(input::Action::Activate, last_device),
       ui::input_glyph(input::Action::Cancel, last_device));
-  const float footer_w = r.measure_text(regular_font(style), footer, style.font_size_body);
-  draw_text(r, style, footer, {.x = panel.pos.x + panel.size.x - k_pad_x - footer_w, .y = sections.footer_y},
+  const float footer_w = renderer.measure_text(regular_font(style), footer, style.font_size_body);
+  draw_text(renderer, style, footer, {.x = panel.pos.x + panel.size.x - k_pad_x - footer_w, .y = sections.footer_y},
             style.font_size_body, style.choice);
 }
 

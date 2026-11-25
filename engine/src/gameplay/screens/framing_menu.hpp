@@ -33,7 +33,7 @@ struct FramingMenuLayout {
  *  The panel is centered and wide enough for `heading`, `footer` and the widest `label`.
  *  Row height is the panel style's line spacing; the row count is `labels.size()`.
  */
-[[nodiscard]] FramingMenuLayout framing_menu_layout(const platform::Renderer &r, const ui::PanelStyle &style,
+[[nodiscard]] FramingMenuLayout framing_menu_layout(const platform::Renderer &renderer, const ui::PanelStyle &style,
                                                     core::math::Vec2 viewport, std::span<const std::string_view> labels,
                                                     std::string_view heading, std::string_view footer);
 
@@ -44,7 +44,7 @@ struct FramingMenuLayout {
  *  @param cursor   Highlighted row index; clamped into range locally.
  *  @param viewport Screen size in logical pixels, filled by the opaque backdrop.
  */
-void framing_menu_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+void framing_menu_render(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                          const FramingMenuLayout &layout, std::span<const std::string_view> labels,
                          std::span<const bool> enabled, int cursor, std::string_view heading, std::string_view footer,
                          core::math::Vec2 viewport);

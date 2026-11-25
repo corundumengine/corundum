@@ -133,7 +133,7 @@ struct CharacterSheetLayout {
  *  capacity suffix is omitted when inventory_capacity is 0. A footer shows the Close glyph for
  *  `last_device`.
  *
- *  @param r           Renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
+ *  @param renderer    Renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
  *  @param style       Panel style supplying fonts, sizes and colours.
  *  @param border      Pre-loaded nine-patch frame; same one the other panels use.
  *  @param info        Display values to render, as build_character_info() produces.
@@ -141,8 +141,8 @@ struct CharacterSheetLayout {
  *  @param last_device Device of the player's most recent press; picks the footer glyphs.
  *  @param state       Highlighted section/row; the current section's row is drawn selected.
  */
-void character_sheet_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
-                            const CharacterInfo &info, core::math::Vec2 viewport,
+void character_sheet_render(platform::Renderer &renderer, const ui::PanelStyle &style,
+                            const ui::NinePatchBorder &border, const CharacterInfo &info, core::math::Vec2 viewport,
                             input::InputDevice last_device = input::InputDevice::Keyboard,
                             const CharacterSheetState &state = {});
 

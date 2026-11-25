@@ -31,39 +31,39 @@ using corundum::test::run_one_step;
 
 /** Single-map config matching the lifecycle fixtures (interior tilemap). */
 corundum::core::GameConfig make_single_map_config(const fs::path &fixtures) {
-  corundum::core::GameConfig cfg{};
-  cfg.window_title = "player_absent_test";
-  cfg.win_w = 320;
-  cfg.win_h = 240;
-  cfg.paths.sprites_dir = (fixtures / "sprites").string();
-  cfg.paths.tilemap_path = (fixtures / "tilemaps/lifecycle_test.json").string();
-  cfg.paths.font_dir = (fixtures / "fonts").string();
-  corundum::test::set_missing_fonts(cfg.paths);
-  cfg.paths.world_manifest_path.clear();
-  cfg.paths.spawn_points_dir = (fixtures / "spawn_points").string();
-  cfg.paths.portals_dir = (fixtures / "portals").string();
-  cfg.paths.dialogue_dir.clear();
-  cfg.paths.quests_dir.clear();
-  cfg.paths.sounds_dir.clear();
-  return cfg;
+  corundum::core::GameConfig config{};
+  config.window_title = "player_absent_test";
+  config.win_w = 320;
+  config.win_h = 240;
+  config.paths.sprites_dir = (fixtures / "sprites").string();
+  config.paths.tilemap_path = (fixtures / "tilemaps/lifecycle_test.json").string();
+  config.paths.font_dir = (fixtures / "fonts").string();
+  corundum::test::set_missing_fonts(config.paths);
+  config.paths.world_manifest_path.clear();
+  config.paths.spawn_points_dir = (fixtures / "spawn_points").string();
+  config.paths.portals_dir = (fixtures / "portals").string();
+  config.paths.dialogue_dir.clear();
+  config.paths.quests_dir.clear();
+  config.paths.sounds_dir.clear();
+  return config;
 }
 
 /** Streaming-world config matching test_world_transition's 5×1 manifest. */
 corundum::core::GameConfig make_streaming_config(const fs::path &fixtures) {
-  corundum::core::GameConfig cfg{};
-  cfg.window_title = "player_absent_streaming_test";
-  cfg.win_w = 320;
-  cfg.win_h = 240;
-  cfg.paths.sprites_dir = (fixtures / "sprites").string();
-  cfg.paths.font_dir = (fixtures / "fonts").string();
-  corundum::test::set_missing_fonts(cfg.paths);
-  cfg.paths.world_manifest_path = (fixtures / "worlds/streaming/manifest.json").string();
-  cfg.paths.spawn_points_dir = (fixtures / "spawn_points").string();
-  cfg.paths.portals_dir = (fixtures / "portals").string();
-  cfg.paths.dialogue_dir.clear();
-  cfg.paths.quests_dir.clear();
-  cfg.paths.sounds_dir.clear();
-  return cfg;
+  corundum::core::GameConfig config{};
+  config.window_title = "player_absent_streaming_test";
+  config.win_w = 320;
+  config.win_h = 240;
+  config.paths.sprites_dir = (fixtures / "sprites").string();
+  config.paths.font_dir = (fixtures / "fonts").string();
+  corundum::test::set_missing_fonts(config.paths);
+  config.paths.world_manifest_path = (fixtures / "worlds/streaming/manifest.json").string();
+  config.paths.spawn_points_dir = (fixtures / "spawn_points").string();
+  config.paths.portals_dir = (fixtures / "portals").string();
+  config.paths.dialogue_dir.clear();
+  config.paths.quests_dir.clear();
+  config.paths.sounds_dir.clear();
+  return config;
 }
 
 void adopt_platform(corundum::Engine &engine, unsigned w, unsigned h) {

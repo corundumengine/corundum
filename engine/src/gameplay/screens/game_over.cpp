@@ -57,11 +57,11 @@ GameOverRow game_over_row_at(int row) noexcept {
   }
 }
 
-GameOverLayout game_over_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
+GameOverLayout game_over_panel_layout(const platform::Renderer &renderer, const ui::PanelStyle &style,
                                       core::math::Vec2 viewport, input::InputDevice last_device) {
   const std::array<std::string_view, k_game_over_row_count> labels = game_over_labels();
-  const detail::FramingMenuLayout framing =
-      detail::framing_menu_layout(r, style, viewport, labels, k_game_over_heading, game_over_footer(last_device));
+  const detail::FramingMenuLayout framing = detail::framing_menu_layout(
+      renderer, style, viewport, labels, k_game_over_heading, game_over_footer(last_device));
   return GameOverLayout{
       .panel_pos = framing.panel_pos,
       .panel_size = framing.panel_size,
@@ -69,8 +69,9 @@ GameOverLayout game_over_panel_layout(const platform::Renderer &r, const ui::Pan
   };
 }
 
-void game_over_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
-                            const GameOverState &state, core::math::Vec2 viewport, input::InputDevice last_device) {
+void game_over_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style,
+                            const ui::NinePatchBorder &border, const GameOverState &state, core::math::Vec2 viewport,
+                            input::InputDevice last_device) {
   const std::array<std::string_view, k_game_over_row_count> labels = game_over_labels();
   std::array<bool, k_game_over_row_count> enabled{};
   for (int row = 0; row < k_game_over_row_count; ++row) {
@@ -78,9 +79,9 @@ void game_over_panel_render(platform::Renderer &r, const ui::PanelStyle &style, 
     enabled[static_cast<std::size_t>(row)] = command != GameOverRow::Reload || state.reload_available;
   }
 
-  const detail::FramingMenuLayout framing =
-      detail::framing_menu_layout(r, style, viewport, labels, k_game_over_heading, game_over_footer(last_device));
-  detail::framing_menu_render(r, style, border, framing, labels, enabled, state.cursor, k_game_over_heading,
+  const detail::FramingMenuLayout framing = detail::framing_menu_layout(
+      renderer, style, viewport, labels, k_game_over_heading, game_over_footer(last_device));
+  detail::framing_menu_render(renderer, style, border, framing, labels, enabled, state.cursor, k_game_over_heading,
                               game_over_footer(last_device), viewport);
 }
 

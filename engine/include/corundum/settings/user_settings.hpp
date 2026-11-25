@@ -77,7 +77,7 @@ struct UserSettings {
 
 /** Apply `settings` to the engine's mapper and window.
  *
- *  Also updates `cfg.window_mode` so the deferred first-frame window-mode reveal does not
+ *  Also updates `config.window_mode` so the deferred first-frame window-mode reveal does not
  *  overwrite the applied mode with the boot config's.
  *
  *  @pre `engine.window()` is non-null.

@@ -57,14 +57,14 @@ std::string world_zone_id(const tilemap::WorldManifest &manifest, std::string_vi
 
 void frame_camera_on(corundum::Engine &engine, const corundum::core::math::IsometricParams &iso, float col, float row,
                      WorldBounds bounds, CameraAnchor anchor) noexcept {
-  engine.scene.camera.zoom = std::clamp(engine.cfg.default_zoom, engine.cfg.min_zoom, engine.cfg.max_zoom);
+  engine.scene.camera.zoom = std::clamp(engine.config.default_zoom, engine.config.min_zoom, engine.config.max_zoom);
   const corundum::core::math::Vec2 target = anchor == CameraAnchor::CellCenter
                                                 ? corundum::core::math::tile_to_world_center(col, row, 0.f, iso)
                                                 : corundum::core::math::tile_to_world(col, row, 0, iso);
   const float view_w =
-      engine.window_width() > 0 ? static_cast<float>(engine.window_width()) : static_cast<float>(engine.cfg.win_w);
+      engine.window_width() > 0 ? static_cast<float>(engine.window_width()) : static_cast<float>(engine.config.win_w);
   const float view_h =
-      engine.window_height() > 0 ? static_cast<float>(engine.window_height()) : static_cast<float>(engine.cfg.win_h);
+      engine.window_height() > 0 ? static_cast<float>(engine.window_height()) : static_cast<float>(engine.config.win_h);
   engine.scene.camera.center_on(target.x, target.y, bounds, view_w, view_h);
   // The framed scene replaces whatever the interpolation snapshot held; restart the blend from
   // it so the first frame doesn't sweep in from the previous scene (or from the origin at boot).
@@ -74,7 +74,7 @@ void frame_camera_on(corundum::Engine &engine, const corundum::core::math::Isome
 std::expected<void, std::string> enter_world(corundum::Engine &engine,
                                              const corundum::render::WorldLoadParams &params) {
   std::expected<corundum::render::WorldLoadInfo, std::string> world_result =
-      render::load_world(engine.content_source(), engine.renderer(), engine.render, engine.cfg, params);
+      render::load_world(engine.content_source(), engine.renderer(), engine.render, engine.config, params);
   if (!world_result)
     return std::unexpected(std::move(world_result).error());
   // load_world's @post: on success the area is a World with at least one resident chunk.
@@ -85,13 +85,13 @@ std::expected<void, std::string> enter_world(corundum::Engine &engine,
   const corundum::render::WorldLoadInfo &info = *world_result;
 
   std::expected<std::unique_ptr<Scene>, std::string> scene_result =
-      world::spawn_world(engine.content_source(), engine.cfg, engine.characters,
+      world::spawn_world(engine.content_source(), engine.config, engine.characters,
                          world_area->chunks.active_at(0).tilemap, info.spawn_tile, false);
   if (!scene_result)
     return std::unexpected(std::move(scene_result).error());
   engine.scene = std::move(**scene_result);
-  engine.scene.zone_id = world_zone_id(world_area->manifest, engine.cfg.paths.world_manifest_path);
-  world::sync_chunk_actors(engine.content_source(), engine.scene, engine.render, engine.cfg, engine.characters);
+  engine.scene.zone_id = world_zone_id(world_area->manifest, engine.config.paths.world_manifest_path);
+  world::sync_chunk_actors(engine.content_source(), engine.scene, engine.render, engine.config, engine.characters);
 
   const WorldBounds bounds = corundum::world::tilemap::world_bounds_iso(world_area->manifest, info.projection.half_tw,
                                                                         info.projection.half_th);
@@ -110,7 +110,7 @@ void handle_map_transition(corundum::Engine &engine) noexcept {
       // Re-enter the overworld, positioned at the exit portal's spawn tile (the exit
       // portal always carries one). A World→interior journey sets the marker; entering
       // an interior without ever leaving a world leaves it clear.
-      const bool can_return{engine.entered_from_world || !engine.cfg.paths.world_manifest_path.empty()};
+      const bool can_return{engine.entered_from_world || !engine.config.paths.world_manifest_path.empty()};
       if (!can_return) {
         // No overworld was ever loaded (single-map config with an exit portal): there is
         // nowhere to return to, so ignore the portal instead of terminating the game.
@@ -144,23 +144,23 @@ void handle_map_transition(corundum::Engine &engine) noexcept {
 }
 
 std::expected<void, std::string> load_initial_scene(corundum::Engine &engine) {
-  if (!engine.cfg.paths.world_manifest_path.empty())
+  if (!engine.config.paths.world_manifest_path.empty())
     return enter_world(engine, {});
 
   std::expected<void, std::string> map_result = render::load_map(
-      engine.content_source(), engine.renderer(), engine.render, engine.cfg.paths.tilemap_path, engine.cfg);
+      engine.content_source(), engine.renderer(), engine.render, engine.config.paths.tilemap_path, engine.config);
   if (!map_result)
     return std::unexpected(std::move(map_result).error());
 
   std::expected<std::unique_ptr<Scene>, std::string> scene_result =
-      world::spawn_world(engine.content_source(), engine.cfg, engine.characters, *engine.active_tilemap());
+      world::spawn_world(engine.content_source(), engine.config, engine.characters, *engine.active_tilemap());
   if (!scene_result)
     return std::unexpected(std::move(scene_result).error());
   engine.scene = std::move(**scene_result);
 
   const corundum::world::tilemap::Tilemap &tilemap = *engine.active_tilemap();
   const auto iso = core::math::compute_isometric_params(tilemap.diamond_w(), tilemap.diamond_h(), tilemap.height,
-                                                        engine.cfg.tile_scale, engine.cfg.elevation_step_px);
+                                                        engine.config.tile_scale, engine.config.elevation_step_px);
   const std::uint32_t player_slot = engine.scene.world.transforms.dense_index(engine.scene.player);
   const float player_col{engine.scene.world.transforms.col[player_slot]};
   const float player_row{engine.scene.world.transforms.row[player_slot]};
@@ -192,14 +192,14 @@ std::expected<void, std::string> apply_spawn(corundum::Engine &engine, SpawnMode
   }
 
   std::expected<void, std::string> map_result =
-      render::load_map(engine.content_source(), engine.renderer(), engine.render, std::string(id), engine.cfg);
+      render::load_map(engine.content_source(), engine.renderer(), engine.render, std::string(id), engine.config);
   if (!map_result)
     return std::unexpected(std::move(map_result).error());
 
   const corundum::world::tilemap::Tilemap &new_tilemap = *engine.active_tilemap();
   const entities::Position spawn{.col = col, .row = row};
   std::expected<std::unique_ptr<Scene>, std::string> scene_result =
-      world::spawn_world(engine.content_source(), engine.cfg, engine.characters, new_tilemap, spawn);
+      world::spawn_world(engine.content_source(), engine.config, engine.characters, new_tilemap, spawn);
   if (!scene_result)
     return std::unexpected(std::move(scene_result).error());
   engine.scene = std::move(**scene_result);
@@ -209,8 +209,8 @@ std::expected<void, std::string> apply_spawn(corundum::Engine &engine, SpawnMode
   // Frame the camera on the entry tile with the top-vertex anchor (tile_to_world), as every
   // cross-map transition does; only the world-load path centres on the cell.
   const corundum::core::math::IsometricParams iso = corundum::core::math::compute_isometric_params(
-      new_tilemap.diamond_w(), new_tilemap.diamond_h(), new_tilemap.height, engine.cfg.tile_scale,
-      engine.cfg.elevation_step_px);
+      new_tilemap.diamond_w(), new_tilemap.diamond_h(), new_tilemap.height, engine.config.tile_scale,
+      engine.config.elevation_step_px);
   const WorldBounds bounds{single_map_bounds(new_tilemap, iso.half_tw, iso.half_th)};
   frame_camera_on(engine, iso, spawn.col, spawn.row, bounds, CameraAnchor::TopVertex);
   return {};

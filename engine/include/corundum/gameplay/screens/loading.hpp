@@ -14,10 +14,10 @@ namespace corundum::gameplay::screens {
  *  queued work runs, so the player never sees an unpainted frame during a load. See
  *  Gameplay::begin_load() for the render-then-run protocol.
  *
- *  @param r        Renderer; emits the backdrop and one line of text.
+ *  @param renderer Renderer; emits the backdrop and one line of text.
  *  @param style    Panel style supplying fonts, sizes and colours.
  *  @param viewport Screen size in logical pixels.
  */
-void loading_panel_render(platform::Renderer &r, const ui::PanelStyle &style, core::math::Vec2 viewport);
+void loading_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style, core::math::Vec2 viewport);
 
 } // namespace corundum::gameplay::screens

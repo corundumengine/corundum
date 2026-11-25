@@ -14,8 +14,8 @@
 
 namespace {
 
-bool contains_text(const corundum::test::RecordingRenderer &r, std::string_view needle) {
-  for (const auto &call : r.log) {
+bool contains_text(const corundum::test::RecordingRenderer &renderer, std::string_view needle) {
+  for (const auto &call : renderer.log) {
     if (const auto *text = std::get_if<corundum::platform::DrawText>(&call); text != nullptr && text->text == needle)
       return true;
   }
@@ -39,17 +39,17 @@ TEST_CASE("menu_command_at maps rows to commands") {
 }
 
 TEST_CASE("menu: renders the title, every command row, and the footer") {
-  corundum::test::RecordingRenderer r;
+  corundum::test::RecordingRenderer renderer;
   const corundum::ui::PanelStyle style = make_style();
   const corundum::ui::MenuState state{};
 
-  corundum::ui::menu_panel_render(r, style, corundum::test::make_border(), state, {.x = 800.f, .y = 600.f});
+  corundum::ui::menu_panel_render(renderer, style, corundum::test::make_border(), state, {.x = 800.f, .y = 600.f});
 
-  CHECK(contains_text(r, "Paused"));
-  CHECK(contains_text(r, "Resume"));
-  CHECK(contains_text(r, "Settings"));
-  CHECK(contains_text(r, "Save"));
-  CHECK(contains_text(r, "Load"));
-  CHECK(contains_text(r, "Quit"));
-  CHECK(contains_text(r, "Enter Select   Esc Close"));
+  CHECK(contains_text(renderer, "Paused"));
+  CHECK(contains_text(renderer, "Resume"));
+  CHECK(contains_text(renderer, "Settings"));
+  CHECK(contains_text(renderer, "Save"));
+  CHECK(contains_text(renderer, "Load"));
+  CHECK(contains_text(renderer, "Quit"));
+  CHECK(contains_text(renderer, "Enter Select   Esc Close"));
 }

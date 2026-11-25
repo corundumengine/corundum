@@ -107,7 +107,7 @@ struct JournalLayout {
 };
 
 /** Compute the journal panel's geometry for `viewport`. */
-[[nodiscard]] JournalLayout journal_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
+[[nodiscard]] JournalLayout journal_panel_layout(const platform::Renderer &renderer, const ui::PanelStyle &style,
                                                  const std::vector<JournalEntry> &entries, const JournalState &state,
                                                  core::math::Vec2 viewport, input::InputDevice last_device);
 
@@ -121,7 +121,7 @@ struct JournalLayout {
  *  tab renders a single "(no quests)" line. The caller only invokes this while GameMode::Journal
  *  is active.
  *
- *  @param r           Platform renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
+ *  @param renderer    Platform renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
  *  @param style       Dialog text style (font, size, colour); reused so the journal matches dialogue.
  *  @param border      Pre-loaded nine-patch border texture/tile dims; same one used by the dialogue box.
  *  @param entries     Journal rows to display, as build_journal_entries() produces.
@@ -129,7 +129,7 @@ struct JournalLayout {
  *  @param viewport    Screen size in pixels; the panel is centered within this.
  *  @param last_device Device of the player's most recent press; picks the footer glyphs.
  */
-void journal_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+void journal_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                           const std::vector<JournalEntry> &entries, const JournalState &state,
                           core::math::Vec2 viewport, input::InputDevice last_device = input::InputDevice::Keyboard);
 

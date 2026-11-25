@@ -3,12 +3,25 @@
 
 #include <doctest/doctest.h>
 
+#include <corundum/platform/renderer.hpp>
+#include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/toast.hpp>
 
 #include "ui/recording_renderer.hpp"
 
 #include <cstddef>
 #include <string>
+#include <variant>
+
+namespace {
+
+/** A panel style with no border texture, so each toast draws a plain background rect. Named
+ *  rather than passed as `{}`: clang-tidy's readability-trailing-comma reads the comma after a
+ *  braced argument in render(renderer, {}, {...}) as the argument list's trailing comma.
+ */
+constexpr corundum::ui::PanelStyle k_unstyled{};
+
+} // namespace
 
 TEST_CASE("ToastQueue: notify enqueues text with the default colour and TTL") {
   corundum::ui::ToastQueue queue;
@@ -93,18 +106,18 @@ TEST_CASE("ToastQueue: render draws a background rect and one text per live toas
   queue.notify("Quest started: Ember");
   queue.notify("Item received: hammer", corundum::ui::k_toast_updated_colour);
 
-  RecordingRenderer r;
-  queue.render(r, {}, {.x = 1280.f, .y = 720.f});
+  RecordingRenderer renderer;
+  queue.render(renderer, k_unstyled, {.x = 1280.f, .y = 720.f});
 
   // One DrawRect per toast (no border texture passed), plus one DrawText each.
-  REQUIRE(r.log.size() == 4);
-  CHECK(std::holds_alternative<corundum::platform::DrawRect>(r.log[0]));
-  CHECK(std::holds_alternative<corundum::platform::DrawText>(r.log[1]));
-  CHECK(std::holds_alternative<corundum::platform::DrawRect>(r.log[2]));
-  CHECK(std::holds_alternative<corundum::platform::DrawText>(r.log[3]));
+  REQUIRE(renderer.log.size() == 4);
+  CHECK(std::holds_alternative<corundum::platform::DrawRect>(renderer.log[0]));
+  CHECK(std::holds_alternative<corundum::platform::DrawText>(renderer.log[1]));
+  CHECK(std::holds_alternative<corundum::platform::DrawRect>(renderer.log[2]));
+  CHECK(std::holds_alternative<corundum::platform::DrawText>(renderer.log[3]));
 
-  const auto &first = std::get<corundum::platform::DrawText>(r.log[1]);
-  const auto &second = std::get<corundum::platform::DrawText>(r.log[3]);
+  const auto &first = std::get<corundum::platform::DrawText>(renderer.log[1]);
+  const auto &second = std::get<corundum::platform::DrawText>(renderer.log[3]);
   CHECK(first.text == "Quest started: Ember");
   CHECK(second.text == "Item received: hammer");
   CHECK(first.colour.r == corundum::ui::k_toast_default_colour.r);
@@ -117,8 +130,8 @@ TEST_CASE("ToastQueue: render draws a background rect and one text per live toas
 TEST_CASE("ToastQueue: render is a no-op with no live toasts") {
   using corundum::test::RecordingRenderer;
 
-  corundum::ui::ToastQueue queue;
-  RecordingRenderer r;
-  queue.render(r, {}, {.x = 1280.f, .y = 720.f});
-  CHECK(r.log.empty());
+  const corundum::ui::ToastQueue queue;
+  RecordingRenderer renderer;
+  queue.render(renderer, k_unstyled, {.x = 1280.f, .y = 720.f});
+  CHECK(renderer.log.empty());
 }

@@ -57,11 +57,11 @@ fs::path fixture_root() {
 
 /** The shared fixture world with a title and a non-empty game id, so the saves carry a game id. */
 corundum::core::GameConfig make_config(bool show_title) {
-  corundum::core::GameConfig cfg = make_world_config(fixture_root());
-  cfg.show_title = show_title;
-  cfg.game_id = "test_game";
-  cfg.title = "Test Quest";
-  return cfg;
+  corundum::core::GameConfig config = make_world_config(fixture_root());
+  config.show_title = show_title;
+  config.game_id = "test_game";
+  config.title = "Test Quest";
+  return config;
 }
 
 void init_engine(corundum::Engine &engine, bool show_title) {
@@ -81,8 +81,8 @@ bool press(corundum::Engine &engine, corundum::input::Action action) {
 }
 
 /** True when the recorded frame contains a DrawText whose text equals `text`. */
-bool rendered_text(const RecordingRenderer &r, std::string_view text) {
-  for (const RecordingRenderer::DrawCall &call : r.log) {
+bool rendered_text(const RecordingRenderer &renderer, std::string_view text) {
+  for (const RecordingRenderer::DrawCall &call : renderer.log) {
     if (const auto *draw = std::get_if<corundum::platform::DrawText>(&call); draw != nullptr && draw->text == text)
       return true;
   }
@@ -90,8 +90,8 @@ bool rendered_text(const RecordingRenderer &r, std::string_view text) {
 }
 
 /** True when any recorded DrawText contains `needle`. */
-bool rendered_text_contains(const RecordingRenderer &r, std::string_view needle) {
-  for (const RecordingRenderer::DrawCall &call : r.log) {
+bool rendered_text_contains(const RecordingRenderer &renderer, std::string_view needle) {
+  for (const RecordingRenderer::DrawCall &call : renderer.log) {
     if (const auto *draw = std::get_if<corundum::platform::DrawText>(&call);
         draw != nullptr && draw->text.contains(needle))
       return true;
@@ -157,15 +157,15 @@ TEST_CASE("title: opens with no world and draws its rows") {
   const corundum::ScreenSpec *spec = engine.screens.find(screens::Title);
   REQUIRE(spec != nullptr);
   REQUIRE(spec->render);
-  RecordingRenderer r;
-  spec->render(engine, r, {.x = 1280.f, .y = 720.f});
+  RecordingRenderer renderer;
+  spec->render(engine, renderer, {.x = 1280.f, .y = 720.f});
 
-  CHECK(rendered_text(r, "Test Quest")); // GameConfig::title, not a framework literal
-  CHECK(rendered_text(r, "Continue"));
-  CHECK(rendered_text(r, "New Game"));
-  CHECK(rendered_text(r, "Load"));
-  CHECK(rendered_text(r, "Settings"));
-  CHECK(rendered_text(r, "Quit"));
+  CHECK(rendered_text(renderer, "Test Quest")); // GameConfig::title, not a framework literal
+  CHECK(rendered_text(renderer, "Continue"));
+  CHECK(rendered_text(renderer, "New Game"));
+  CHECK(rendered_text(renderer, "Load"));
+  CHECK(rendered_text(renderer, "Settings"));
+  CHECK(rendered_text(renderer, "Quit"));
 
   engine.cleanup();
 }
@@ -218,9 +218,9 @@ TEST_CASE("title: Continue loads the newest valid slot") {
 TEST_CASE("title: New Game clears the UI stack and resets flags to starting_flags") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
-  corundum::core::GameConfig cfg = make_config(/*show_title=*/true);
-  cfg.starting_flags["start.gold"] = 10;
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config = make_config(/*show_title=*/true);
+  config.starting_flags["start.gold"] = 10;
+  REQUIRE(engine.initialize(std::move(config)).has_value());
   corundum::gameplay::Gameplay gameplay{engine};
   REQUIRE(engine.scene.ui.top() == screens::Title);
 
@@ -238,12 +238,12 @@ TEST_CASE("title: New Game clears the UI stack and resets flags to starting_flag
 TEST_CASE("title: New Game starts where a no-title boot starts") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
-  corundum::core::GameConfig cfg = make_config(/*show_title=*/false);
+  corundum::core::GameConfig config = make_config(/*show_title=*/false);
   // A player block that disagrees with the world manifest's default spawn: world mode ignores it
   // (the manifest centre wins), exactly as Engine::initialize() does.
-  cfg.player.col = 1.f;
-  cfg.player.row = 1.f;
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  config.player.col = 1.f;
+  config.player.row = 1.f;
+  REQUIRE(engine.initialize(std::move(config)).has_value());
   corundum::gameplay::Gameplay gameplay{engine};
 
   auto &boot = engine.scene.world.transforms;
@@ -251,7 +251,7 @@ TEST_CASE("title: New Game starts where a no-title boot starts") {
   const float boot_col = boot.col[boot_slot];
   const float boot_row = boot.row[boot_slot];
 
-  // Move the player, then start a new game: it must return to the boot spawn, not cfg.player.
+  // Move the player, then start a new game: it must return to the boot spawn, not config.player.
   boot.pos_col_ref(engine.scene.player) = 3.f;
   boot.pos_row_ref(engine.scene.player) = 2.f;
   REQUIRE(gameplay.new_game().has_value());
@@ -372,9 +372,9 @@ TEST_CASE("save/load: a corrupt slot cannot be loaded and shows its error") {
   const corundum::ScreenSpec *spec = engine.screens.find(screens::SaveLoad);
   REQUIRE(spec != nullptr);
   REQUIRE(spec->render);
-  RecordingRenderer r;
-  spec->render(engine, r, {.x = 1280.f, .y = 720.f});
-  CHECK(rendered_text_contains(r, "Corrupt save"));
+  RecordingRenderer renderer;
+  spec->render(engine, renderer, {.x = 1280.f, .y = 720.f});
+  CHECK(rendered_text_contains(renderer, "Corrupt save"));
 
   press(engine, corundum::input::Action::Select);
   CHECK(engine.scene.ui.top() == screens::SaveLoad); // still open; nothing loaded
@@ -546,9 +546,9 @@ TEST_CASE("credits: a configured file adds the row and the screen scrolls and cl
   corundum::Engine engine{};
   user_data.attach(engine);
   adopt_platform(engine, 320, 240);
-  corundum::core::GameConfig cfg = make_config(/*show_title=*/true);
-  cfg.paths.credits_file = credits_path.string();
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config = make_config(/*show_title=*/true);
+  config.paths.credits_file = credits_path.string();
+  REQUIRE(engine.initialize(std::move(config)).has_value());
   corundum::gameplay::Gameplay gameplay{engine};
 
   REQUIRE(gameplay.title_screen.credits_available);
@@ -592,9 +592,9 @@ TEST_CASE("credits: a missing file leaves the Title without a Credits row") {
   corundum::Engine engine{};
   user_data.attach(engine);
   adopt_platform(engine, 320, 240);
-  corundum::core::GameConfig cfg = make_config(/*show_title=*/true);
-  cfg.paths.credits_file = (fs::path{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR} / "missing_credits.json").string();
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config = make_config(/*show_title=*/true);
+  config.paths.credits_file = (fs::path{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR} / "missing_credits.json").string();
+  REQUIRE(engine.initialize(std::move(config)).has_value());
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
 
@@ -602,9 +602,9 @@ TEST_CASE("credits: a missing file leaves the Title without a Credits row") {
   const corundum::ScreenSpec *spec = engine.screens.find(screens::Title);
   REQUIRE(spec != nullptr);
   REQUIRE(spec->render);
-  RecordingRenderer r;
-  spec->render(engine, r, {.x = 1280.f, .y = 720.f});
-  CHECK_FALSE(rendered_text(r, "Credits"));
+  RecordingRenderer renderer;
+  spec->render(engine, renderer, {.x = 1280.f, .y = 720.f});
+  CHECK_FALSE(rendered_text(renderer, "Credits"));
 
   engine.cleanup();
 }
@@ -618,9 +618,9 @@ TEST_CASE("credits: a malformed file leaves the Title without a Credits row") {
   corundum::Engine engine{};
   user_data.attach(engine);
   adopt_platform(engine, 320, 240);
-  corundum::core::GameConfig cfg = make_config(/*show_title=*/true);
-  cfg.paths.credits_file = credits_path.string();
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config = make_config(/*show_title=*/true);
+  config.paths.credits_file = credits_path.string();
+  REQUIRE(engine.initialize(std::move(config)).has_value());
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
 
@@ -628,9 +628,9 @@ TEST_CASE("credits: a malformed file leaves the Title without a Credits row") {
   const corundum::ScreenSpec *spec = engine.screens.find(screens::Title);
   REQUIRE(spec != nullptr);
   REQUIRE(spec->render);
-  RecordingRenderer r;
-  spec->render(engine, r, {.x = 1280.f, .y = 720.f});
-  CHECK_FALSE(rendered_text(r, "Credits"));
+  RecordingRenderer renderer;
+  spec->render(engine, renderer, {.x = 1280.f, .y = 720.f});
+  CHECK_FALSE(rendered_text(renderer, "Credits"));
 
   engine.cleanup();
 }
@@ -645,9 +645,9 @@ TEST_CASE("credits: a background key is loaded through the renderer") {
   corundum::Engine engine{};
   user_data.attach(engine);
   adopt_platform(engine, 320, 240);
-  corundum::core::GameConfig cfg = make_config(/*show_title=*/true);
-  cfg.paths.credits_file = with_background.string();
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config = make_config(/*show_title=*/true);
+  config.paths.credits_file = with_background.string();
+  REQUIRE(engine.initialize(std::move(config)).has_value());
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
   CHECK(gameplay.credits_screen.background_texture == corundum::platform::null::k_dummy_texture);
@@ -664,9 +664,9 @@ TEST_CASE("credits: a file without a background key leaves the texture unset") {
   corundum::Engine engine{};
   user_data.attach(engine);
   adopt_platform(engine, 320, 240);
-  corundum::core::GameConfig cfg = make_config(/*show_title=*/true);
-  cfg.paths.credits_file = without_background.string();
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config = make_config(/*show_title=*/true);
+  config.paths.credits_file = without_background.string();
+  REQUIRE(engine.initialize(std::move(config)).has_value());
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
   CHECK(gameplay.credits_screen.background_texture == corundum::platform::TextureId::Invalid);
@@ -767,7 +767,7 @@ TEST_CASE("new game: a world that cannot be built falls back to the title") {
   REQUIRE(engine.scene.mode() == screens::Title);
 
   // Break the world source after boot, so the title still opened cleanly.
-  engine.cfg.paths.world_manifest_path = (fixture_root() / "worlds/missing/manifest.json").string();
+  engine.config.paths.world_manifest_path = (fixture_root() / "worlds/missing/manifest.json").string();
 
   const std::expected<void, std::string> result = gameplay.new_game();
   REQUIRE_FALSE(result.has_value());
@@ -833,9 +833,9 @@ TEST_CASE("title boot: flags are empty until New Game") {
   corundum::Engine engine{};
   user_data.attach(engine);
   adopt_platform(engine, 320, 240);
-  corundum::core::GameConfig cfg = make_config(/*show_title=*/true);
-  cfg.starting_flags = {{"gold", 5}};
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config = make_config(/*show_title=*/true);
+  config.starting_flags = {{"gold", 5}};
+  REQUIRE(engine.initialize(std::move(config)).has_value());
   corundum::gameplay::Gameplay gameplay{engine};
 
   CHECK(engine.flags.empty());
@@ -870,8 +870,8 @@ TEST_CASE("title: an on_event hook that returns to the title drops the rest of t
 
   bool probe_dispatched = false;
   gameplay.on_event = [&gameplay, &probe_dispatched](corundum::Engine &,
-                                                     const corundum::gameplay::dialogue::EventAction &ev) {
-    if (ev.name == "to_title") {
+                                                     const corundum::gameplay::dialogue::EventAction &event) {
+    if (event.name == "to_title") {
       gameplay.return_to_title();
       return true;
     }

@@ -54,8 +54,8 @@ corundum::gameplay::item::Registry make_equipment_registry() {
 }
 
 /** The recorded DrawText with exactly `text`, or nullptr. */
-const corundum::platform::DrawText *find_text(const RecordingRenderer &r, std::string_view text) {
-  for (const auto &call : r.log) {
+const corundum::platform::DrawText *find_text(const RecordingRenderer &renderer, std::string_view text) {
+  for (const auto &call : renderer.log) {
     if (const auto *drawn = std::get_if<corundum::platform::DrawText>(&call); drawn != nullptr && drawn->text == text)
       return drawn;
   }
@@ -63,8 +63,8 @@ const corundum::platform::DrawText *find_text(const RecordingRenderer &r, std::s
 }
 
 /** True when some recorded DrawText contains `fragment`. */
-bool has_text_containing(const RecordingRenderer &r, std::string_view fragment) {
-  for (const auto &call : r.log) {
+bool has_text_containing(const RecordingRenderer &renderer, std::string_view fragment) {
+  for (const auto &call : renderer.log) {
     if (const auto *drawn = std::get_if<corundum::platform::DrawText>(&call);
         drawn != nullptr && drawn->text.contains(fragment))
       return true;
@@ -150,7 +150,7 @@ TEST_CASE("character sheet: layout keeps the three sections ordered inside the p
 }
 
 TEST_CASE("character sheet: render draws every section's labeled values") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
   CharacterInfo info;
   info.rule_rows = {{.label = "Level", .value = "2"}, {.label = "Health", .value = "5 / 8"}};
@@ -164,20 +164,20 @@ TEST_CASE("character sheet: render draws every section's labeled values") {
   info.inventory_count = 3;
   info.inventory_capacity = 20;
 
-  screens::character_sheet_render(r, style, make_border(), info, {.x = 800.f, .y = 600.f});
+  screens::character_sheet_render(renderer, style, make_border(), info, {.x = 800.f, .y = 600.f});
 
-  CHECK(find_text(r, "Character") != nullptr);
-  CHECK(find_text(r, "Stats") != nullptr);
-  CHECK(find_text(r, "Level: 2") != nullptr);
-  CHECK(find_text(r, "Health: 5 / 8") != nullptr);
-  CHECK(find_text(r, "Gold: 12") != nullptr);
-  CHECK(find_text(r, "body: Travel Cloak") != nullptr);
-  CHECK(find_text(r, "Items: 3 / 20") != nullptr);
-  CHECK(has_text_containing(r, "Esc Close"));
+  CHECK(find_text(renderer, "Character") != nullptr);
+  CHECK(find_text(renderer, "Stats") != nullptr);
+  CHECK(find_text(renderer, "Level: 2") != nullptr);
+  CHECK(find_text(renderer, "Health: 5 / 8") != nullptr);
+  CHECK(find_text(renderer, "Gold: 12") != nullptr);
+  CHECK(find_text(renderer, "body: Travel Cloak") != nullptr);
+  CHECK(find_text(renderer, "Items: 3 / 20") != nullptr);
+  CHECK(has_text_containing(renderer, "Esc Close"));
 }
 
 TEST_CASE("character sheet: render lists held items with a stack suffix") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
   CharacterInfo info;
   info.inventory = {
@@ -185,39 +185,40 @@ TEST_CASE("character sheet: render lists held items with a stack suffix") {
       {.count = 1, .name = "Sword", .id = "sword"},
   };
 
-  screens::character_sheet_render(r, style, make_border(), info, {.x = 800.f, .y = 600.f});
+  screens::character_sheet_render(renderer, style, make_border(), info, {.x = 800.f, .y = 600.f});
 
-  CHECK(find_text(r, "Potion x2") != nullptr);
-  CHECK(find_text(r, "Sword") != nullptr);
+  CHECK(find_text(renderer, "Potion x2") != nullptr);
+  CHECK(find_text(renderer, "Sword") != nullptr);
 }
 
 TEST_CASE("character sheet: render draws no rule rows and no capacity suffix when unset") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
   CharacterInfo info;
   info.gold = 5;
   info.inventory_count = 3;
 
-  screens::character_sheet_render(r, style, make_border(), info, {.x = 800.f, .y = 600.f});
+  screens::character_sheet_render(renderer, style, make_border(), info, {.x = 800.f, .y = 600.f});
 
-  CHECK(find_text(r, "Gold: 5") != nullptr);
-  CHECK_FALSE(has_text_containing(r, "Health"));
-  CHECK(find_text(r, "Slots: (empty)") != nullptr);
-  CHECK(find_text(r, "Items: 3") != nullptr);
-  CHECK(find_text(r, "Items: 3 / 0") == nullptr);
+  CHECK(find_text(renderer, "Gold: 5") != nullptr);
+  CHECK_FALSE(has_text_containing(renderer, "Health"));
+  CHECK(find_text(renderer, "Slots: (empty)") != nullptr);
+  CHECK(find_text(renderer, "Items: 3") != nullptr);
+  CHECK(find_text(renderer, "Items: 3 / 0") == nullptr);
 }
 
 TEST_CASE("character sheet: render shows the gamepad close glyph for a gamepad press") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
   const corundum::core::math::Vec2 viewport{.x = 800.f, .y = 600.f};
   const CharacterInfo info{};
 
-  screens::character_sheet_render(r, style, make_border(), info, viewport, corundum::input::InputDevice::Gamepad);
+  screens::character_sheet_render(renderer, style, make_border(), info, viewport,
+                                  corundum::input::InputDevice::Gamepad);
 
-  CHECK(has_text_containing(r, "B Close"));
-  CHECK(has_text_containing(r, "D-Up Navigate"));
-  CHECK_FALSE(has_text_containing(r, "Esc Close"));
+  CHECK(has_text_containing(renderer, "B Close"));
+  CHECK(has_text_containing(renderer, "D-Up Navigate"));
+  CHECK_FALSE(has_text_containing(renderer, "Esc Close"));
 }
 
 TEST_CASE("character sheet: section row counts always expose a highlightable row") {

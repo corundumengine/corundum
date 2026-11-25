@@ -256,10 +256,10 @@ clamp_to_map_bounds(corundum::entities::Position pos, const corundum::entities::
   // The footprint sits half a tile in from the stored position: the position may reach
   // map_w - 0.5 - col_span/2, not map_w - col_span. The lower bound stays 0 so the position
   // itself never leaves the map — stricter than the box needs, and harmless.
-  const float col_limit =
-      std::max(0.f, map.world_w_tiles - corundum::entities::k_entity_anchor_offset - (player_rect.col_span * 0.5f));
-  const float row_limit =
-      std::max(0.f, map.world_h_tiles - corundum::entities::k_entity_anchor_offset - (player_rect.row_span * 0.5f));
+  const float col_limit = std::max(0.f, static_cast<float>(map.world_size_tiles.width) -
+                                            corundum::entities::k_entity_anchor_offset - (player_rect.col_span * 0.5f));
+  const float row_limit = std::max(0.f, static_cast<float>(map.world_size_tiles.height) -
+                                            corundum::entities::k_entity_anchor_offset - (player_rect.row_span * 0.5f));
   pos.col = std::clamp(pos.col, 0.f, col_limit);
   pos.row = std::clamp(pos.row, 0.f, row_limit);
   return pos;

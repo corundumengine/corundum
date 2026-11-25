@@ -42,7 +42,7 @@ void ToastQueue::update(float dt) noexcept {
   std::erase_if(toasts_, [](const Toast &toast) { return toast.remaining_seconds <= 0.f; });
 }
 
-void ToastQueue::render(platform::Renderer &r, const PanelStyle &style, core::math::Vec2 viewport) const {
+void ToastQueue::render(platform::Renderer &renderer, const PanelStyle &style, core::math::Vec2 viewport) const {
   if (toasts_.empty())
     return;
 
@@ -60,10 +60,10 @@ void ToastQueue::render(platform::Renderer &r, const PanelStyle &style, core::ma
   const platform::FontId font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
   float y = viewport.y - k_margin - total_h;
   for (const Toast &toast : toasts_) {
-    const float text_w = r.measure_text(font_id, toast.text, style.font_size_body);
+    const float text_w = renderer.measure_text(font_id, toast.text, style.font_size_body);
     const float row_w = text_w + (k_pad_x * 2.f);
-    panel_chrome(r, style.bg, no_border, {.x = k_margin, .y = y}, {.x = row_w, .y = row_h});
-    r.draw(platform::DrawText{
+    panel_chrome(renderer, style.bg, no_border, {.x = k_margin, .y = y}, {.x = row_w, .y = row_h});
+    renderer.draw(platform::DrawText{
         .font_id = font_id,
         .text = toast.text,
         .position = {.x = k_margin + k_pad_x, .y = y + (k_pad_y * 0.5f)},

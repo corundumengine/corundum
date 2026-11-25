@@ -32,20 +32,20 @@ namespace corundum::render {
  *
  *  @post mode(state) is RenderMode::None and state.area_texture_ids is empty.
  */
-void unload_world(corundum::platform::Renderer &r, render::RenderState &state);
+void unload_world(corundum::platform::Renderer &renderer, render::RenderState &state);
 
 /** Load a single tilemap for map mode.
- *  @param r             Renderer for tileset texture loading.
+ *  @param renderer      Renderer for tileset texture loading.
  *  @param state         Render state to populate with map data.
  *  @param tilemap_path  Path to the tilemap JSON.
- *  @param cfg           Game config (tile_scale, etc.).
+ *  @param config        Game config (tile_scale, etc.).
  *  @return ok on success, or an error string on failure.
  *  @post On failure, mode(state) is RenderMode::None and state.area_texture_ids is empty.
  */
 [[nodiscard]] std::expected<void, std::string> load_map(const corundum::core::ContentSource &content,
-                                                        corundum::platform::Renderer &r, render::RenderState &state,
-                                                        const std::string &tilemap_path,
-                                                        const corundum::core::GameConfig &cfg);
+                                                        corundum::platform::Renderer &renderer,
+                                                        render::RenderState &state, const std::string &tilemap_path,
+                                                        const corundum::core::GameConfig &config);
 
 /** What load_world() hands back so the caller can spawn the game world: the world's
  *  isometric projection and the spawn tile (the manifest centre unless WorldLoadParams overrides it).
@@ -76,20 +76,20 @@ struct WorldLoadParams {
  *  uploads all tileset textures, rebuilds collision aggregates, and returns
  *  the info the caller needs to spawn the game world.
  *
- *  @param r       Renderer for chunk texture loading.
- *  @param state   Render state populated with world manifest + active chunks.
- *  @param cfg     Game config.
- *  @param params  Optional spawn tile; overrides the manifest-centre default
- *                 and re-centres the streaming window on that tile's chunk.
+ *  @param renderer Renderer for chunk texture loading.
+ *  @param state    Render state populated with world manifest + active chunks.
+ *  @param config   Game config.
+ *  @param params   Optional spawn tile; overrides the manifest-centre default
+ *                  and re-centres the streaming window on that tile's chunk.
  *  @return WorldLoadInfo on success, or std::unexpected with an error message.
- *  @pre cfg.paths.world_manifest_path must be a valid manifest JSON file.
+ *  @pre config.paths.world_manifest_path must be a valid manifest JSON file.
  *  @pre `content` outlives the loaded world, which streams its chunks through it.
  *  @post On success, std::holds_alternative<WorldArea>(state.area) and the window is non-empty.
  *        On failure, mode(state) is RenderMode::None and state.area_texture_ids is empty.
  */
 [[nodiscard]] std::expected<WorldLoadInfo, std::string>
-load_world(const corundum::core::ContentSource &content, corundum::platform::Renderer &r, render::RenderState &state,
-           const corundum::core::GameConfig &cfg, const WorldLoadParams &params = {});
+load_world(const corundum::core::ContentSource &content, corundum::platform::Renderer &renderer,
+           render::RenderState &state, const corundum::core::GameConfig &config, const WorldLoadParams &params = {});
 
 /** Advance World-mode chunk streaming by one frame.
  *
@@ -101,7 +101,7 @@ load_world(const corundum::core::ContentSource &content, corundum::platform::Ren
  *  outside World mode or before any chunk is resident. Chunks are read through the content
  *  source load_world() was given.
  */
-void stream_world_chunks(corundum::platform::Renderer &r, render::RenderState &state,
-                         const corundum::core::GameConfig &cfg, const corundum::world::Scene &scene);
+void stream_world_chunks(corundum::platform::Renderer &renderer, render::RenderState &state,
+                         const corundum::core::GameConfig &config, const corundum::world::Scene &scene);
 
 } // namespace corundum::render

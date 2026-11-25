@@ -133,13 +133,13 @@ void Conversation::reset() noexcept {
 
 bool Conversation::divert(const Node *current_node, int choice_index, std::vector<EventAction> &events) {
   bool diverted = false;
-  std::erase_if(events, [&](const EventAction &ev) {
-    if (ev.name == "goto_graph") {
+  std::erase_if(events, [&](const EventAction &event) {
+    if (event.name == "goto_graph") {
       diverted = true;
-      goto_graph(ev, current_node, choice_index);
+      goto_graph(event, current_node, choice_index);
       return true;
     }
-    if (ev.name == "return_graph") {
+    if (event.name == "return_graph") {
       diverted = true;
       return_graph();
       return true;

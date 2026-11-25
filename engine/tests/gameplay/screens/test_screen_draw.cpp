@@ -139,7 +139,7 @@ TEST_CASE("dialog_box_update: switching graphs with a shared first-node id rebui
   // node named "n0". After cancelling the innkeeper and starting the villager, the
   // stale-check must see that the graph id changed and rebuild — otherwise the
   // innkeeper's speaker/text stays on screen.
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   corundum::gameplay::screens::DialogBoxState ds{};
   corundum::ui::PanelSkin skin{};
   skin.border = make_border();
@@ -151,7 +151,7 @@ TEST_CASE("dialog_box_update: switching graphs with a shared first-node id rebui
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
 
   const corundum::gameplay::dialogue::Conversation innkeeper_conversation{innkeeper, flags};
-  corundum::gameplay::screens::dialog_box_update(ds, innkeeper_conversation, r, viewport, skin, 0.f);
+  corundum::gameplay::screens::dialog_box_update(ds, innkeeper_conversation, renderer, viewport, skin, 0.f);
   REQUIRE(ds.layout.has_value());
   // NOLINTBEGIN(bugprone-unchecked-optional-access): the REQUIRE above aborts the case when empty.
   CHECK(ds.layout->speaker == "Innkeeper");
@@ -160,7 +160,7 @@ TEST_CASE("dialog_box_update: switching graphs with a shared first-node id rebui
 
   // Cancel and switch NPCs.
   const corundum::gameplay::dialogue::Conversation villager_conversation{villager, flags};
-  corundum::gameplay::screens::dialog_box_update(ds, villager_conversation, r, viewport, skin, 0.f);
+  corundum::gameplay::screens::dialog_box_update(ds, villager_conversation, renderer, viewport, skin, 0.f);
 
   REQUIRE(ds.layout.has_value());
   // NOLINTBEGIN(bugprone-unchecked-optional-access): the REQUIRE above aborts the case when empty.
@@ -175,7 +175,7 @@ TEST_CASE("dialog_box_update: an ended conversation hides the box") {
   // Regression: the render system only calls dialog_box_update while gameplay.dialogue is
   // engaged, and Gameplay::update_dialogue() resets the optional the frame the conversation
   // ends. The box must be hidden by that frame — never repainted from a stale layout.
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   corundum::gameplay::screens::DialogBoxState ds{};
   corundum::ui::PanelSkin skin{};
   skin.border = make_border();
@@ -185,7 +185,7 @@ TEST_CASE("dialog_box_update: an ended conversation hides the box") {
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
 
   corundum::gameplay::dialogue::Conversation conversation{graph, flags};
-  corundum::gameplay::screens::dialog_box_update(ds, conversation, r, viewport, skin, 0.f);
+  corundum::gameplay::screens::dialog_box_update(ds, conversation, renderer, viewport, skin, 0.f);
   REQUIRE(ds.visible);
   REQUIRE(ds.layout.has_value());
 
@@ -196,7 +196,7 @@ TEST_CASE("dialog_box_update: an ended conversation hides the box") {
   CHECK_FALSE(conversation.is_active());
 
   // The frame after the conversation ends, the box must be hidden, not stale-visible.
-  corundum::gameplay::screens::dialog_box_update(ds, conversation, r, viewport, skin, 0.f);
+  corundum::gameplay::screens::dialog_box_update(ds, conversation, renderer, viewport, skin, 0.f);
   CHECK_FALSE(ds.visible);
 }
 
@@ -205,7 +205,7 @@ TEST_CASE("dialog_box_update: quest-gated choice is drawn when the registry is t
   // is rendered with the gated option present when dialog_box_update receives the
   // registry and the matching quest.<id> flag is set. Before the fix, the parse
   // would error on a null registry and the choice would be hidden.
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   corundum::gameplay::screens::DialogBoxState ds{};
   corundum::ui::PanelSkin skin{};
   skin.border = make_border();
@@ -225,7 +225,7 @@ TEST_CASE("dialog_box_update: quest-gated choice is drawn when the registry is t
   const corundum::gameplay::dialogue::Conversation conversation{graph, flags, &quests};
 
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
-  corundum::gameplay::screens::dialog_box_update(ds, conversation, r, viewport, skin, 0.f);
+  corundum::gameplay::screens::dialog_box_update(ds, conversation, renderer, viewport, skin, 0.f);
 
   REQUIRE(ds.layout.has_value());
   // NOLINTBEGIN(bugprone-unchecked-optional-access): the REQUIRE above aborts the case when empty.
@@ -241,7 +241,7 @@ TEST_CASE("dialog_box_update: a vertical-only viewport change rebuilds the panel
   // Regression: the stale check tracked only panel width, so growing the window
   // vertically left the box pinned at its old height and offset (build_layout derives
   // panel_h and panel_y from viewport.y).
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   corundum::gameplay::screens::DialogBoxState ds{};
   corundum::ui::PanelSkin skin{};
   skin.border = make_border();
@@ -250,7 +250,7 @@ TEST_CASE("dialog_box_update: a vertical-only viewport change rebuilds the panel
   corundum::world::FlagStore flags;
   const corundum::gameplay::dialogue::Conversation conversation{graph, flags};
 
-  corundum::gameplay::screens::dialog_box_update(ds, conversation, r, {.x = 1280.f, .y = 720.f}, skin, 0.f);
+  corundum::gameplay::screens::dialog_box_update(ds, conversation, renderer, {.x = 1280.f, .y = 720.f}, skin, 0.f);
   REQUIRE(ds.layout.has_value());
   // NOLINTBEGIN(bugprone-unchecked-optional-access): the REQUIRE above aborts the case when empty.
   const float first_h = ds.layout->panel_size.y;
@@ -258,7 +258,7 @@ TEST_CASE("dialog_box_update: a vertical-only viewport change rebuilds the panel
   // NOLINTEND(bugprone-unchecked-optional-access)
 
   // Same width, taller viewport.
-  corundum::gameplay::screens::dialog_box_update(ds, conversation, r, {.x = 1280.f, .y = 900.f}, skin, 0.f);
+  corundum::gameplay::screens::dialog_box_update(ds, conversation, renderer, {.x = 1280.f, .y = 900.f}, skin, 0.f);
 
   REQUIRE(ds.layout.has_value());
   // NOLINTBEGIN(bugprone-unchecked-optional-access): the REQUIRE above aborts the case when empty.
@@ -271,7 +271,7 @@ TEST_CASE("dialog_box_update: a visibility change at the same node rebuilds the 
   // Regression: the cache key was (graph, node, viewport). A Choice node re-visited with
   // different flags (quest progress between visits, or a goto_graph loop) kept the old
   // condition-evaluated choice list.
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   corundum::gameplay::screens::DialogBoxState ds{};
   corundum::ui::PanelSkin skin{};
   skin.border = make_border();
@@ -281,7 +281,7 @@ TEST_CASE("dialog_box_update: a visibility change at the same node rebuilds the 
   const corundum::gameplay::dialogue::Conversation conversation{graph, flags};
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
 
-  corundum::gameplay::screens::dialog_box_update(ds, conversation, r, viewport, skin, 0.f);
+  corundum::gameplay::screens::dialog_box_update(ds, conversation, renderer, viewport, skin, 0.f);
   REQUIRE(ds.layout.has_value());
   // NOLINTBEGIN(bugprone-unchecked-optional-access): the REQUIRE above aborts the case when empty.
   REQUIRE(ds.layout->choices.size() == 1);
@@ -290,7 +290,7 @@ TEST_CASE("dialog_box_update: a visibility change at the same node rebuilds the 
 
   // Quest progress unlocks the gated option while the node stays the same.
   flags["secret"] = 1;
-  corundum::gameplay::screens::dialog_box_update(ds, conversation, r, viewport, skin, 0.f);
+  corundum::gameplay::screens::dialog_box_update(ds, conversation, renderer, viewport, skin, 0.f);
 
   REQUIRE(ds.layout.has_value());
   // NOLINTBEGIN(bugprone-unchecked-optional-access): the REQUIRE above aborts the case when empty.
@@ -302,7 +302,7 @@ TEST_CASE("dialog_box_update: a visibility change at the same node rebuilds the 
 TEST_CASE("build_layout: a choice label wider than the panel keeps every wrapped line") {
   // Regression: the layout kept only the first wrapped line of a choice label, silently
   // truncating any option too long for the panel.
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   using namespace corundum::gameplay::dialogue;
 
   Graph graph;
@@ -324,7 +324,7 @@ TEST_CASE("build_layout: a choice label wider than the panel keeps every wrapped
   style.panel_height_frac = 0.32f;
   const corundum::gameplay::screens::DialogLayout layout = corundum::gameplay::screens::build_layout(
       conversation, style, 4, {.x = 200.f, .y = 720.f},
-      [&](std::string_view text, corundum::ui::FontStyle) { return r.measure_text(FontId::Invalid, text, 22); });
+      [&](std::string_view text, corundum::ui::FontStyle) { return renderer.measure_text(FontId::Invalid, text, 22); });
 
   REQUIRE(layout.choices.size() == 1);
   REQUIRE(layout.choices[0].lines.size() > 1);
@@ -358,12 +358,12 @@ TEST_CASE("build_layout: choice label markup yields styled segments") {
   corundum::world::FlagStore flags;
   const corundum::gameplay::dialogue::Conversation conversation{graph, flags};
 
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   corundum::ui::PanelStyle style{};
   style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Dialogue)] = corundum::test::make_font_family(10);
   const corundum::gameplay::screens::DialogLayout layout = corundum::gameplay::screens::build_layout(
       conversation, style, 4, {.x = 1280.f, .y = 720.f},
-      [&](std::string_view text, corundum::ui::FontStyle) { return r.measure_text(FontId::Invalid, text, 22); });
+      [&](std::string_view text, corundum::ui::FontStyle) { return renderer.measure_text(FontId::Invalid, text, 22); });
 
   REQUIRE(layout.choices.size() == 1);
   REQUIRE(layout.choices[0].lines.size() == 1);
@@ -378,7 +378,7 @@ TEST_CASE("build_layout: choice label markup yields styled segments") {
 TEST_CASE("dialog_box_render: wrapped continuation lines keep the selected colour and hanging indent") {
   // A selected choice whose label wrapped: only the first line shows the "> " cursor, but
   // every line stays highlighted (style.selected) and aligned in the label column.
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   corundum::gameplay::screens::DialogBoxState ds{};
   corundum::ui::PanelSkin skin{};
   skin.border = make_border();
@@ -398,21 +398,21 @@ TEST_CASE("dialog_box_render: wrapped continuation lines keep the selected colou
   };
   ds.layout = std::move(layout);
 
-  corundum::gameplay::screens::dialog_box_render(ds, r, skin, corundum::input::InputDevice::Keyboard);
+  corundum::gameplay::screens::dialog_box_render(ds, renderer, skin, corundum::input::InputDevice::Keyboard);
 
   // chrome (1 rect + 8 sprites) + "Choose:" header + choice 0 (2 lines × 2) + choice 1 (1 × 2).
-  REQUIRE(r.log.size() == 9 + 1 + 4 + 2);
-  const float advance = corundum::ui::cursor_advance(r, skin.style);
+  REQUIRE(renderer.log.size() == 9 + 1 + 4 + 2);
+  const float advance = corundum::ui::cursor_advance(renderer, skin.style);
 
   // First line: "> " cursor in the selected colour, label in the cursor column.
-  CHECK(std::get<DrawText>(r.log[10]).text == "> ");
-  CHECK(std::get<DrawText>(r.log[11]).colour.r == skin.style.selected.r);
-  CHECK(std::get<DrawText>(r.log[11]).position.x == 10.f + advance); // px + inset + advance
+  CHECK(std::get<DrawText>(renderer.log[10]).text == "> ");
+  CHECK(std::get<DrawText>(renderer.log[11]).colour.r == skin.style.selected.r);
+  CHECK(std::get<DrawText>(renderer.log[11]).position.x == 10.f + advance); // px + inset + advance
 
   // Second line: no cursor, same colour, same hanging indent.
-  CHECK(std::get<DrawText>(r.log[12]).text == "  ");
-  CHECK(std::get<DrawText>(r.log[13]).colour.r == skin.style.selected.r);
-  CHECK(std::get<DrawText>(r.log[13]).position.x == std::get<DrawText>(r.log[11]).position.x);
+  CHECK(std::get<DrawText>(renderer.log[12]).text == "  ");
+  CHECK(std::get<DrawText>(renderer.log[13]).colour.r == skin.style.selected.r);
+  CHECK(std::get<DrawText>(renderer.log[13]).position.x == std::get<DrawText>(renderer.log[11]).position.x);
 }
 
 // ── inventory_panel_render ───────────────────────────────────────────────────
@@ -422,7 +422,7 @@ TEST_CASE("dialog_box_render: wrapped continuation lines keep the selected colou
  */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("inventory_panel_render: 2 rows emit chrome, header, and one option pair per row") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::NinePatchBorder border = make_border();
   const corundum::ui::PanelStyle style{};
 
@@ -432,24 +432,24 @@ TEST_CASE("inventory_panel_render: 2 rows emit chrome, header, and one option pa
   };
 
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
-  corundum::gameplay::screens::inventory_panel_render(r, style, border, lines, {}, 0, 0, viewport);
+  corundum::gameplay::screens::inventory_panel_render(renderer, style, border, lines, {}, 0, 0, viewport);
 
   // Backdrop (1 DrawRect) + panel_chrome (1 DrawRect + 8 DrawSprite) + the "Inventory" header
   // DrawText + 2 rows × 2 DrawText (cursor + label).
-  REQUIRE(r.log.size() == 1 + 9 + 1 + 4);
-  CHECK(std::holds_alternative<DrawRect>(r.log[0]));
-  CHECK(std::holds_alternative<DrawRect>(r.log[1]));
+  REQUIRE(renderer.log.size() == 1 + 9 + 1 + 4);
+  CHECK(std::holds_alternative<DrawRect>(renderer.log[0]));
+  CHECK(std::holds_alternative<DrawRect>(renderer.log[1]));
   for (std::size_t i = 2; i < 10; ++i)
-    CHECK(std::holds_alternative<DrawSprite>(r.log[i]));
+    CHECK(std::holds_alternative<DrawSprite>(renderer.log[i]));
 
-  const DrawText &header = std::get<DrawText>(r.log[10]);
+  const DrawText &header = std::get<DrawText>(renderer.log[10]);
   CHECK(header.text == "Inventory");
   CHECK(header.colour.r == style.speaker.r);
 
-  const DrawText &row0_cursor = std::get<DrawText>(r.log[11]);
-  const DrawText &row0_label = std::get<DrawText>(r.log[12]);
-  const DrawText &row1_cursor = std::get<DrawText>(r.log[13]);
-  const DrawText &row1_label = std::get<DrawText>(r.log[14]);
+  const DrawText &row0_cursor = std::get<DrawText>(renderer.log[11]);
+  const DrawText &row0_label = std::get<DrawText>(renderer.log[12]);
+  const DrawText &row1_cursor = std::get<DrawText>(renderer.log[13]);
+  const DrawText &row1_label = std::get<DrawText>(renderer.log[14]);
 
   CHECK(row0_cursor.text == "> ");
   CHECK(row0_label.text == "Apple  x2");
@@ -464,23 +464,23 @@ TEST_CASE("inventory_panel_render: 2 rows emit chrome, header, and one option pa
 }
 
 TEST_CASE("inventory_panel_render: empty list renders header plus one (empty) line") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::NinePatchBorder border = make_border();
   const corundum::ui::PanelStyle style{};
 
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
-  corundum::gameplay::screens::inventory_panel_render(r, style, border, {}, {}, 0, 0, viewport);
+  corundum::gameplay::screens::inventory_panel_render(renderer, style, border, {}, {}, 0, 0, viewport);
 
   // Backdrop + chrome (9) + header + one "(empty)" line.
-  REQUIRE(r.log.size() == 1 + 9 + 1 + 1);
-  const DrawText &header = std::get<DrawText>(r.log[10]);
+  REQUIRE(renderer.log.size() == 1 + 9 + 1 + 1);
+  const DrawText &header = std::get<DrawText>(renderer.log[10]);
   CHECK(header.text == "Inventory");
-  const DrawText &empty = std::get<DrawText>(r.log[11]);
+  const DrawText &empty = std::get<DrawText>(renderer.log[11]);
   CHECK(empty.text == "(empty)");
 }
 
 TEST_CASE("inventory_panel_render: cursor is clamped into the row range") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::NinePatchBorder border = make_border();
   const corundum::ui::PanelStyle style{};
 
@@ -492,10 +492,10 @@ TEST_CASE("inventory_panel_render: cursor is clamped into the row range") {
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
 
   // cursor 99 → clamps to the last row.
-  corundum::gameplay::screens::inventory_panel_render(r, style, border, lines, {}, 99, 0, viewport);
-  const DrawText &last_cursor = std::get<DrawText>(r.log[r.log.size() - 2]);
+  corundum::gameplay::screens::inventory_panel_render(renderer, style, border, lines, {}, 99, 0, viewport);
+  const DrawText &last_cursor = std::get<DrawText>(renderer.log[renderer.log.size() - 2]);
   CHECK(last_cursor.text == "> ");
-  const DrawText &last_label = std::get<DrawText>(r.log.back());
+  const DrawText &last_label = std::get<DrawText>(renderer.log.back());
   CHECK(last_label.text == "C  x1");
 
   // cursor -5 → clamps to the first row.
@@ -523,11 +523,11 @@ TEST_CASE("inventory_panel_render: the highlighted row's description draws as a 
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
 
   // Cursor 0 draws the first row's description, not the second's.
-  RecordingRenderer r;
-  corundum::gameplay::screens::inventory_panel_render(r, style, border, lines, {}, 0, 0, viewport);
+  RecordingRenderer renderer;
+  corundum::gameplay::screens::inventory_panel_render(renderer, style, border, lines, {}, 0, 0, viewport);
   bool first_description = false;
   bool second_description = false;
-  for (const auto &call : r.log) {
+  for (const auto &call : renderer.log) {
     if (const auto *text = std::get_if<DrawText>(&call); text != nullptr) {
       first_description = first_description || text->text == "A pinch of river salt.";
       second_description = second_description || text->text == "Osric's heirloom.";
@@ -624,7 +624,7 @@ TEST_CASE("build_inventory_lines: groups items by category, ordering by (categor
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("inventory_panel_render: category groups draw one header per group, in category order") {
   using corundum::gameplay::item::ItemCategory;
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::NinePatchBorder border = make_border();
   const corundum::ui::PanelStyle style{};
 
@@ -637,13 +637,13 @@ TEST_CASE("inventory_panel_render: category groups draw one header per group, in
   };
 
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
-  corundum::gameplay::screens::inventory_panel_render(r, style, border, lines, {}, 0, 0, viewport);
+  corundum::gameplay::screens::inventory_panel_render(renderer, style, border, lines, {}, 0, 0, viewport);
 
   // Backdrop + chrome (9) + "Inventory" header + 4 group headers + 4 rows × 2 DrawText (cursor + label).
-  REQUIRE(r.log.size() == 1 + 9 + 1 + 4 + 8);
+  REQUIRE(renderer.log.size() == 1 + 9 + 1 + 4 + 8);
 
   std::vector<std::string> texts;
-  for (const auto &call : r.log)
+  for (const auto &call : renderer.log)
     if (std::holds_alternative<DrawText>(call))
       texts.emplace_back(std::get<DrawText>(call).text);
 
@@ -666,7 +666,7 @@ TEST_CASE("inventory_panel_render: category groups draw one header per group, in
 
 TEST_CASE("inventory_panel_render: Misc-only inventory draws no group header") {
   using corundum::gameplay::item::ItemCategory;
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::NinePatchBorder border = make_border();
   const corundum::ui::PanelStyle style{};
 
@@ -675,22 +675,22 @@ TEST_CASE("inventory_panel_render: Misc-only inventory draws no group header") {
   };
 
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
-  corundum::gameplay::screens::inventory_panel_render(r, style, border, lines, {}, 0, 0, viewport);
+  corundum::gameplay::screens::inventory_panel_render(renderer, style, border, lines, {}, 0, 0, viewport);
 
   // Backdrop + chrome (9) + "Inventory" header + 1 row × 2. No "Misc" group header.
-  REQUIRE(r.log.size() == 1 + 9 + 1 + 2);
+  REQUIRE(renderer.log.size() == 1 + 9 + 1 + 2);
 
-  const DrawText &header = std::get<DrawText>(r.log[10]);
+  const DrawText &header = std::get<DrawText>(renderer.log[10]);
   CHECK(header.text == "Inventory");
-  const DrawText &row_cursor = std::get<DrawText>(r.log[11]);
-  const DrawText &row_label = std::get<DrawText>(r.log[12]);
+  const DrawText &row_cursor = std::get<DrawText>(renderer.log[11]);
+  const DrawText &row_label = std::get<DrawText>(renderer.log[12]);
   CHECK(row_cursor.text == "> ");
   CHECK(row_label.text == "Clutter  x1");
 }
 
 TEST_CASE("inventory_panel_render: the panel fills the viewport") {
   using corundum::gameplay::item::ItemCategory;
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::NinePatchBorder border = make_border();
   const corundum::ui::PanelStyle style{};
 
@@ -699,22 +699,22 @@ TEST_CASE("inventory_panel_render: the panel fills the viewport") {
   };
 
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
-  corundum::gameplay::screens::inventory_panel_render(r, style, border, lines, {}, 0, 0, viewport);
+  corundum::gameplay::screens::inventory_panel_render(renderer, style, border, lines, {}, 0, 0, viewport);
 
   // log[0] is the opaque backdrop; log[1] is the panel fill, spanning the viewport minus margin.
-  const DrawRect &backdrop = std::get<DrawRect>(r.log[0]);
+  const DrawRect &backdrop = std::get<DrawRect>(renderer.log[0]);
   CHECK(backdrop.size.x == viewport.x);
   CHECK(backdrop.size.y == viewport.y);
   CHECK(backdrop.colour.a == 255);
 
-  const DrawRect &panel = std::get<DrawRect>(r.log[1]);
+  const DrawRect &panel = std::get<DrawRect>(renderer.log[1]);
   CHECK(panel.size.x == viewport.x - (style.margin * 2.f));
   CHECK(panel.size.y == viewport.y - (style.margin * 2.f) - corundum::gameplay::screens::hub_panel_top_inset(style));
 }
 
 TEST_CASE("inventory_panel_render: speaker-sized group header claims its own row height") {
   using corundum::gameplay::item::ItemCategory;
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::NinePatchBorder border = make_border();
   corundum::ui::PanelStyle style{};
   style.font_size_body = 10;
@@ -726,15 +726,15 @@ TEST_CASE("inventory_panel_render: speaker-sized group header claims its own row
   };
 
   const corundum::core::math::Vec2 viewport{.x = 1280.f, .y = 720.f};
-  corundum::gameplay::screens::inventory_panel_render(r, style, border, lines, {}, 0, 0, viewport);
+  corundum::gameplay::screens::inventory_panel_render(renderer, style, border, lines, {}, 0, 0, viewport);
 
   // Backdrop + chrome(9) + title + group header + cursor + label. Header row height is
   // max(body_line_h, speaker + 4) = max(14, 44) = 44, not the body row height.
-  const DrawText &group_header = std::get<DrawText>(r.log[11]);
-  const DrawText &row_cursor = std::get<DrawText>(r.log[12]);
+  const DrawText &group_header = std::get<DrawText>(renderer.log[11]);
+  const DrawText &row_cursor = std::get<DrawText>(renderer.log[12]);
   CHECK(group_header.text == "Apparel");
   CHECK(row_cursor.position.y - group_header.position.y == 44.f);
 
-  const DrawRect &panel = std::get<DrawRect>(r.log[1]);
+  const DrawRect &panel = std::get<DrawRect>(renderer.log[1]);
   CHECK(panel.size.y == viewport.y - (style.margin * 2.f) - corundum::gameplay::screens::hub_panel_top_inset(style));
 }

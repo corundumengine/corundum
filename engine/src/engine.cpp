@@ -71,12 +71,12 @@ class InitPipeline {
 public:
   explicit InitPipeline(Engine &engine) : engine_(&engine) {}
 
-  std::expected<void, std::string> run(core::GameConfig &&cfg) {
-    engine_->cfg = std::move(cfg);
-    engine_->timer.set_target_fps(static_cast<float>(engine_->cfg.simulation_fps));
-    engine_->window().set_vsync(engine_->cfg.vsync);
+  std::expected<void, std::string> run(core::GameConfig &&config) {
+    engine_->config = std::move(config);
+    engine_->timer.set_target_fps(static_cast<float>(engine_->config.simulation_fps));
+    engine_->window().set_vsync(engine_->config.vsync);
 
-    const std::uint64_t rng_seed = engine_->cfg.rng_seed.value_or([] {
+    const std::uint64_t rng_seed = engine_->config.rng_seed.value_or([] {
       std::random_device rd;
       return (static_cast<std::uint64_t>(rd()) << 32U) | static_cast<std::uint64_t>(rd());
     }());
@@ -92,24 +92,24 @@ public:
     init_audio();
     corundum::detail::info_log("[boot] audio: {:.1f} ms", corundum::detail::elapsed_ms(audio_start));
 
-    render::configure_panel_style(engine_->render, engine_->cfg);
+    render::configure_panel_style(engine_->render, engine_->config);
     return {};
   }
 
 private:
   std::expected<void, std::string> load_render_assets() {
     std::expected<void, std::string> characters_result;
-    characters_result = engine_->characters.load_all(engine_->content_source(), engine_->cfg.paths.sprites_dir);
+    characters_result = engine_->characters.load_all(engine_->content_source(), engine_->config.paths.sprites_dir);
     if (!characters_result)
       return std::unexpected(characters_result.error());
     render::load_sprite_index(engine_->renderer(), engine_->render, engine_->characters);
 
-    if (auto result = render::load_fonts(engine_->renderer(), engine_->render, engine_->cfg.paths); !result)
+    if (auto result = render::load_fonts(engine_->renderer(), engine_->render, engine_->config.paths); !result)
       return std::unexpected(std::move(result).error());
 
     std::expected<void, std::string> ui_result;
     ui_result =
-        render::load_ui_assets(engine_->content_source(), engine_->renderer(), engine_->render, engine_->cfg.paths);
+        render::load_ui_assets(engine_->content_source(), engine_->renderer(), engine_->render, engine_->config.paths);
     if (!ui_result)
       return std::unexpected(ui_result.error());
     return {};
@@ -117,12 +117,12 @@ private:
 
   void init_audio() {
     std::expected<void, std::string> audio_result;
-    audio_result = engine_->audio.initialize(engine_->cfg.paths.sounds_dir);
+    audio_result = engine_->audio.initialize(engine_->config.paths.sounds_dir);
     if (!audio_result) {
       corundum::detail::warn_log("[engine] WARN: Audio init failed — {}", audio_result.error());
       return;
     }
-    engine_->audio.load_catalog(engine_->content_source(), engine_->cfg.paths.sounds_catalog);
+    engine_->audio.load_catalog(engine_->content_source(), engine_->config.paths.sounds_catalog);
   }
 
   Engine *engine_;
@@ -137,13 +137,13 @@ void Engine::adopt_platform(platform::PlatformContext platform) {
   audio.adopt_backend(std::move(platform.audio_backend));
 }
 
-std::expected<void, std::string> Engine::initialize(core::GameConfig &&cfg) {
+std::expected<void, std::string> Engine::initialize(core::GameConfig &&config) {
   if (!window_ || !renderer_)
     return std::unexpected("Engine::initialize: window and renderer must be non-null "
                            "(use make_engine(), or adopt a platform before calling)");
 
   InitPipeline pipeline(*this);
-  if (auto result = pipeline.run(std::move(cfg)); !result) {
+  if (auto result = pipeline.run(std::move(config)); !result) {
     cleanup();
     return std::unexpected(result.error());
   }
@@ -296,7 +296,7 @@ core::math::Vec2 screen_viewport(const Engine &engine) noexcept {
 
 /** Re-derive the dialogue style after an edit to ui_scale or text_speed. */
 void refresh_dialog_style(Engine &engine) {
-  render::configure_panel_style(engine.render, engine.cfg);
+  render::configure_panel_style(engine.render, engine.config);
 }
 
 /** Persist the live settings to settings.json when the Settings screen closes. Persistence is
@@ -609,13 +609,14 @@ constexpr int k_max_steps_per_frame{8};
       // latched here would fire the moment the world activates.
       const auto *world_area = std::get_if<render::WorldArea>(&engine.render.area);
       if (world_area == nullptr || !world_area->chunks.active_empty()) {
-        const world::MapView map_view = world::build_map_view(engine.render, engine.cfg);
-        world::sync_chunk_actors(engine.content_source(), engine.scene, engine.render, engine.cfg, engine.characters);
+        const world::MapView map_view = world::build_map_view(engine.render, engine.config);
+        world::sync_chunk_actors(engine.content_source(), engine.scene, engine.render, engine.config,
+                                 engine.characters);
         // Core simulation is intentionally not wrapped: unlike the game seams (dialogue
         // dispatch, on_fixed_update, map transitions), a throw here is fatal, not recoverable.
         const ScreenSpec *top_spec = engine.screens.find(engine.scene.mode());
         const world::WorldStep world_step = top_spec != nullptr ? top_spec->world_step : world::WorldStep::Frozen;
-        world::update(engine.scene, engine.cfg, engine.input_state, map_view, engine.timer.target_dt,
+        world::update(engine.scene, engine.config, engine.input_state, map_view, engine.timer.target_dt,
                       static_cast<float>(engine.window_width()), static_cast<float>(engine.window_height()),
                       engine.input_mapper.last_device(), world_step);
       }
@@ -637,14 +638,14 @@ constexpr int k_max_steps_per_frame{8};
   return result;
 }
 
-void render_menu(const Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
-  ui::menu_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border, engine.menu, viewport,
-                        engine.input_mapper.last_device());
+void render_menu(const Engine &engine, platform::Renderer &renderer, core::math::Vec2 viewport) {
+  ui::menu_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border, engine.menu,
+                        viewport, engine.input_mapper.last_device());
 }
 
-void render_settings(const Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
-  ui::settings_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border, engine.settings_screen,
-                            settings_values(engine), engine.input_mapper.bindings(), viewport,
+void render_settings(const Engine &engine, platform::Renderer &renderer, core::math::Vec2 viewport) {
+  ui::settings_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
+                            engine.settings_screen, settings_values(engine), engine.input_mapper.bindings(), viewport,
                             engine.input_mapper.last_device());
 }
 
@@ -655,15 +656,15 @@ void render_settings(const Engine &engine, platform::Renderer &r, core::math::Ve
 // frame path is intentionally fatal (noexcept).
 // NOLINTNEXTLINE(bugprone-exception-escape)
 void render_frame(Engine &engine, const float alpha, const bool budget_exhausted) noexcept {
-  platform::Renderer &r = engine.renderer();
-  if (!r.begin_frame(engine.clear_colour))
+  platform::Renderer &renderer = engine.renderer();
+  if (!renderer.begin_frame(engine.clear_colour))
     return;
 
   const core::math::IntSize window_logical{
       .width = engine.window_width(),
       .height = engine.window_height(),
   };
-  render::render(r, engine.render, engine.cfg, engine.scene, alpha, window_logical);
+  render::render(renderer, engine.render, engine.config, engine.scene, alpha, window_logical);
 
   const corundum::core::math::Vec2 viewport{
       .x = static_cast<float>(window_logical.width),
@@ -674,46 +675,46 @@ void render_frame(Engine &engine, const float alpha, const bool budget_exhausted
 
   // 2. Gameplay HUD, only while nothing is modal.
   if (!screen_open && !transition_showing)
-    engine.screens.render_layer(RenderLayer::Hud, engine, r, viewport);
+    engine.screens.render_layer(RenderLayer::Hud, engine, renderer, viewport);
 
   // 3. Engine toasts.
-  engine.toasts.render(r, engine.render.panel_skin.style, viewport);
+  engine.toasts.render(renderer, engine.render.panel_skin.style, viewport);
 
   // 4a. Engine-owned transition prompt, drawn whenever pending regardless of mode.
   if (transition_showing) {
     const std::string_view question =
         engine.scene.transition_prompt->transition().return_to_world ? "Leave?" : "Enter?";
-    ui::prompt_box_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border, question,
+    ui::prompt_box_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border, question,
                           engine.scene.transition_prompt->confirm_selected(), viewport);
   }
 
   // 4b. Modal hooks, each gated on its own state and on being the top-of-stack mode
   // (the dialogue box hides while a screen is pushed over it).
-  engine.screens.render_layer(RenderLayer::Modal, engine, r, viewport);
+  engine.screens.render_layer(RenderLayer::Modal, engine, renderer, viewport);
 
   // 4c. The top mode's own screen, if it registered a render hook.
   if (const ScreenSpec *spec = engine.screens.find(engine.scene.mode()); spec != nullptr && spec->render)
-    spec->render(engine, r, viewport);
+    spec->render(engine, renderer, viewport);
 
   // 5. Hub panels, then the hub tab strip.
-  engine.screens.render_layer(RenderLayer::HubPanel, engine, r, viewport);
-  engine.screens.render_layer(RenderLayer::HubStrip, engine, r, viewport);
+  engine.screens.render_layer(RenderLayer::HubPanel, engine, renderer, viewport);
+  engine.screens.render_layer(RenderLayer::HubStrip, engine, renderer, viewport);
 
   // 6. Scene fade, above every screen but below the debug HUD.
-  ui::render_screen_transition(r, engine.screen_transition, viewport);
+  ui::render_screen_transition(renderer, engine.screen_transition, viewport);
 
   // 7. Debug HUD, always last.
   const debug::OverlayInput hud_input{
       .render_state = &engine.render,
-      .cfg = &engine.cfg,
+      .config = &engine.config,
       .scene = &engine.scene,
       .timer = &engine.timer,
       .viewport = viewport,
       .step_budget_exhausted = budget_exhausted,
   };
-  engine.hud.render(r, hud_input);
+  engine.hud.render(renderer, hud_input);
 
-  r.end_frame();
+  renderer.end_frame();
 }
 
 } // namespace
@@ -724,15 +725,15 @@ void Engine::register_screens() {
               ScreenSpec{
                   .owns_step = true,
                   .update = [](Engine &engine, const input::InputIntent &intent) { update_pause_menu(engine, intent); },
-                  .render = [](Engine &engine, platform::Renderer &r,
-                               core::math::Vec2 viewport) { render_menu(engine, r, viewport); },
+                  .render = [](Engine &engine, platform::Renderer &renderer,
+                               core::math::Vec2 viewport) { render_menu(engine, renderer, viewport); },
               });
   screens.add(world::GameMode::Settings,
               ScreenSpec{
                   .owns_step = true,
                   .update = [](Engine &engine, const input::InputIntent &intent) { update_settings(engine, intent); },
-                  .render = [](Engine &engine, platform::Renderer &r,
-                               core::math::Vec2 viewport) { render_settings(engine, r, viewport); },
+                  .render = [](Engine &engine, platform::Renderer &renderer,
+                               core::math::Vec2 viewport) { render_settings(engine, renderer, viewport); },
               });
 }
 
@@ -831,7 +832,7 @@ bool Engine::run_frame(std::chrono::steady_clock::time_point now) noexcept {
 
   timer.tick(now);
 
-  render::stream_world_chunks(*renderer_, render, cfg, scene);
+  render::stream_world_chunks(*renderer_, render, config, scene);
 
   const SimulationResult simulation{run_fixed_steps(*this)};
   // Portal scene changes are applied at full black by advance_scene_transition(); the
@@ -850,7 +851,7 @@ void Engine::reveal_window() noexcept {
   window_->show();
   // Enter the configured mode only after the window is visible: glfwSetWindowMonitor on a hidden
   // window leaves it permanently hidden on macOS, and a later show() cannot recover it.
-  window_->set_window_mode(cfg.window_mode);
+  window_->set_window_mode(config.window_mode);
 }
 
 void Engine::pause(PauseReason reason) noexcept {

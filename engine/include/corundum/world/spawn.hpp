@@ -28,7 +28,7 @@ namespace corundum::world {
 
 /** Spawn the player and all actors into a fresh Scene.
  *
- *  @param cfg        Game configuration; reads paths.spawn_points_dir and the player sprite/placement fields.
+ *  @param config     Game configuration; reads paths.spawn_points_dir and the player sprite/placement fields.
  *  @param registry   Character registry for sprite ID lookups.
  *  @param tilemap    Loaded tilemap; only its path stem names the per-map spawn-points file.
  *  @param player_pos Tile-grid position for the player (col, row). Precedence (most specific
@@ -40,9 +40,9 @@ namespace corundum::world {
  *          world and player EntityId, or std::unexpected with an error description on failure.
  */
 [[nodiscard]] std::expected<std::unique_ptr<Scene>, std::string>
-spawn_world(const core::ContentSource &content, const core::GameConfig &cfg, const sprites::CharacterRegistry &registry,
-            const tilemap::Tilemap &tilemap, std::optional<entities::Position> player_pos = std::nullopt,
-            bool spawn_file_actors = true);
+spawn_world(const core::ContentSource &content, const core::GameConfig &config,
+            const sprites::CharacterRegistry &registry, const tilemap::Tilemap &tilemap,
+            std::optional<entities::Position> player_pos = std::nullopt, bool spawn_file_actors = true);
 
 /** Reconcile per-chunk actor entities with the render layer's active
  *  chunk window. World mode only. Spawns actors for newly-resident
@@ -51,6 +51,6 @@ spawn_world(const core::ContentSource &content, const core::GameConfig &cfg, con
  *  mode == World, chunks are loaded, and the player is free-roaming.
  */
 void sync_chunk_actors(const core::ContentSource &content, Scene &scene, const render::RenderState &render,
-                       const core::GameConfig &cfg, const sprites::CharacterRegistry &registry);
+                       const core::GameConfig &config, const sprites::CharacterRegistry &registry);
 
 } // namespace corundum::world

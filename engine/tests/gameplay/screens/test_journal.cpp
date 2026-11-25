@@ -47,17 +47,18 @@ void complete(FlagStore &flags, std::string_view quest_id) {
 }
 
 /** Every text payload the recording renderer received, in draw order. */
-std::vector<std::string> recorded_texts(const corundum::test::RecordingRenderer &r) {
+std::vector<std::string> recorded_texts(const corundum::test::RecordingRenderer &renderer) {
   std::vector<std::string> texts;
-  for (const auto &call : r.log)
+  for (const auto &call : renderer.log)
     if (std::holds_alternative<corundum::platform::DrawText>(call))
       texts.emplace_back(std::get<corundum::platform::DrawText>(call).text);
   return texts;
 }
 
 /** The recorded DrawText with exactly `text`, or nullptr. */
-const corundum::platform::DrawText *find_text(const corundum::test::RecordingRenderer &r, std::string_view text) {
-  for (const auto &call : r.log) {
+const corundum::platform::DrawText *find_text(const corundum::test::RecordingRenderer &renderer,
+                                              std::string_view text) {
+  for (const auto &call : renderer.log) {
     if (const auto *drawn = std::get_if<corundum::platform::DrawText>(&call); drawn != nullptr && drawn->text == text)
       return drawn;
   }
@@ -147,7 +148,7 @@ TEST_CASE("journal_panel_render: sub-tab strip, then the highlighted quest's che
   using corundum::test::make_border;
   using corundum::test::RecordingRenderer;
 
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
 
   const std::vector<screens::JournalEntry> entries = {
@@ -167,14 +168,14 @@ TEST_CASE("journal_panel_render: sub-tab strip, then the highlighted quest's che
   };
   const screens::JournalState state{};
 
-  screens::journal_panel_render(r, style, make_border(), entries, state, {.x = 1280.f, .y = 720.f});
+  screens::journal_panel_render(renderer, style, make_border(), entries, state, {.x = 1280.f, .y = 720.f});
 
   // Backdrop + chrome (1 rect + 8 sprites) + title + 3 sub-tabs + footer + (cursor + name) + 2
   // checklists (each its mark + text) + (cursor + name) for the unhighlighted second row.
-  REQUIRE(r.log.size() == 1 + 9 + 1 + 3 + 1 + 2 + 4 + 2);
-  CHECK(std::holds_alternative<corundum::platform::DrawRect>(r.log[0]));
+  REQUIRE(renderer.log.size() == 1 + 9 + 1 + 3 + 1 + 2 + 4 + 2);
+  CHECK(std::holds_alternative<corundum::platform::DrawRect>(renderer.log[0]));
 
-  const std::vector<std::string> texts = recorded_texts(r);
+  const std::vector<std::string> texts = recorded_texts(renderer);
   REQUIRE(texts.size() == 13);
   CHECK(texts[0] == "Journal");
   CHECK(texts[1] == "Active");
@@ -195,7 +196,7 @@ TEST_CASE("journal_panel_render: a tracked quest carries a mark, others keep the
   using corundum::test::make_border;
   using corundum::test::RecordingRenderer;
 
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
 
   const std::vector<screens::JournalObjective> shrine_objectives = {
@@ -219,9 +220,9 @@ TEST_CASE("journal_panel_render: a tracked quest carries a mark, others keep the
   };
   const screens::JournalState state{};
 
-  screens::journal_panel_render(r, style, make_border(), entries, state, {.x = 1280.f, .y = 720.f});
+  screens::journal_panel_render(renderer, style, make_border(), entries, state, {.x = 1280.f, .y = 720.f});
 
-  const std::vector<std::string> texts = recorded_texts(r);
+  const std::vector<std::string> texts = recorded_texts(renderer);
   // Title, 3 sub-tabs, footer, then row 0 (tracked + highlighted checklist), row 1 single objective.
   REQUIRE(texts.size() == 12);
   CHECK(texts[5] == "> ");
@@ -237,14 +238,14 @@ TEST_CASE("journal_panel_render: the footer hint follows the last-used device") 
   using corundum::test::make_border;
   using corundum::test::RecordingRenderer;
 
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
   const std::vector<screens::JournalEntry> entries{};
   const screens::JournalState state{};
-  screens::journal_panel_render(r, style, make_border(), entries, state, {.x = 1280.f, .y = 720.f},
+  screens::journal_panel_render(renderer, style, make_border(), entries, state, {.x = 1280.f, .y = 720.f},
                                 corundum::input::InputDevice::Gamepad);
 
-  const std::vector<std::string> texts = recorded_texts(r);
+  const std::vector<std::string> texts = recorded_texts(renderer);
   CHECK(texts[4] == "A Track   R2 Tabs   B Close");
 }
 
@@ -252,14 +253,14 @@ TEST_CASE("journal_panel_render: empty tab renders the placeholder line") {
   using corundum::test::make_border;
   using corundum::test::RecordingRenderer;
 
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
   const std::vector<screens::JournalEntry> entries{};
   const screens::JournalState state{};
-  screens::journal_panel_render(r, style, make_border(), entries, state, {.x = 1280.f, .y = 720.f});
+  screens::journal_panel_render(renderer, style, make_border(), entries, state, {.x = 1280.f, .y = 720.f});
 
-  REQUIRE(r.log.size() == 1 + 9 + 1 + 3 + 1 + 1);
-  const std::vector<std::string> texts = recorded_texts(r);
+  REQUIRE(renderer.log.size() == 1 + 9 + 1 + 3 + 1 + 1);
+  const std::vector<std::string> texts = recorded_texts(renderer);
   REQUIRE(texts.size() == 6);
   CHECK(texts[0] == "Journal");
   CHECK(texts[5] == "(no quests)");
@@ -269,7 +270,7 @@ TEST_CASE("journal_panel_render: objective markup draws per-style Quest segments
   using corundum::test::make_border;
   using corundum::test::RecordingRenderer;
 
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   corundum::ui::PanelStyle style{};
   style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)] = corundum::test::make_font_family(5);
 
@@ -284,10 +285,10 @@ TEST_CASE("journal_panel_render: objective markup draws per-style Quest segments
   };
   const screens::JournalState state{};
 
-  screens::journal_panel_render(r, style, make_border(), entries, state, {.x = 1280.f, .y = 720.f});
+  screens::journal_panel_render(renderer, style, make_border(), entries, state, {.x = 1280.f, .y = 720.f});
 
-  const auto *bold = find_text(r, "Find");
-  const auto *regular = find_text(r, " the shrine");
+  const auto *bold = find_text(renderer, "Find");
+  const auto *regular = find_text(renderer, " the shrine");
   REQUIRE(bold != nullptr);
   REQUIRE(regular != nullptr);
   CHECK(bold->font_id == FontId{6});    // Quest Bold
@@ -298,7 +299,7 @@ TEST_CASE("journal_panel_render: the quest list row uses the Quest family") {
   using corundum::test::make_border;
   using corundum::test::RecordingRenderer;
 
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   corundum::ui::PanelStyle style{};
   style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)] = corundum::test::make_font_family(5);
 
@@ -312,9 +313,9 @@ TEST_CASE("journal_panel_render: the quest list row uses the Quest family") {
   };
   const screens::JournalState state{};
 
-  screens::journal_panel_render(r, style, make_border(), entries, state, {.x = 1280.f, .y = 720.f});
+  screens::journal_panel_render(renderer, style, make_border(), entries, state, {.x = 1280.f, .y = 720.f});
 
-  const auto *name = find_text(r, "Ember");
+  const auto *name = find_text(renderer, "Ember");
   REQUIRE(name != nullptr);
   CHECK(name->font_id == FontId{6}); // Quest Bold
 }

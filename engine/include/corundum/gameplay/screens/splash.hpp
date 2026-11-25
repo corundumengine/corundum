@@ -65,10 +65,10 @@ struct SplashState {
  *  never cropped, and the margin around it is black. An image of unknown size, or an
  *  index past the end, draws only the black fill. The engine draws the fade overlay afterward.
  *
- *  @param r        Renderer; emits the fill and at most one sprite.
+ *  @param renderer Renderer; emits the fill and at most one sprite.
  *  @param viewport Screen size in logical pixels.
  *  @param state    Loaded images and the index of the one showing.
  */
-void splash_render(platform::Renderer &r, core::math::Vec2 viewport, const SplashState &state);
+void splash_render(platform::Renderer &renderer, core::math::Vec2 viewport, const SplashState &state);
 
 } // namespace corundum::gameplay::screens

@@ -1175,24 +1175,24 @@ TEST_CASE("combat: the target marker outlines the target's tile through the worl
   engine.render.world_view.camera = {.x = 3.f, .y = 4.f};
   const corundum::ScreenSpec *spec = engine.screens.find(screens::Combat);
   REQUIRE(spec != nullptr);
-  corundum::test::RecordingRenderer r;
+  corundum::test::RecordingRenderer renderer;
 
-  spec->render(engine, r, {.x = 320.f, .y = 240.f});
+  spec->render(engine, renderer, {.x = 320.f, .y = 240.f});
 
-  const corundum::world::MapView map = corundum::world::build_map_view(engine.render, engine.cfg);
+  const corundum::world::MapView map = corundum::world::build_map_view(engine.render, engine.config);
   const corundum::world::TileDiamond expected = corundum::world::tile_diamond(
       hostile_tile, corundum::world::discrete_elevation_at(map, hostile_tile.col, hostile_tile.row), map.projection);
-  REQUIRE_EQ(r.world_lines.size(), 4u);
-  CHECK_EQ(r.world_lines[0].start.x, expected.top.x);
-  CHECK_EQ(r.world_lines[0].start.y, expected.top.y);
-  CHECK_EQ(r.world_lines[0].end.x, expected.right.x);
-  CHECK_EQ(r.world_lines[1].end.y, expected.bottom.y);
-  CHECK_EQ(r.world_lines[2].end.x, expected.left.x);
-  CHECK_EQ(r.world_lines[3].end.x, expected.top.x);
-  CHECK_EQ(r.world_lines[3].end.y, expected.top.y);
-  CHECK_EQ(r.world_view_camera.x, 3.f);
-  CHECK_EQ(r.world_view_camera.y, 4.f);
-  CHECK_FALSE(r.is_world_view);
+  REQUIRE_EQ(renderer.world_lines.size(), 4u);
+  CHECK_EQ(renderer.world_lines[0].start.x, expected.top.x);
+  CHECK_EQ(renderer.world_lines[0].start.y, expected.top.y);
+  CHECK_EQ(renderer.world_lines[0].end.x, expected.right.x);
+  CHECK_EQ(renderer.world_lines[1].end.y, expected.bottom.y);
+  CHECK_EQ(renderer.world_lines[2].end.x, expected.left.x);
+  CHECK_EQ(renderer.world_lines[3].end.x, expected.top.x);
+  CHECK_EQ(renderer.world_lines[3].end.y, expected.top.y);
+  CHECK_EQ(renderer.world_view_camera.x, 3.f);
+  CHECK_EQ(renderer.world_view_camera.y, 4.f);
+  CHECK_FALSE(renderer.is_world_view);
 }
 
 TEST_CASE("combat: a wind-up plays the attack clip, facing the target, with its middle at the landing") {

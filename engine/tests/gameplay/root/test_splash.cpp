@@ -127,12 +127,12 @@ SplashRenderer &adopt_splash_renderer(corundum::Engine &engine) {
 constexpr int k_step_budget = 60 * 10;
 
 corundum::core::GameConfig make_splash_config(bool show_title) {
-  corundum::core::GameConfig cfg = make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
-  cfg.show_title = show_title;
-  cfg.game_id = "test_game";
+  corundum::core::GameConfig config = make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
+  config.show_title = show_title;
+  config.game_id = "test_game";
   // The null renderer loads any path, so these need not exist on disk.
-  cfg.paths.splash_images = {"studio.png", "engine.png"};
-  return cfg;
+  config.paths.splash_images = {"studio.png", "engine.png"};
+  return config;
 }
 
 /** One fixed step as run_fixed_steps() drives a step-owning screen: advance the fade, then
@@ -277,9 +277,9 @@ TEST_CASE("splash: with show_title false the playthrough starts after the splash
 TEST_CASE("splash: no configured images opens the title directly without a fade") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
-  corundum::core::GameConfig cfg = make_splash_config(/*show_title=*/true);
-  cfg.paths.splash_images.clear();
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config = make_splash_config(/*show_title=*/true);
+  config.paths.splash_images.clear();
+  REQUIRE(engine.initialize(std::move(config)).has_value());
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
 
@@ -292,9 +292,9 @@ TEST_CASE("splash: no configured images opens the title directly without a fade"
 TEST_CASE("splash: an image that fails to load is skipped and the other still plays") {
   corundum::Engine engine{};
   const SplashRenderer &renderer = adopt_splash_renderer(engine);
-  corundum::core::GameConfig cfg = make_splash_config(/*show_title=*/true);
-  cfg.paths.splash_images = {"missing_studio.png", "engine.png"};
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config = make_splash_config(/*show_title=*/true);
+  config.paths.splash_images = {"missing_studio.png", "engine.png"};
+  REQUIRE(engine.initialize(std::move(config)).has_value());
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
 
@@ -309,9 +309,9 @@ TEST_CASE("splash: an image that fails to load is skipped and the other still pl
 TEST_CASE("splash: when every image fails to load the title opens directly") {
   corundum::Engine engine{};
   adopt_splash_renderer(engine);
-  corundum::core::GameConfig cfg = make_splash_config(/*show_title=*/true);
-  cfg.paths.splash_images = {"missing_studio.png", "missing_engine.png"};
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config = make_splash_config(/*show_title=*/true);
+  config.paths.splash_images = {"missing_studio.png", "missing_engine.png"};
+  REQUIRE(engine.initialize(std::move(config)).has_value());
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the framework hooks.
   corundum::gameplay::Gameplay gameplay{engine};
 
@@ -349,18 +349,18 @@ TEST_CASE("splash: the image fits a centered box k_splash_max_viewport_fraction 
   screens::SplashState state{};
   state.images.push_back(
       screens::SplashImage{.size = {.x = 32.f, .y = 64.f}, .texture = corundum::platform::TextureId{7}});
-  RecordingRenderer r;
-  screens::splash_render(r, {.x = 320.f, .y = 240.f}, state);
+  RecordingRenderer renderer;
+  screens::splash_render(renderer, {.x = 320.f, .y = 240.f}, state);
 
-  REQUIRE(r.log.size() == 2);
-  const auto *fill = std::get_if<corundum::platform::DrawRect>(r.log.data());
+  REQUIRE(renderer.log.size() == 2);
+  const auto *fill = std::get_if<corundum::platform::DrawRect>(renderer.log.data());
   REQUIRE(fill != nullptr);
   CHECK(fill->size.x == doctest::Approx(320.f));
   CHECK(fill->size.y == doctest::Approx(240.f));
   CHECK(fill->colour.r == 0);
   CHECK(fill->colour.a == 255);
 
-  const auto *sprite = std::get_if<corundum::platform::DrawSprite>(&r.log[1]);
+  const auto *sprite = std::get_if<corundum::platform::DrawSprite>(&renderer.log[1]);
   REQUIRE(sprite != nullptr);
   CHECK(sprite->texture_id == corundum::platform::TextureId{7});
   // The 0.75 box is 240 x 180; height-limited: 180 / 64 = 2.8125, so the 90 x 180 image centers at (115, 30).
@@ -374,9 +374,9 @@ TEST_CASE("splash: an image of unknown size draws only the black fill") {
   screens::SplashState state{};
   // NOLINTNEXTLINE(readability-trailing-comma): false positive on designated initializer separators.
   state.images.push_back(screens::SplashImage{.size = {}, .texture = corundum::platform::TextureId{7}});
-  RecordingRenderer r;
-  screens::splash_render(r, {.x = 320.f, .y = 240.f}, state);
+  RecordingRenderer renderer;
+  screens::splash_render(renderer, {.x = 320.f, .y = 240.f}, state);
 
-  REQUIRE(r.log.size() == 1);
-  CHECK(std::holds_alternative<corundum::platform::DrawRect>(r.log[0]));
+  REQUIRE(renderer.log.size() == 1);
+  CHECK(std::holds_alternative<corundum::platform::DrawRect>(renderer.log[0]));
 }

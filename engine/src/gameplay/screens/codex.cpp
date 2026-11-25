@@ -189,18 +189,18 @@ constexpr std::string_view k_codex_title = "Codex";
 constexpr std::string_view k_codex_empty = "(no entries)";
 
 /** Backdrop, panel frame, title and footer hint: everything drawn around the list and body. */
-void draw_codex_chrome(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+void draw_codex_chrome(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                        const CodexGeometry &geometry, core::math::Vec2 viewport, input::InputDevice last_device) {
-  ui::screen_backdrop(r, style, viewport);
-  ui::panel_chrome(r, style.bg, border, {.x = geometry.panel_x, .y = geometry.panel_y},
+  ui::screen_backdrop(renderer, style, viewport);
+  ui::panel_chrome(renderer, style.bg, border, {.x = geometry.panel_x, .y = geometry.panel_y},
                    {.x = geometry.panel_w, .y = geometry.panel_h});
 
   const ui::FontFamily &ui_fonts = style.family(ui::FontRole::Ui);
   const platform::FontId ui_bold = ui_fonts.get(ui::FontStyle::Bold);
   const platform::FontId ui_regular = ui_fonts.get(ui::FontStyle::Regular);
 
-  const float title_w = r.measure_text(ui_bold, k_codex_title, style.font_size_speaker);
-  r.draw(platform::DrawText{
+  const float title_w = renderer.measure_text(ui_bold, k_codex_title, style.font_size_speaker);
+  renderer.draw(platform::DrawText{
       .font_id = ui_bold,
       .text = k_codex_title,
       .position =
@@ -214,8 +214,8 @@ void draw_codex_chrome(platform::Renderer &r, const ui::PanelStyle &style, const
 
   const std::string footer = std::format("{} Select   {} Close", ui::input_glyph(input::Action::Activate, last_device),
                                          ui::input_glyph(input::Action::Cancel, last_device));
-  const float footer_w = r.measure_text(ui_regular, footer, style.font_size_body);
-  r.draw(platform::DrawText{
+  const float footer_w = renderer.measure_text(ui_regular, footer, style.font_size_body);
+  renderer.draw(platform::DrawText{
       .font_id = ui_regular,
       .text = footer,
       .position =
@@ -229,11 +229,11 @@ void draw_codex_chrome(platform::Renderer &r, const ui::PanelStyle &style, const
 }
 
 /** The entry list, or the placeholder line when the registry has no entries. */
-void draw_codex_list(platform::Renderer &r, const ui::PanelStyle &style, const CodexGeometry &geometry,
+void draw_codex_list(platform::Renderer &renderer, const ui::PanelStyle &style, const CodexGeometry &geometry,
                      const std::vector<gameplay::codex::CodexEntry> &entries) {
   const ui::FontFamily &ui_fonts = style.family(ui::FontRole::Ui);
   if (entries.empty()) {
-    r.draw(platform::DrawText{
+    renderer.draw(platform::DrawText{
         .font_id = ui_fonts.get(ui::FontStyle::Regular),
         .text = k_codex_empty,
         .position = {.x = geometry.list_x, .y = geometry.content_top},
@@ -248,7 +248,7 @@ void draw_codex_list(platform::Renderer &r, const ui::PanelStyle &style, const C
     const CodexRow &row = geometry.rows[static_cast<std::size_t>(i)];
     const float y = codex_row_y(geometry, i);
     if (row.header) {
-      r.draw(platform::DrawText{
+      renderer.draw(platform::DrawText{
           .font_id = ui_bold,
           .text = row.text,
           .position = {.x = geometry.list_x, .y = y},
@@ -256,18 +256,18 @@ void draw_codex_list(platform::Renderer &r, const ui::PanelStyle &style, const C
           .colour = style.speaker,
       });
     } else {
-      ui::draw_option(r, style, ui::FontRole::Quest, ui::FontStyle::Bold, row.text, {.x = geometry.list_x, .y = y},
-                      row.entry_index == geometry.clamped_cursor);
+      ui::draw_option(renderer, style, ui::FontRole::Quest, ui::FontStyle::Bold, row.text,
+                      {.x = geometry.list_x, .y = y}, row.entry_index == geometry.clamped_cursor);
     }
   }
 }
 
 /** The selected entry's title and wrapped body, scrolled by `scroll` lines. */
-void draw_codex_body(platform::Renderer &r, const ui::PanelStyle &style, const CodexGeometry &geometry,
+void draw_codex_body(platform::Renderer &renderer, const ui::PanelStyle &style, const CodexGeometry &geometry,
                      const gameplay::codex::CodexEntry &selected, float scroll) {
   const ui::FontFamily &quest_fonts = style.family(ui::FontRole::Quest);
   const auto measure = [&](std::string_view text, ui::FontStyle font_style) -> float {
-    return r.measure_text(quest_fonts.get(font_style), text, style.font_size_body);
+    return renderer.measure_text(quest_fonts.get(font_style), text, style.font_size_body);
   };
   const std::vector<ui::StyledLine> body_lines =
       ui::wrap_styled(ui::parse_styled(selected.body), geometry.body_w, measure);
@@ -277,7 +277,7 @@ void draw_codex_body(platform::Renderer &r, const ui::PanelStyle &style, const C
   const int first_body = std::clamp(static_cast<int>(scroll), 0, static_cast<int>(max_scroll));
 
   float body_y = geometry.content_top;
-  r.draw(platform::DrawText{
+  renderer.draw(platform::DrawText{
       .font_id = quest_fonts.get(ui::FontStyle::Bold),
       .text = selected.title,
       .position = {.x = geometry.body_x, .y = body_y},
@@ -286,23 +286,23 @@ void draw_codex_body(platform::Renderer &r, const ui::PanelStyle &style, const C
   });
   body_y += geometry.header_h;
   for (int i = first_body; std::cmp_less(i, body_lines.size()) && i < first_body + visible_body; ++i) {
-    ui::draw_styled(r, quest_fonts, body_lines[static_cast<std::size_t>(i)].segments, style.font_size_body, style.body,
-                    {.x = geometry.body_x, .y = body_y});
+    ui::draw_styled(renderer, quest_fonts, body_lines[static_cast<std::size_t>(i)].segments, style.font_size_body,
+                    style.body, {.x = geometry.body_x, .y = body_y});
     body_y += geometry.line_h;
   }
 }
 
 } // namespace
 
-void codex_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+void codex_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                         const std::vector<gameplay::codex::CodexEntry> &entries, int cursor, float scroll,
                         core::math::Vec2 viewport, input::InputDevice last_device) {
   const CodexGeometry geometry = compute_codex_geometry(style, entries, cursor, viewport);
-  draw_codex_chrome(r, style, border, geometry, viewport, last_device);
-  draw_codex_list(r, style, geometry, entries);
+  draw_codex_chrome(renderer, style, border, geometry, viewport, last_device);
+  draw_codex_list(renderer, style, geometry, entries);
   if (entries.empty())
     return;
-  draw_codex_body(r, style, geometry, entries[static_cast<std::size_t>(geometry.clamped_cursor)], scroll);
+  draw_codex_body(renderer, style, geometry, entries[static_cast<std::size_t>(geometry.clamped_cursor)], scroll);
 }
 
 } // namespace corundum::gameplay::screens

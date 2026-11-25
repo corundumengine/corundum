@@ -261,12 +261,12 @@ std::expected<PlayerConfig, std::string> parse_player(const json &j, const fs::p
   return pc;
 }
 
-std::expected<void, std::string> parse_framing_settings(const json &j, GameConfig &cfg, const fs::path &path) {
+std::expected<void, std::string> parse_framing_settings(const json &j, GameConfig &config, const fs::path &path) {
   if (j.contains("show_title")) {
     const json &value = j.at("show_title");
     if (!value.is_boolean())
       return std::unexpected(std::format("game.json 'show_title' must be a boolean: {}", path.string()));
-    cfg.show_title = value.get<bool>();
+    config.show_title = value.get<bool>();
   }
 
   if (!j.contains("title_music"))
@@ -277,7 +277,7 @@ std::expected<void, std::string> parse_framing_settings(const json &j, GameConfi
   if (!has_track)
     return std::unexpected(
         std::format("game.json 'title_music' must be an object with a non-empty 'track' path: {}", path.string()));
-  cfg.title_music.track = block.at("track").get<std::string>();
+  config.title_music.track = block.at("track").get<std::string>();
 
   if (!block.contains("loop_delay_seconds"))
     return {};
@@ -285,53 +285,56 @@ std::expected<void, std::string> parse_framing_settings(const json &j, GameConfi
   if (!delay.is_number() || delay.get<float>() < 0.f)
     return std::unexpected(
         std::format("game.json 'title_music.loop_delay_seconds' must be a number >= 0: {}", path.string()));
-  cfg.title_music.loop_delay_seconds = delay.get<float>();
+  config.title_music.loop_delay_seconds = delay.get<float>();
   return {};
 }
 
-std::expected<void, std::string> parse_window_settings(const json &j, GameConfig &cfg, const fs::path &path) {
-  if (auto res = read_into(get_positive_unsigned(j, "win_w", cfg.win_w, path), cfg.win_w); !res)
+std::expected<void, std::string> parse_window_settings(const json &j, GameConfig &config, const fs::path &path) {
+  if (auto res = read_into(get_positive_unsigned(j, "win_w", config.win_w, path), config.win_w); !res)
     return std::unexpected(res.error());
-  if (auto res = read_into(get_positive_unsigned(j, "win_h", cfg.win_h, path), cfg.win_h); !res)
+  if (auto res = read_into(get_positive_unsigned(j, "win_h", config.win_h, path), config.win_h); !res)
     return std::unexpected(res.error());
-  if (auto res = read_into(read_simulation_fps(j, cfg.simulation_fps, path), cfg.simulation_fps); !res)
+  if (auto res = read_into(read_simulation_fps(j, config.simulation_fps, path), config.simulation_fps); !res)
     return std::unexpected(res.error());
-  if (auto res = read_into(read_bool_field(j, "vsync", cfg.vsync, path), cfg.vsync); !res)
+  if (auto res = read_into(read_bool_field(j, "vsync", config.vsync, path), config.vsync); !res)
     return std::unexpected(res.error());
-  if (auto res = read_into(read_window_mode(j, cfg.window_mode, path), cfg.window_mode); !res)
+  if (auto res = read_into(read_window_mode(j, config.window_mode, path), config.window_mode); !res)
     return std::unexpected(res.error());
   return {};
 }
 
-std::expected<void, std::string> parse_gameplay_settings(const json &j, GameConfig &cfg, const fs::path &path) {
-  if (auto res = read_into(get_positive_float(j, "interact_radius", cfg.interact_radius, path), cfg.interact_radius);
+std::expected<void, std::string> parse_gameplay_settings(const json &j, GameConfig &config, const fs::path &path) {
+  if (auto res =
+          read_into(get_positive_float(j, "interact_radius", config.interact_radius, path), config.interact_radius);
       !res)
     return std::unexpected(res.error());
-  if (auto res = read_into(get_positive_float(j, "player_speed", cfg.player_speed, path), cfg.player_speed); !res)
-    return std::unexpected(res.error());
-  if (auto res = read_into(get_positive_float(j, "character_scale", cfg.character_scale, path), cfg.character_scale);
-      !res)
-    return std::unexpected(res.error());
-  if (auto res = read_into(get_positive_float(j, "tile_scale", cfg.tile_scale, path), cfg.tile_scale); !res)
+  if (auto res = read_into(get_positive_float(j, "player_speed", config.player_speed, path), config.player_speed); !res)
     return std::unexpected(res.error());
   if (auto res =
-          read_into(get_positive_float(j, "elevation_step_px", cfg.elevation_step_px, path), cfg.elevation_step_px);
+          read_into(get_positive_float(j, "character_scale", config.character_scale, path), config.character_scale);
       !res)
     return std::unexpected(res.error());
-  if (auto res = read_into(get_positive_unsigned(j, "max_step_height", cfg.max_step_height, path), cfg.max_step_height);
+  if (auto res = read_into(get_positive_float(j, "tile_scale", config.tile_scale, path), config.tile_scale); !res)
+    return std::unexpected(res.error());
+  if (auto res = read_into(get_positive_float(j, "elevation_step_px", config.elevation_step_px, path),
+                           config.elevation_step_px);
+      !res)
+    return std::unexpected(res.error());
+  if (auto res =
+          read_into(get_positive_unsigned(j, "max_step_height", config.max_step_height, path), config.max_step_height);
       !res)
     return std::unexpected(res.error());
   return {};
 }
 
-std::expected<void, std::string> parse_zoom_settings(const json &j, GameConfig &cfg, const fs::path &path) {
-  if (auto res = read_into(get_positive_float(j, "min_zoom", cfg.min_zoom, path), cfg.min_zoom); !res)
+std::expected<void, std::string> parse_zoom_settings(const json &j, GameConfig &config, const fs::path &path) {
+  if (auto res = read_into(get_positive_float(j, "min_zoom", config.min_zoom, path), config.min_zoom); !res)
     return std::unexpected(res.error());
-  if (auto res = read_into(get_positive_float(j, "max_zoom", cfg.max_zoom, path), cfg.max_zoom); !res)
+  if (auto res = read_into(get_positive_float(j, "max_zoom", config.max_zoom, path), config.max_zoom); !res)
     return std::unexpected(res.error());
-  if (auto res = read_into(get_positive_float(j, "default_zoom", cfg.default_zoom, path), cfg.default_zoom); !res)
+  if (auto res = read_into(get_positive_float(j, "default_zoom", config.default_zoom, path), config.default_zoom); !res)
     return std::unexpected(res.error());
-  if (cfg.min_zoom > cfg.max_zoom)
+  if (config.min_zoom > config.max_zoom)
     return std::unexpected(std::format("game.json 'min_zoom' must be <= 'max_zoom': {}", path.string()));
   return {};
 }
@@ -378,7 +381,7 @@ std::expected<ui::FontFamilyPaths, std::string> parse_font_family(const json &fo
   return out;
 }
 
-std::expected<void, std::string> parse_fonts(const json &j, GameConfig &cfg, const fs::path &path) {
+std::expected<void, std::string> parse_fonts(const json &j, GameConfig &config, const fs::path &path) {
   if (!j.contains("fonts"))
     return {};
   const json &fonts = j.at("fonts");
@@ -394,20 +397,20 @@ std::expected<void, std::string> parse_fonts(const json &j, GameConfig &cfg, con
     auto family = parse_font_family(fonts, name, path);
     if (!family)
       return std::unexpected(family.error());
-    cfg.paths.fonts[static_cast<std::size_t>(role)] = std::move(*family);
+    config.paths.fonts[static_cast<std::size_t>(role)] = std::move(*family);
   }
 
   // The display family is optional; a game without one draws display text in the ui family.
   const auto display_slot = static_cast<std::size_t>(ui::FontRole::Display);
   if (!fonts.contains("display")) {
-    cfg.paths.fonts[display_slot] = cfg.paths.fonts[static_cast<std::size_t>(ui::FontRole::Ui)];
+    config.paths.fonts[display_slot] = config.paths.fonts[static_cast<std::size_t>(ui::FontRole::Ui)];
     return {};
   }
 
   auto family = parse_font_family(fonts, "display", path);
   if (!family)
     return std::unexpected(family.error());
-  cfg.paths.fonts[display_slot] = std::move(*family);
+  config.paths.fonts[display_slot] = std::move(*family);
   return {};
 }
 
@@ -470,12 +473,12 @@ std::expected<void, std::string> parse_free_paths(const json &j, ResourcePaths &
   return parse_splash_images(j, paths, path);
 }
 
-std::expected<void, std::string> parse_resource_paths(const json &j, GameConfig &cfg, const fs::path &path) {
-  if (auto res = parse_path_fields(j, cfg.paths, path); !res)
+std::expected<void, std::string> parse_resource_paths(const json &j, GameConfig &config, const fs::path &path) {
+  if (auto res = parse_path_fields(j, config.paths, path); !res)
     return std::unexpected(res.error());
-  if (auto res = parse_fonts(j, cfg, path); !res)
+  if (auto res = parse_fonts(j, config, path); !res)
     return std::unexpected(res.error());
-  if (auto res = parse_free_paths(j, cfg.paths, path); !res)
+  if (auto res = parse_free_paths(j, config.paths, path); !res)
     return std::unexpected(res.error());
   return {};
 }
@@ -536,59 +539,60 @@ std::expected<DisplayRenderConfig, std::string> parse_display_render(const json 
   return display;
 }
 
-std::expected<void, std::string> parse_rng_seed(const json &j, GameConfig &cfg, const fs::path &path) {
+std::expected<void, std::string> parse_rng_seed(const json &j, GameConfig &config, const fs::path &path) {
   if (!j.contains("rng_seed"))
     return {};
   const json &value = j.at("rng_seed");
   if (!value.is_number_integer() && !value.is_number_unsigned())
     return std::unexpected(std::format("game.json 'rng_seed' must be an unsigned integer: {}", path.string()));
   try {
-    cfg.rng_seed = value.get<std::uint64_t>();
+    config.rng_seed = value.get<std::uint64_t>();
   } catch (...) {
     return std::unexpected(std::format("game.json 'rng_seed' must be an unsigned integer: {}", path.string()));
   }
   return {};
 }
 
-std::expected<void, std::string> parse_settings(const json &j, GameConfig &cfg, const fs::path &path) {
-  if (auto err = parse_framing_settings(j, cfg, path); !err)
+std::expected<void, std::string> parse_settings(const json &j, GameConfig &config, const fs::path &path) {
+  if (auto err = parse_framing_settings(j, config, path); !err)
     return std::unexpected(err.error());
-  if (auto err = parse_window_settings(j, cfg, path); !err)
+  if (auto err = parse_window_settings(j, config, path); !err)
     return std::unexpected(err.error());
-  if (auto err = parse_gameplay_settings(j, cfg, path); !err)
+  if (auto err = parse_gameplay_settings(j, config, path); !err)
     return std::unexpected(err.error());
-  if (auto err = parse_zoom_settings(j, cfg, path); !err)
+  if (auto err = parse_zoom_settings(j, config, path); !err)
     return std::unexpected(err.error());
-  if (auto err = parse_resource_paths(j, cfg, path); !err)
+  if (auto err = parse_resource_paths(j, config, path); !err)
     return std::unexpected(err.error());
   return {};
 }
 
-std::expected<void, std::string> parse_titles(const json &j, GameConfig &cfg, const fs::path &path) {
-  if (auto res = read_into(get_nonempty_string(j, "window_title", cfg.window_title, path), cfg.window_title); !res)
+std::expected<void, std::string> parse_titles(const json &j, GameConfig &config, const fs::path &path) {
+  if (auto res = read_into(get_nonempty_string(j, "window_title", config.window_title, path), config.window_title);
+      !res)
     return std::unexpected(res.error());
-  if (auto res = read_into(get_nonempty_string(j, "title", cfg.title, path), cfg.title); !res)
+  if (auto res = read_into(get_nonempty_string(j, "title", config.title, path), config.title); !res)
     return std::unexpected(res.error());
 
   // An unset title falls back to the window title, then to the engine's own name; an unset
   // window title falls back to the title. A loaded config therefore always carries both.
-  if (cfg.title.empty())
-    cfg.title = cfg.window_title;
-  if (cfg.title.empty())
-    cfg.title = std::string{k_default_game_title};
-  if (cfg.window_title.empty())
-    cfg.window_title = cfg.title;
+  if (config.title.empty())
+    config.title = config.window_title;
+  if (config.title.empty())
+    config.title = std::string{k_default_game_title};
+  if (config.window_title.empty())
+    config.window_title = config.title;
   return {};
 }
 
-std::expected<void, std::string> parse_optional_configs(const json &j, GameConfig &cfg, const fs::path &path) {
-  if (auto res = read_into(parse_dialogue_render(j, path), cfg.dialogue_render); !res)
+std::expected<void, std::string> parse_optional_configs(const json &j, GameConfig &config, const fs::path &path) {
+  if (auto res = read_into(parse_dialogue_render(j, path), config.dialogue_render); !res)
     return std::unexpected(res.error());
-  if (auto res = read_into(parse_display_render(j, path), cfg.display); !res)
+  if (auto res = read_into(parse_display_render(j, path), config.display); !res)
     return std::unexpected(res.error());
-  if (auto res = read_into(parse_player(j, path), cfg.player); !res)
+  if (auto res = read_into(parse_player(j, path), config.player); !res)
     return std::unexpected(res.error());
-  if (auto res = read_into(parse_starting_flags(j, path), cfg.starting_flags); !res)
+  if (auto res = read_into(parse_starting_flags(j, path), config.starting_flags); !res)
     return std::unexpected(res.error());
   return {};
 }
@@ -604,25 +608,25 @@ std::expected<GameConfig, std::string> load_game_config(const core::ContentSourc
   if (!j.is_object())
     return std::unexpected(std::format("game.json must be a JSON object: {}", path.string()));
 
-  GameConfig cfg;
-  if (auto res = read_into(get_nonempty_string(j, "game_id", cfg.game_id, path), cfg.game_id); !res)
+  GameConfig config;
+  if (auto res = read_into(get_nonempty_string(j, "game_id", config.game_id, path), config.game_id); !res)
     return std::unexpected(res.error());
-  if (auto res = parse_rng_seed(j, cfg, path); !res)
+  if (auto res = parse_rng_seed(j, config, path); !res)
     return std::unexpected(res.error());
-  if (auto res = parse_settings(j, cfg, path); !res)
+  if (auto res = parse_settings(j, config, path); !res)
     return std::unexpected(res.error());
-  if (auto res = parse_titles(j, cfg, path); !res)
+  if (auto res = parse_titles(j, config, path); !res)
     return std::unexpected(res.error());
-  if (auto res = parse_optional_configs(j, cfg, path); !res)
+  if (auto res = parse_optional_configs(j, config, path); !res)
     return std::unexpected(res.error());
-  return cfg;
+  return config;
 }
 
-std::string_view game_title(const GameConfig &cfg) noexcept {
-  if (!cfg.title.empty())
-    return cfg.title;
-  if (!cfg.window_title.empty())
-    return cfg.window_title;
+std::string_view game_title(const GameConfig &config) noexcept {
+  if (!config.title.empty())
+    return config.title;
+  if (!config.window_title.empty())
+    return config.window_title;
   return k_default_game_title;
 }
 

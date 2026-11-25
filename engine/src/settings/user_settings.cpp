@@ -133,9 +133,9 @@ std::expected<void, std::string> apply(Engine &engine, const UserSettings &setti
   if (std::expected<void, std::string> result = engine.input_mapper.set_bindings(settings.bindings); !result)
     return result;
   engine.window().set_window_mode(settings.window_mode);
-  // Keep cfg in sync: reveal_window() re-applies cfg.window_mode once the window is visible, so
+  // Keep config in sync: reveal_window() re-applies config.window_mode once the window is visible, so
   // without this the loaded mode would be clobbered on the first frame.
-  engine.cfg.window_mode = settings.window_mode;
+  engine.config.window_mode = settings.window_mode;
   engine.audio.set_bus_volume(audio::AudioBus::Ambience, settings.ambience_volume);
   engine.audio.set_bus_volume(audio::AudioBus::Master, settings.master_volume);
   engine.audio.set_bus_volume(audio::AudioBus::Music, settings.music_volume);
@@ -143,7 +143,7 @@ std::expected<void, std::string> apply(Engine &engine, const UserSettings &setti
   engine.audio.set_bus_volume(audio::AudioBus::Voice, settings.voice_volume);
   engine.render.text_speed = settings.text_speed;
   engine.render.ui_scale = settings.ui_scale;
-  render::configure_panel_style(engine.render, engine.cfg);
+  render::configure_panel_style(engine.render, engine.config);
   return {};
 }
 

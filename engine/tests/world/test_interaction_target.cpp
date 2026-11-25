@@ -34,7 +34,7 @@ using corundum::sprites::k_null_sprite_id;
 struct Fixture {
   corundum::world::Scene scene;
   corundum::world::MapView map;
-  corundum::core::GameConfig cfg;
+  corundum::core::GameConfig config;
   EntityId player{};
   EntityId npc{};
 };
@@ -71,13 +71,12 @@ Fixture make_fixture(float npc_col = 5.f, float npc_row = 6.f, bool npc_present 
 
   f.map.projection.half_tw = 64.f;
   f.map.projection.half_th = 32.f;
-  f.map.world_w_tiles = 100.f;
-  f.map.world_h_tiles = 100.f;
+  f.map.world_size_tiles = {.width = 100, .height = 100};
   return f;
 }
 
 void step(Fixture &f, const corundum::input::InputState &input) {
-  corundum::world::update(f.scene, f.cfg, input, f.map, 1.f / 60.f, 320.f, 240.f);
+  corundum::world::update(f.scene, f.config, input, f.map, 1.f / 60.f, 320.f, 240.f);
 }
 
 } // namespace

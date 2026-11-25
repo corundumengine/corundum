@@ -45,13 +45,13 @@ struct HudStripData {
  *  translucent style.bg, which would tint the world showing through the always-on HUD. The
  *  caller skips the HUD while a screen is open.
  *
- *  @param r      Platform renderer; receives one DrawRect, the border's DrawSprite commands,
- *                then one DrawText.
- *  @param style  Dialog text style (font, size, colour).
- *  @param border Pre-loaded nine-patch border texture/tile dims; same one used by the dialogue box.
- *  @param data   Content derived by build_hud_strip().
+ *  @param renderer Platform renderer; receives one DrawRect, the border's DrawSprite commands,
+ *                  then one DrawText.
+ *  @param style    Dialog text style (font, size, colour).
+ *  @param border   Pre-loaded nine-patch border texture/tile dims; same one used by the dialogue box.
+ *  @param data     Content derived by build_hud_strip().
  */
-void hud_strip_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+void hud_strip_render(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                       const HudStripData &data);
 
 } // namespace corundum::gameplay::screens

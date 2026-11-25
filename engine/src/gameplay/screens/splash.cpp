@@ -11,8 +11,8 @@
 
 namespace corundum::gameplay::screens {
 
-void splash_render(platform::Renderer &r, core::math::Vec2 viewport, const SplashState &state) {
-  r.draw(platform::DrawRect{
+void splash_render(platform::Renderer &renderer, core::math::Vec2 viewport, const SplashState &state) {
+  renderer.draw(platform::DrawRect{
       .position = {.x = 0.f, .y = 0.f},
       .size = viewport,
       .colour = core::math::Colour{.r = 0, .g = 0, .b = 0, .a = 255},
@@ -28,7 +28,7 @@ void splash_render(platform::Renderer &r, core::math::Vec2 viewport, const Splas
   const float scale = std::min(viewport.x * k_splash_max_viewport_fraction / image.size.x,
                                viewport.y * k_splash_max_viewport_fraction / image.size.y);
   const core::math::Vec2 drawn_size{.x = image.size.x * scale, .y = image.size.y * scale};
-  r.draw(platform::DrawSprite{
+  renderer.draw(platform::DrawSprite{
       .texture_id = image.texture,
       .position = {.x = (viewport.x - drawn_size.x) * 0.5f, .y = (viewport.y - drawn_size.y) * 0.5f},
       .source = {.x = 0, .y = 0, .width = static_cast<int>(image.size.x), .height = static_cast<int>(image.size.y)},

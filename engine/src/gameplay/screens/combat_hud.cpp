@@ -59,13 +59,13 @@ float fraction(int part, int whole) noexcept {
   return std::clamp(static_cast<float>(part) / static_cast<float>(whole), 0.f, 1.f);
 }
 
-void draw_rect(platform::Renderer &r, core::math::Vec2 pos, core::math::Vec2 size, core::math::Colour colour) {
-  r.draw(platform::DrawRect{.position = pos, .size = size, .colour = colour});
+void draw_rect(platform::Renderer &renderer, core::math::Vec2 pos, core::math::Vec2 size, core::math::Colour colour) {
+  renderer.draw(platform::DrawRect{.position = pos, .size = size, .colour = colour});
 }
 
-void draw_text(platform::Renderer &r, const ui::PanelStyle &style, std::string_view text, core::math::Vec2 pos,
+void draw_text(platform::Renderer &renderer, const ui::PanelStyle &style, std::string_view text, core::math::Vec2 pos,
                unsigned char_size, core::math::Colour colour) {
-  r.draw(platform::DrawText{
+  renderer.draw(platform::DrawText{
       .font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular),
       .text = text,
       .position = pos,
@@ -87,24 +87,24 @@ core::math::Colour row_colour(const ui::PanelStyle &style, const CombatHudRow &r
 }
 
 /** Draw one combatant's row from the top of its cell and return the y below it. */
-float draw_row(platform::Renderer &r, const ui::PanelStyle &style, const CombatHudRow &row, std::string_view text,
-               core::math::Vec2 pos, float bar_width) {
+float draw_row(platform::Renderer &renderer, const ui::PanelStyle &style, const CombatHudRow &row,
+               std::string_view text, core::math::Vec2 pos, float bar_width) {
   const float x = pos.x;
   float y = pos.y;
-  draw_text(r, style, text, pos, style.font_size_body, row_colour(style, row));
+  draw_text(renderer, style, text, pos, style.font_size_body, row_colour(style, row));
   y += body_line_height(style);
 
   y += k_bar_gap;
   const ui::RowRect health{.pos = {.x = x, .y = y}, .width = bar_width, .height = k_bar_height};
-  draw_rect(r, health.pos, {.x = health.width, .y = health.height}, k_bar_back);
-  draw_rect(r, health.pos, {.x = health.width * fraction(row.health.current, row.health.max), .y = health.height},
-            k_health_fill);
+  draw_rect(renderer, health.pos, {.x = health.width, .y = health.height}, k_bar_back);
+  draw_rect(renderer, health.pos,
+            {.x = health.width * fraction(row.health.current, row.health.max), .y = health.height}, k_health_fill);
   y += k_bar_height;
   return y;
 }
 
 /** The panel at the top-left: one row per combatant, as wide as its longest row needs. */
-void draw_rows_panel(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+void draw_rows_panel(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                      std::span<const CombatHudRow> rows) {
   const platform::FontId font = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
   std::vector<std::string> texts;
@@ -113,7 +113,7 @@ void draw_rows_panel(platform::Renderer &r, const ui::PanelStyle &style, const u
   float rows_height = 0.f;
   for (const CombatHudRow &row : rows) {
     texts.push_back(row_text(row));
-    rows_width = std::max(rows_width, r.measure_text(font, texts.back(), style.font_size_body));
+    rows_width = std::max(rows_width, renderer.measure_text(font, texts.back(), style.font_size_body));
     rows_height += body_line_height(style) + k_bar_gap + k_bar_height;
   }
   if (!rows.empty())
@@ -122,11 +122,11 @@ void draw_rows_panel(platform::Renderer &r, const ui::PanelStyle &style, const u
   const core::math::Vec2 pad = panel_padding(border);
   const core::math::Vec2 panel_pos{.x = style.margin, .y = style.margin};
   const core::math::Vec2 panel_size{.x = rows_width + (2.f * pad.x), .y = rows_height + (2.f * pad.y)};
-  ui::panel_chrome(r, style.bg, border, panel_pos, panel_size);
+  ui::panel_chrome(renderer, style.bg, border, panel_pos, panel_size);
 
   float y = panel_pos.y + pad.y;
   for (std::size_t i = 0; i < rows.size(); ++i) {
-    y = draw_row(r, style, rows[i], texts[i], {.x = panel_pos.x + pad.x, .y = y}, rows_width);
+    y = draw_row(renderer, style, rows[i], texts[i], {.x = panel_pos.x + pad.x, .y = y}, rows_width);
     if (i + 1 < rows.size())
       y += k_row_gap;
   }
@@ -140,23 +140,23 @@ struct BarItem {
 };
 
 /** The width of `items`' texts and the gaps between them. */
-float items_width(const platform::Renderer &r, platform::FontId font, const ui::PanelStyle &style,
+float items_width(const platform::Renderer &renderer, platform::FontId font, const ui::PanelStyle &style,
                   std::span<const BarItem> items) {
   float width = 0.f;
   for (const BarItem &item : items)
-    width += r.measure_text(font, item.text, style.font_size_body);
+    width += renderer.measure_text(font, item.text, style.font_size_body);
   if (!items.empty())
     width += k_command_gap * static_cast<float>(items.size() - 1);
   return width;
 }
 
 /** Draw `items` in a row from `left`. */
-void draw_items(platform::Renderer &r, const ui::PanelStyle &style, platform::FontId font,
+void draw_items(platform::Renderer &renderer, const ui::PanelStyle &style, platform::FontId font,
                 std::span<const BarItem> items, float left, float y) {
   float x = left;
   for (const BarItem &item : items) {
-    draw_text(r, style, item.text, {.x = x, .y = y}, style.font_size_body, item.colour);
-    x += r.measure_text(font, item.text, style.font_size_body) + k_command_gap;
+    draw_text(renderer, style, item.text, {.x = x, .y = y}, style.font_size_body, item.colour);
+    x += renderer.measure_text(font, item.text, style.font_size_body) + k_command_gap;
   }
 }
 
@@ -181,7 +181,7 @@ core::math::Colour command_colour(const ui::PanelStyle &style, const CombatHudCo
 /** The command bar along the bottom: the commands' line over a panel sized around it, with the
  *  page hint on a gamepad.
  */
-void draw_command_bar(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+void draw_command_bar(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                       const CombatHud &hud, core::math::Vec2 viewport, input::InputDevice device) {
   if (hud.commands.empty())
     return;
@@ -198,35 +198,35 @@ void draw_command_bar(platform::Renderer &r, const ui::PanelStyle &style, const 
     commands.push_back({.text = page_hint, .colour = style.body});
   }
 
-  const float commands_width = items_width(r, font, style, commands);
+  const float commands_width = items_width(renderer, font, style, commands);
   const float line_height = body_line_height(style);
   const core::math::Vec2 pad = panel_padding(border);
   const float commands_top = viewport.y - style.margin - pad.y - line_height;
   const core::math::Vec2 panel_pos{.x = ((viewport.x - commands_width) / 2.f) - pad.x, .y = commands_top - pad.y};
   const core::math::Vec2 panel_size{.x = commands_width + (2.f * pad.x), .y = line_height + (2.f * pad.y)};
-  ui::panel_chrome(r, style.bg, border, panel_pos, panel_size);
+  ui::panel_chrome(renderer, style.bg, border, panel_pos, panel_size);
 
-  draw_items(r, style, font, commands, (viewport.x - commands_width) / 2.f, commands_top);
+  draw_items(renderer, style, font, commands, (viewport.x - commands_width) / 2.f, commands_top);
 }
 
-void draw_banner(platform::Renderer &r, const ui::PanelStyle &style, core::math::Vec2 viewport,
+void draw_banner(platform::Renderer &renderer, const ui::PanelStyle &style, core::math::Vec2 viewport,
                  std::string_view banner) {
   if (banner.empty())
     return;
   const platform::FontId font = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
-  const float width = r.measure_text(font, banner, style.font_size_speaker);
-  draw_text(r, style, banner, {.x = (viewport.x - width) / 2.f, .y = style.margin}, style.font_size_speaker,
+  const float width = renderer.measure_text(font, banner, style.font_size_speaker);
+  draw_text(renderer, style, banner, {.x = (viewport.x - width) / 2.f, .y = style.margin}, style.font_size_speaker,
             style.speaker);
 }
 
 } // namespace
 
-void combat_hud_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+void combat_hud_render(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                        const CombatHud &hud, core::math::Vec2 viewport, input::InputDevice device,
                        std::string_view banner) {
-  draw_rows_panel(r, style, border, hud.rows);
-  draw_command_bar(r, style, border, hud, viewport, device);
-  draw_banner(r, style, viewport, banner);
+  draw_rows_panel(renderer, style, border, hud.rows);
+  draw_command_bar(renderer, style, border, hud, viewport, device);
+  draw_banner(renderer, style, viewport, banner);
 }
 
 } // namespace corundum::gameplay::screens

@@ -15,7 +15,7 @@ class Gameplay;
 /** The game process's owned pair: the gameplay framework and the engine it drives.
  *
  *  A passive record — the game drives the loop itself (`runtime->engine->run_loop()` then
- *  `cleanup()`), reads `runtime->engine->cfg` for settings paths, and installs the game's
+ *  `cleanup()`), reads `runtime->engine->config` for settings paths, and installs the game's
  *  single slots (`runtime->gameplay->on_event`, `runtime->gameplay->ruleset`,
  *  `runtime->engine->on_fixed_update`).
  *

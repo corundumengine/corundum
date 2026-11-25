@@ -19,25 +19,25 @@ std::expected<std::unique_ptr<Engine>, std::string> make_engine(const EngineOpti
   // Created first so the engine's content source outlives the platform adapters adopted below.
   auto engine = std::make_unique<Engine>();
 
-  auto cfg_result = core::load_game_config(engine->content_source(), options.config_path);
-  if (!cfg_result)
-    return std::unexpected(std::format("load config '{}': {}", options.config_path, cfg_result.error()));
+  auto config_result = core::load_game_config(engine->content_source(), options.config_path);
+  if (!config_result)
+    return std::unexpected(std::format("load config '{}': {}", options.config_path, config_result.error()));
 
-  auto cfg = std::move(*cfg_result);
+  auto config = std::move(*config_result);
 
   // --no-splash drops the images at the source, so the gameplay framework never sees a splash.
   if (!options.show_splash)
-    cfg.paths.splash_images.clear();
+    config.paths.splash_images.clear();
 
-  auto platform = platform::create_platform(engine->content_source(), cfg.win_w, cfg.win_h, cfg.window_title);
+  auto platform = platform::create_platform(engine->content_source(), config.win_w, config.win_h, config.window_title);
   if (!platform)
     return std::unexpected(std::format("create platform: {}", platform.error()));
 
   engine->adopt_platform(std::move(*platform));
   engine->hud.enabled = options.show_debug_hud;
-  engine->user_storage = core::make_user_storage(cfg.game_id);
+  engine->user_storage = core::make_user_storage(config.game_id);
 
-  if (auto result = engine->initialize(std::move(cfg)); !result)
+  if (auto result = engine->initialize(std::move(config)); !result)
     return std::unexpected(result.error());
 
   return engine;

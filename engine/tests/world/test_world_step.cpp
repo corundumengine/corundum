@@ -52,9 +52,10 @@ std::unique_ptr<corundum::Engine> make_walking_engine() {
 }
 
 void update_once(corundum::Engine &engine, const corundum::input::InputState &input, WorldStep world_step) {
-  const corundum::world::MapView map = corundum::world::build_map_view(engine.render, engine.cfg);
-  corundum::world::update(engine.scene, engine.cfg, input, map, 1.f / 60.f, static_cast<float>(engine.window_width()),
-                          static_cast<float>(engine.window_height()), engine.input_mapper.last_device(), world_step);
+  const corundum::world::MapView map = corundum::world::build_map_view(engine.render, engine.config);
+  corundum::world::update(engine.scene, engine.config, input, map, 1.f / 60.f,
+                          static_cast<float>(engine.window_width()), static_cast<float>(engine.window_height()),
+                          engine.input_mapper.last_device(), world_step);
 }
 
 float player_col(const corundum::Engine &engine) {

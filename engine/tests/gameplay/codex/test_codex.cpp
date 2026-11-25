@@ -157,7 +157,7 @@ TEST_CASE("codex_panel_render: title uses UI font, body markup uses Quest family
   using corundum::test::make_border;
   using corundum::test::RecordingRenderer;
 
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   corundum::ui::PanelStyle style{};
   const corundum::ui::FontFamily quest_fonts = corundum::test::make_font_family(5);
   const corundum::ui::FontFamily ui_fonts = corundum::test::make_font_family(10);
@@ -168,10 +168,11 @@ TEST_CASE("codex_panel_render: title uses UI font, body markup uses Quest family
       codex::CodexEntry{.body = "A **quiet** village.", .id = "village", .title = "Greyhollow"},
   };
 
-  corundum::gameplay::screens::codex_panel_render(r, style, make_border(), entries, 0, 0.f, {.x = 1280.f, .y = 720.f});
+  corundum::gameplay::screens::codex_panel_render(renderer, style, make_border(), entries, 0, 0.f,
+                                                  {.x = 1280.f, .y = 720.f});
 
   const auto find_text = [&](std::string_view text) -> const corundum::platform::DrawText * {
-    for (const auto &call : r.log) {
+    for (const auto &call : renderer.log) {
       if (const auto *drawn = std::get_if<corundum::platform::DrawText>(&call); drawn != nullptr && drawn->text == text)
         return drawn;
     }

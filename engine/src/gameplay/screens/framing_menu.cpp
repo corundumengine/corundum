@@ -27,19 +27,19 @@ constexpr float k_framing_heading_gap = 20.f;
 constexpr float k_framing_footer_gap = 16.f;
 } // namespace
 
-FramingMenuLayout framing_menu_layout(const platform::Renderer &r, const ui::PanelStyle &style,
+FramingMenuLayout framing_menu_layout(const platform::Renderer &renderer, const ui::PanelStyle &style,
                                       core::math::Vec2 viewport, std::span<const std::string_view> labels,
                                       std::string_view heading, std::string_view footer) {
   const float line_h = std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 6.f);
   const float heading_h = std::max(line_h, static_cast<float>(style.font_size_heading) + 8.f);
-  const float cursor_w = ui::cursor_advance(r, style);
+  const float cursor_w = ui::cursor_advance(renderer, style);
   const platform::FontId body_font = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
   const platform::FontId heading_font = style.family(ui::FontRole::Display).get(ui::FontStyle::Regular);
 
-  float widest = std::max(r.measure_text(heading_font, heading, style.font_size_heading),
-                          r.measure_text(body_font, footer, style.font_size_body));
+  float widest = std::max(renderer.measure_text(heading_font, heading, style.font_size_heading),
+                          renderer.measure_text(body_font, footer, style.font_size_body));
   for (const std::string_view label : labels)
-    widest = std::max(widest, cursor_w + r.measure_text(body_font, label, style.font_size_body));
+    widest = std::max(widest, cursor_w + renderer.measure_text(body_font, label, style.font_size_body));
 
   const float panel_w = std::max(k_framing_min_w, widest + (k_framing_pad_x * 2.f));
   const float panel_h = (k_framing_pad_y * 2.f) + heading_h + k_framing_heading_gap +
@@ -60,7 +60,7 @@ FramingMenuLayout framing_menu_layout(const platform::Renderer &r, const ui::Pan
   return layout;
 }
 
-void framing_menu_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+void framing_menu_render(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                          const FramingMenuLayout &layout, std::span<const std::string_view> labels,
                          std::span<const bool> enabled, int cursor, std::string_view heading, std::string_view footer,
                          core::math::Vec2 viewport) {
@@ -70,11 +70,11 @@ void framing_menu_render(platform::Renderer &r, const ui::PanelStyle &style, con
 
   // The framing screen sits over whatever is behind it — no world under the title, the live
   // world under in-game Settings; an opaque backdrop keeps that scene from showing through.
-  ui::screen_backdrop(r, style, viewport);
-  ui::panel_chrome(r, style.bg, border, layout.panel_pos, layout.panel_size);
+  ui::screen_backdrop(renderer, style, viewport);
+  ui::panel_chrome(renderer, style.bg, border, layout.panel_pos, layout.panel_size);
 
-  const float heading_w = r.measure_text(heading_font, heading, style.font_size_heading);
-  r.draw(platform::DrawText{
+  const float heading_w = renderer.measure_text(heading_font, heading, style.font_size_heading);
+  renderer.draw(platform::DrawText{
       .font_id = heading_font,
       .text = heading,
       .position =
@@ -86,13 +86,13 @@ void framing_menu_render(platform::Renderer &r, const ui::PanelStyle &style, con
       .colour = style.speaker,
   });
 
-  r.draw(platform::DrawText{
+  renderer.draw(platform::DrawText{
       .font_id = body_font,
       .text = footer,
       .position =
           {
               .x = layout.panel_pos.x +
-                   ((layout.panel_size.x - r.measure_text(body_font, footer, style.font_size_body)) * 0.5f),
+                   ((layout.panel_size.x - renderer.measure_text(body_font, footer, style.font_size_body)) * 0.5f),
               .y = layout.panel_pos.y + layout.panel_size.y - k_framing_pad_y - line_h,
           },
       .char_size = style.font_size_body,
@@ -105,7 +105,8 @@ void framing_menu_render(platform::Renderer &r, const ui::PanelStyle &style, con
   for (int row = 0; row < row_count; ++row) {
     const bool row_enabled = std::cmp_less(row, enabled.size()) ? enabled[static_cast<std::size_t>(row)] : true;
     const bool selected = row_enabled && row == clamped_cursor;
-    ui::draw_option(r, style, labels[static_cast<std::size_t>(row)], {.x = layout.rows.row_pos.x, .y = y}, selected);
+    ui::draw_option(renderer, style, labels[static_cast<std::size_t>(row)], {.x = layout.rows.row_pos.x, .y = y},
+                    selected);
     y += line_h;
   }
 }

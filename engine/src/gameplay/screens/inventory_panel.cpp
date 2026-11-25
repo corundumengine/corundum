@@ -65,21 +65,23 @@ bool show_group_header(gameplay::item::ItemCategory category, bool has_non_misc)
 }
 
 /** Wrap a row's description to the tooltip's reading width; empty when there is none. */
-std::vector<std::string> wrap_description(std::string_view description, const platform::Renderer &r,
+std::vector<std::string> wrap_description(std::string_view description, const platform::Renderer &renderer,
                                           const ui::PanelStyle &style) {
   if (description.empty())
     return {};
   constexpr float k_max_description_width = 360.f;
   const platform::FontId font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
-  const auto measure = [&](std::string_view text) { return r.measure_text(font_id, text, style.font_size_body); };
+  const auto measure = [&](std::string_view text) {
+    return renderer.measure_text(font_id, text, style.font_size_body);
+  };
   return ui::wrap_text(description, k_max_description_width, measure);
 }
 
 /** Draw the wrapped tooltip starting at (`x`, `y`). */
-void draw_description(platform::Renderer &r, const ui::PanelStyle &style,
+void draw_description(platform::Renderer &renderer, const ui::PanelStyle &style,
                       const std::vector<std::string> &description_lines, float x, float y, float line_height) {
   for (const std::string &line : description_lines) {
-    r.draw(platform::DrawText{
+    renderer.draw(platform::DrawText{
         .font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular),
         .text = line,
         .position = {.x = x, .y = y},
@@ -218,12 +220,12 @@ void collect_inventory_labels(const std::vector<InventoryLine> &lines, Inventory
 /** Resolve the cursor, wrap the cursor row's description, and reserve that description's
  *  height above the panel's bottom padding.
  */
-void place_inventory_description(const platform::Renderer &r, const ui::PanelStyle &style,
+void place_inventory_description(const platform::Renderer &renderer, const ui::PanelStyle &style,
                                  const std::vector<InventoryLine> &lines, int cursor, InventoryGeometry &geometry) {
   geometry.clamped_cursor = lines.empty() ? -1 : std::clamp(cursor, 0, static_cast<int>(lines.size()) - 1);
   if (geometry.clamped_cursor >= 0)
     geometry.description_lines =
-        wrap_description(lines[static_cast<std::size_t>(geometry.clamped_cursor)].description, r, style);
+        wrap_description(lines[static_cast<std::size_t>(geometry.clamped_cursor)].description, renderer, style);
 
   const float description_h = static_cast<float>(geometry.description_lines.size()) * geometry.body_line_h;
   geometry.description_y = geometry.panel_y + geometry.panel_h - k_pad_y - description_h;
@@ -263,14 +265,14 @@ void collect_inventory_draw_rows(const std::vector<InventoryLine> &lines, int sc
   }
 }
 
-InventoryGeometry compute_inventory_geometry(const platform::Renderer &r, const ui::PanelStyle &style,
+InventoryGeometry compute_inventory_geometry(const platform::Renderer &renderer, const ui::PanelStyle &style,
                                              const std::vector<InventoryLine> &lines,
                                              const std::vector<EquipmentLine> &equipment, int cursor, int scroll,
                                              core::math::Vec2 viewport) {
   InventoryGeometry geometry{};
   place_inventory_panel(style, viewport, !equipment.empty(), geometry);
   collect_inventory_labels(lines, geometry);
-  place_inventory_description(r, style, lines, cursor, geometry);
+  place_inventory_description(renderer, style, lines, cursor, geometry);
   collect_inventory_draw_rows(lines, scroll, geometry);
   return geometry;
 }
@@ -333,11 +335,12 @@ std::vector<EquipmentLine> build_equipment_lines(const corundum::world::FlagStor
   return lines;
 }
 
-InventoryLayout inventory_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
+InventoryLayout inventory_panel_layout(const platform::Renderer &renderer, const ui::PanelStyle &style,
                                        const std::vector<InventoryLine> &lines,
                                        const std::vector<EquipmentLine> &equipment, int cursor, int scroll,
                                        core::math::Vec2 viewport) {
-  const InventoryGeometry geometry = compute_inventory_geometry(r, style, lines, equipment, cursor, scroll, viewport);
+  const InventoryGeometry geometry =
+      compute_inventory_geometry(renderer, style, lines, equipment, cursor, scroll, viewport);
   InventoryLayout layout{};
   layout.panel_pos = {.x = geometry.panel_x, .y = geometry.panel_y};
   layout.panel_size = {.x = geometry.panel_w, .y = geometry.panel_h};
@@ -355,19 +358,21 @@ InventoryLayout inventory_panel_layout(const platform::Renderer &r, const ui::Pa
   return layout;
 }
 
-void inventory_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
-                            const std::vector<InventoryLine> &lines, const std::vector<EquipmentLine> &equipment,
-                            int cursor, int scroll, core::math::Vec2 viewport) {
-  const InventoryGeometry geometry = compute_inventory_geometry(r, style, lines, equipment, cursor, scroll, viewport);
+void inventory_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style,
+                            const ui::NinePatchBorder &border, const std::vector<InventoryLine> &lines,
+                            const std::vector<EquipmentLine> &equipment, int cursor, int scroll,
+                            core::math::Vec2 viewport) {
+  const InventoryGeometry geometry =
+      compute_inventory_geometry(renderer, style, lines, equipment, cursor, scroll, viewport);
 
-  ui::screen_backdrop(r, style, viewport);
-  ui::panel_chrome(r, style.bg, border, {.x = geometry.panel_x, .y = geometry.panel_y},
+  ui::screen_backdrop(renderer, style, viewport);
+  ui::panel_chrome(renderer, style.bg, border, {.x = geometry.panel_x, .y = geometry.panel_y},
                    {.x = geometry.panel_w, .y = geometry.panel_h});
 
   const platform::FontId font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
-  const float title_w = r.measure_text(font_id, k_panel_header, style.font_size_speaker);
+  const float title_w = renderer.measure_text(font_id, k_panel_header, style.font_size_speaker);
   const float header_x = geometry.panel_x + ((geometry.panel_w - title_w) * 0.5f);
-  r.draw(platform::DrawText{
+  renderer.draw(platform::DrawText{
       .font_id = font_id,
       .text = k_panel_header,
       .position = {.x = header_x, .y = geometry.title_y},
@@ -376,7 +381,7 @@ void inventory_panel_render(platform::Renderer &r, const ui::PanelStyle &style, 
   });
 
   if (!equipment.empty()) {
-    r.draw(platform::DrawText{
+    renderer.draw(platform::DrawText{
         .font_id = font_id,
         .text = k_equipment_header,
         .position = {.x = geometry.equip_x, .y = geometry.content_top},
@@ -387,7 +392,7 @@ void inventory_panel_render(platform::Renderer &r, const ui::PanelStyle &style, 
     for (const EquipmentLine &line : equipment) {
       const std::string text =
           std::format("{}: {}", line.slot, line.item_name.empty() ? k_empty_label : line.item_name);
-      r.draw(platform::DrawText{
+      renderer.draw(platform::DrawText{
           .font_id = font_id,
           .text = text,
           .position = {.x = geometry.equip_x, .y = y},
@@ -399,7 +404,7 @@ void inventory_panel_render(platform::Renderer &r, const ui::PanelStyle &style, 
   }
 
   if (lines.empty()) {
-    r.draw(platform::DrawText{
+    renderer.draw(platform::DrawText{
         .font_id = font_id,
         .text = k_empty_label,
         .position = {.x = geometry.list_x, .y = geometry.content_top},
@@ -411,7 +416,7 @@ void inventory_panel_render(platform::Renderer &r, const ui::PanelStyle &style, 
 
   for (const InventoryDrawRow &row : geometry.draw_rows) {
     if (row.header) {
-      r.draw(platform::DrawText{
+      renderer.draw(platform::DrawText{
           .font_id = font_id,
           .text = row.header_text,
           .position = {.x = geometry.list_x, .y = row.y},
@@ -419,13 +424,13 @@ void inventory_panel_render(platform::Renderer &r, const ui::PanelStyle &style, 
           .colour = style.speaker,
       });
     } else {
-      ui::draw_option(r, style, geometry.labels[row.line_index], {.x = geometry.list_x, .y = row.y},
+      ui::draw_option(renderer, style, geometry.labels[row.line_index], {.x = geometry.list_x, .y = row.y},
                       std::cmp_equal(row.line_index, static_cast<std::size_t>(geometry.clamped_cursor)));
     }
   }
 
   if (!geometry.description_lines.empty())
-    draw_description(r, style, geometry.description_lines, geometry.list_x, geometry.description_y,
+    draw_description(renderer, style, geometry.description_lines, geometry.list_x, geometry.description_y,
                      geometry.body_line_h);
 }
 

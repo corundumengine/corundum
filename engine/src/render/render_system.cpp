@@ -181,7 +181,7 @@ FrameView make_frame_view(const RenderState &state, const world::Scene &scene, f
 TileRenderParams make_tile_params(const world::tilemap::Tilemap &tilemap,
                                   std::span<const LayerRenderCache> layer_caches,
                                   std::span<const platform::TextureId> texture_ids, int total_tiles_tall,
-                                  world::tilemap::ChunkCoord offset_tiles, const core::GameConfig &cfg,
+                                  world::tilemap::ChunkCoord offset_tiles, const core::GameConfig &config,
                                   const FrameView &view) noexcept {
   core::verify(layer_caches.size() == tilemap.layers.size(), "render: a tilemap layer has no render cache");
   return {
@@ -189,7 +189,7 @@ TileRenderParams make_tile_params(const world::tilemap::Tilemap &tilemap,
       .layer_caches = layer_caches,
       .texture_ids = texture_ids,
       .iso = core::math::compute_isometric_params(tilemap.diamond_w(), tilemap.diamond_h(), total_tiles_tall,
-                                                  cfg.tile_scale, cfg.elevation_step_px),
+                                                  config.tile_scale, config.elevation_step_px),
       .camera = view.camera,
       .viewport_world = view.viewport_world,
       .chunk_offset_col = offset_tiles.col,
@@ -198,7 +198,7 @@ TileRenderParams make_tile_params(const world::tilemap::Tilemap &tilemap,
 }
 
 /** Every tilemap that has tilesets: each active chunk in draw order, else the single map. */
-TileSources collect_tile_sources(const RenderState &state, const core::GameConfig &cfg,
+TileSources collect_tile_sources(const RenderState &state, const core::GameConfig &config,
                                  const FrameView &view) noexcept {
   TileSources sources;
   if (const auto *world_area = std::get_if<WorldArea>(&state.area)) {
@@ -213,7 +213,7 @@ TileSources collect_tile_sources(const RenderState &state, const core::GameConfi
           .row = chunk.coord.row * manifest.chunk_size,
       };
       sources.items[sources.count++] = make_tile_params(chunk.tilemap, chunk.layer_caches, chunk.tileset_texture_ids,
-                                                        manifest.effective_tiles_tall(), offset, cfg, view);
+                                                        manifest.effective_tiles_tall(), offset, config, view);
     }
     return sources;
   }
@@ -222,7 +222,7 @@ TileSources collect_tile_sources(const RenderState &state, const core::GameConfi
     const world::tilemap::ChunkCoord no_offset{};
     sources.items[sources.count++] =
         make_tile_params(single->map.tilemap, single->map.layer_caches, single->map.tileset_texture_ids,
-                         single->map.tilemap.height, no_offset, cfg, view);
+                         single->map.tilemap.height, no_offset, config, view);
   }
   return sources;
 }
@@ -263,7 +263,7 @@ std::optional<corundum::world::tilemap::TileId> resolve_tile_gid(const corundum:
 ResolvedTile make_resolved_tile(const TileRenderParams &ctx, const corundum::world::tilemap::TilemapLayer &layer,
                                 const LayerRenderCache &cache, const corundum::world::tilemap::TilemapTileset &tileset,
                                 int col, int row, std::size_t cell_index, corundum::world::tilemap::TileId gid,
-                                platform::TextureId texture_id, const corundum::core::GameConfig &cfg) {
+                                platform::TextureId texture_id, const corundum::core::GameConfig &config) {
   const auto source = corundum::world::tilemap::tile_source_rect(tileset, gid);
   const uint8_t flags = cache.flip_flags[cell_index];
   const bool flip_x = (flags & corundum::world::tilemap::k_flip_h) != 0;
@@ -285,10 +285,10 @@ ResolvedTile make_resolved_tile(const TileRenderParams &ctx, const corundum::wor
   const int local_id = static_cast<int>(gid) - static_cast<int>(tileset.first_gid);
   const auto frame = corundum::world::tilemap::get_tile_frame_offset(tileset.info, local_id);
   const auto pivot = corundum::world::tilemap::get_tile_pivot(tileset.info, local_id);
-  const float scaled_tw = static_cast<float>(frame.full_width) * cfg.tile_scale;
-  const float scaled_th = static_cast<float>(frame.full_height) * cfg.tile_scale;
-  const float trim_x_px = static_cast<float>(frame.trim_x) * cfg.tile_scale;
-  const float trim_y_px = static_cast<float>(frame.trim_y) * cfg.tile_scale;
+  const float scaled_tw = static_cast<float>(frame.full_width) * config.tile_scale;
+  const float scaled_th = static_cast<float>(frame.full_height) * config.tile_scale;
+  const float trim_x_px = static_cast<float>(frame.trim_x) * config.tile_scale;
+  const float trim_y_px = static_cast<float>(frame.trim_y) * config.tile_scale;
   const float depth =
       corundum::core::math::iso_depth_key(static_cast<float>(abs_col), static_cast<float>(abs_row),
                                           static_cast<float>(elevation), ctx.iso.half_th, ctx.iso.elev_step);
@@ -304,7 +304,7 @@ ResolvedTile make_resolved_tile(const TileRenderParams &ctx, const corundum::wor
               .x = (world_pos.x - (pivot.x * scaled_tw)) + trim_x_px,
               .y = world_pos.y + ctx.iso.half_th - core::math::pivot_top_offset(pivot.y, scaled_th) + trim_y_px,
               .depth = depth,
-              .scale = static_cast<float>(cfg.tile_scale),
+              .scale = static_cast<float>(config.tile_scale),
               .flip_x = flip_x,
               .flip_y = flip_y,
           },
@@ -316,7 +316,7 @@ ResolvedTile make_resolved_tile(const TileRenderParams &ctx, const corundum::wor
 std::optional<ResolvedTile>
 resolve_tile_cell(const TileRenderParams &ctx, const corundum::world::tilemap::TilemapLayer &layer,
                   const LayerRenderCache &cache, const corundum::world::tilemap::Tilemap &tilemap, int col, int row,
-                  const corundum::core::GameConfig &cfg, const corundum::world::Scene &scene) {
+                  const corundum::core::GameConfig &config, const corundum::world::Scene &scene) {
   const std::size_t cell_index = world::tilemap::cell_index(tilemap.width, col, row);
   const std::optional<corundum::world::tilemap::TileId> gid =
       resolve_tile_gid(layer, cache, tilemap, col, row, cell_index, scene);
@@ -333,7 +333,7 @@ resolve_tile_cell(const TileRenderParams &ctx, const corundum::world::tilemap::T
   if (texture_id == platform::TextureId::Invalid) [[unlikely]]
     return std::nullopt;
 
-  return make_resolved_tile(ctx, layer, cache, *tileset, col, row, cell_index, *gid, texture_id, cfg);
+  return make_resolved_tile(ctx, layer, cache, *tileset, col, row, cell_index, *gid, texture_id, config);
 }
 
 /** Computes cull bounds for one tile layer, expanding the camera rect by per-side
@@ -372,10 +372,10 @@ core::math::IsometricCullBounds compute_layer_cull_bounds(const TileRenderParams
  */
 template <typename Visit>
 void for_each_visible_tile(const TileRenderParams &ctx, const world::tilemap::TilemapLayer &layer,
-                           const LayerRenderCache &cache, const core::GameConfig &cfg, const world::Scene &scene,
+                           const LayerRenderCache &cache, const core::GameConfig &config, const world::Scene &scene,
                            const Visit &visit) {
   const world::tilemap::Tilemap &tilemap = *ctx.tilemap;
-  const core::math::IsometricCullBounds cull = compute_layer_cull_bounds(ctx, cache, tilemap, cfg.tile_scale);
+  const core::math::IsometricCullBounds cull = compute_layer_cull_bounds(ctx, cache, tilemap, config.tile_scale);
   const int offset_depth = ctx.chunk_offset_col + ctx.chunk_offset_row;
   const int first_depth = std::max(0, cull.depth_min - offset_depth);
   const int last_depth = std::min(tilemap.width + tilemap.height - 2, cull.depth_max - offset_depth);
@@ -386,7 +386,7 @@ void for_each_visible_tile(const TileRenderParams &ctx, const world::tilemap::Ti
     const int last_col = std::min({tilemap.width - 1, depth, cull_last_col - ctx.chunk_offset_col});
     for (int col = first_col; col <= last_col; ++col) {
       if (const std::optional<ResolvedTile> tile =
-              resolve_tile_cell(ctx, layer, cache, tilemap, col, depth - col, cfg, scene))
+              resolve_tile_cell(ctx, layer, cache, tilemap, col, depth - col, config, scene))
         visit(*tile);
     }
   }
@@ -399,14 +399,14 @@ void for_each_visible_tile(const TileRenderParams &ctx, const world::tilemap::Ti
  *  diamond it occupies, so it can never occlude a taller entity sprite standing nearby; an elevated
  *  tile can, which is the whole point of this fix.
  */
-void draw_ground_band(platform::Renderer &r, const TileRenderParams &ctx, const core::GameConfig &cfg,
+void draw_ground_band(platform::Renderer &renderer, const TileRenderParams &ctx, const core::GameConfig &config,
                       const world::Scene &scene, std::vector<DepthEntry> &sorted) {
   for (const auto &[layer, cache] : std::views::zip(ctx.tilemap->layers, ctx.layer_caches)) {
     if (layer.z_index != 0)
       continue;
-    for_each_visible_tile(ctx, layer, cache, cfg, scene, [&](const ResolvedTile &tile) {
+    for_each_visible_tile(ctx, layer, cache, config, scene, [&](const ResolvedTile &tile) {
       if (tile.elevation <= 0)
-        r.draw(to_draw_sprite(tile.sprite));
+        renderer.draw(to_draw_sprite(tile.sprite));
       else
         sorted.push_back(tile.sprite);
     });
@@ -419,12 +419,12 @@ void draw_ground_band(platform::Renderer &r, const TileRenderParams &ctx, const 
  *  is no "this tile can't occlude anything" case to skip. Every matching tile always goes into
  *  `sorted` to be depth-sorted against entities and elevated ground tiles.
  */
-void collect_sorted_overlays(const TileRenderParams &ctx, const core::GameConfig &cfg, const world::Scene &scene,
+void collect_sorted_overlays(const TileRenderParams &ctx, const core::GameConfig &config, const world::Scene &scene,
                              std::vector<DepthEntry> &sorted) {
   for (const auto &[layer, cache] : std::views::zip(ctx.tilemap->layers, ctx.layer_caches)) {
     if (layer.z_index <= 0 || !layer.depth_sorted)
       continue;
-    for_each_visible_tile(ctx, layer, cache, cfg, scene,
+    for_each_visible_tile(ctx, layer, cache, config, scene,
                           [&](const ResolvedTile &tile) { sorted.push_back(tile.sprite); });
   }
 }
@@ -432,44 +432,44 @@ void collect_sorted_overlays(const TileRenderParams &ctx, const core::GameConfig
 /** Draws the layers of band `z_index` that are not depth-sorted, immediately, above
  *  everything in the ground band.
  */
-void draw_overlay_band(platform::Renderer &r, const TileRenderParams &ctx, int z_index, const core::GameConfig &cfg,
-                       const world::Scene &scene) {
+void draw_overlay_band(platform::Renderer &renderer, const TileRenderParams &ctx, int z_index,
+                       const core::GameConfig &config, const world::Scene &scene) {
   for (const auto &[layer, cache] : std::views::zip(ctx.tilemap->layers, ctx.layer_caches)) {
     if (layer.z_index != z_index || layer.depth_sorted)
       continue;
-    for_each_visible_tile(ctx, layer, cache, cfg, scene,
-                          [&](const ResolvedTile &tile) { r.draw(to_draw_sprite(tile.sprite)); });
+    for_each_visible_tile(ctx, layer, cache, config, scene,
+                          [&](const ResolvedTile &tile) { renderer.draw(to_draw_sprite(tile.sprite)); });
   }
 }
 
 /** Projection for entity anchors: the first resident chunk's, else the single map's, else a flat
  *  default so an entity still draws before any tilemap loads.
  */
-core::math::IsometricParams entity_isometric_params(const RenderState &state, const core::GameConfig &cfg) noexcept {
+core::math::IsometricParams entity_isometric_params(const RenderState &state, const core::GameConfig &config) noexcept {
   core::math::IsometricParams iso{};
   const auto *world_area = std::get_if<WorldArea>(&state.area);
   const auto *single = std::get_if<SingleMapArea>(&state.area);
   const bool world_has_tilesets = world_area != nullptr && !world_area->chunks.active_empty() &&
                                   !world_area->chunks.active_at(0).tilemap.tilesets.empty();
   if (world_has_tilesets)
-    iso = isometric_params(*world_area, cfg);
+    iso = isometric_params(*world_area, config);
   else if (single != nullptr && !single->map.tilemap.tilesets.empty())
-    iso = isometric_params(*single, cfg);
+    iso = isometric_params(*single, config);
   if (iso.half_th == 0.f)
     iso.half_th = k_default_half_th;
   return iso;
 }
 
 /** Appends every on-screen entity sprite to `sorted`. */
-void collect_entities(const RenderState &state, const core::GameConfig &cfg, const world::Scene &scene, float alpha,
+void collect_entities(const RenderState &state, const core::GameConfig &config, const world::Scene &scene, float alpha,
                       const FrameView &view, std::vector<DepthEntry> &sorted) {
-  const float scale = cfg.character_scale;
+  const float scale = config.character_scale;
   const auto &transforms = scene.world.transforms;
   const auto &sprites = scene.world.sprites;
   const auto entities = sprites.active_entities();
   const float viewport_right = view.camera.x + (view.viewport_screen.x / view.zoom);
   const float viewport_bottom = view.camera.y + (view.viewport_screen.y / view.zoom);
-  const core::math::IsometricParams iso = entity_isometric_params(state, cfg);
+  const core::math::IsometricParams iso = entity_isometric_params(state, config);
 
   assert(sprites.count <= decltype(scene.world.sprites)::k_max);
   for (std::uint32_t i = 0; i < sprites.count; ++i) {
@@ -523,12 +523,13 @@ void collect_entities(const RenderState &state, const core::GameConfig &cfg, con
  *  an unstable sort on 4-byte indices is both cheaper to move and allocation-free. draw_order is
  *  reused across frames (resized, never freed) so this touches no per-frame heap allocation.
  */
-void draw_depth_sorted(platform::Renderer &r, const std::vector<DepthEntry> &entries, std::vector<uint32_t> &order) {
+void draw_depth_sorted(platform::Renderer &renderer, const std::vector<DepthEntry> &entries,
+                       std::vector<uint32_t> &order) {
   order.resize(entries.size());
   std::ranges::iota(order, 0u);
   std::ranges::sort(order, {}, [&](uint32_t i) noexcept { return entries[i].depth; });
   for (const uint32_t index : order)
-    r.draw(to_draw_sprite(entries[index]));
+    renderer.draw(to_draw_sprite(entries[index]));
 }
 
 /** Draws the z_index==0 tile band and all entities. Flat ground (elevation 0) draws immediately,
@@ -538,16 +539,16 @@ void draw_depth_sorted(platform::Renderer &r, const std::vector<DepthEntry> &ent
  *  (see iso_depth_key) so a raised platform correctly occludes/is-occluded-by nearby entities and tiles.
  *  z_index>0 layers remain a separate, subsequent immediate-draw pass (always above entities).
  */
-void draw_ground_and_entities(platform::Renderer &r, RenderState &state, const core::GameConfig &cfg,
+void draw_ground_and_entities(platform::Renderer &renderer, RenderState &state, const core::GameConfig &config,
                               const world::Scene &scene, float alpha, const FrameView &view,
                               std::span<const TileRenderParams> sources) {
   state.draw_list.clear();
   for (const TileRenderParams &source : sources)
-    draw_ground_band(r, source, cfg, scene, state.draw_list);
+    draw_ground_band(renderer, source, config, scene, state.draw_list);
   for (const TileRenderParams &source : sources)
-    collect_sorted_overlays(source, cfg, scene, state.draw_list);
-  collect_entities(state, cfg, scene, alpha, view, state.draw_list);
-  draw_depth_sorted(r, state.draw_list, state.draw_order);
+    collect_sorted_overlays(source, config, scene, state.draw_list);
+  collect_entities(state, config, scene, alpha, view, state.draw_list);
+  draw_depth_sorted(renderer, state.draw_list, state.draw_order);
 }
 
 /** The z_index > 0 bands to draw over the ground band, ascending. In World mode, first rebuilds
@@ -572,21 +573,21 @@ std::span<const int> refresh_above_ground_bands(RenderState &state) {
 
 } // namespace
 
-void render(platform::Renderer &r, RenderState &state, const core::GameConfig &cfg, const world::Scene &scene,
+void render(platform::Renderer &renderer, RenderState &state, const core::GameConfig &config, const world::Scene &scene,
             float alpha, core::math::IntSize window_logical) {
   const FrameView view = make_frame_view(state, scene, alpha, window_logical.width, window_logical.height);
   state.world_view = {.camera = view.camera, .viewport_size = view.viewport_screen, .zoom = view.zoom};
-  const TileSources sources = collect_tile_sources(state, cfg, view);
+  const TileSources sources = collect_tile_sources(state, config, view);
 
-  r.set_world_view(view.camera, view.viewport_screen, view.zoom);
-  draw_ground_and_entities(r, state, cfg, scene, alpha, view, sources.view());
+  renderer.set_world_view(view.camera, view.viewport_screen, view.zoom);
+  draw_ground_and_entities(renderer, state, config, scene, alpha, view, sources.view());
 
   for (const int z_index : refresh_above_ground_bands(state)) {
-    r.set_world_view(view.camera, view.viewport_screen, view.zoom);
+    renderer.set_world_view(view.camera, view.viewport_screen, view.zoom);
     for (const TileRenderParams &source : sources.view())
-      draw_overlay_band(r, source, z_index, cfg, scene);
+      draw_overlay_band(renderer, source, z_index, config, scene);
   }
-  r.reset_screen_view();
+  renderer.reset_screen_view();
 }
 
 } // namespace corundum::render

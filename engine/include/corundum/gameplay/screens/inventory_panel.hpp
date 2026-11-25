@@ -107,7 +107,7 @@ struct InventoryLayout {
  *  `cursor` matters because the highlighted row's description forms a footer whose height
  *  shrinks the list window; pass the cursor the render will use.
  */
-[[nodiscard]] InventoryLayout inventory_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
+[[nodiscard]] InventoryLayout inventory_panel_layout(const platform::Renderer &renderer, const ui::PanelStyle &style,
                                                      const std::vector<InventoryLine> &lines,
                                                      const std::vector<EquipmentLine> &equipment, int cursor,
                                                      int scroll, core::math::Vec2 viewport);
@@ -121,7 +121,7 @@ struct InventoryLayout {
  *  style.selected. An empty inventory renders a single "(empty)" line. The caller is responsible
  *  for only invoking this while the inventory mode is active.
  *
- *  @param r         Platform renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
+ *  @param renderer  Platform renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
  *  @param style     Dialog text style (font, size, colour); reused so the panel matches dialogue.
  *  @param border    Pre-loaded nine-patch border texture/tile dims; same one used by the dialogue box.
  *  @param lines     Inventory rows to display.
@@ -132,8 +132,9 @@ struct InventoryLayout {
  *  @pre `lines` is sorted by (category, name), as build_inventory_lines() produces — grouping
  *       assumes rows of equal category are consecutive.
  */
-void inventory_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
-                            const std::vector<InventoryLine> &lines, const std::vector<EquipmentLine> &equipment,
-                            int cursor, int scroll, core::math::Vec2 viewport);
+void inventory_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style,
+                            const ui::NinePatchBorder &border, const std::vector<InventoryLine> &lines,
+                            const std::vector<EquipmentLine> &equipment, int cursor, int scroll,
+                            core::math::Vec2 viewport);
 
 } // namespace corundum::gameplay::screens

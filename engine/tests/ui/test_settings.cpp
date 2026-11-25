@@ -19,8 +19,8 @@
 
 namespace {
 
-bool contains_text(const corundum::test::RecordingRenderer &r, std::string_view needle) {
-  for (const auto &call : r.log) {
+bool contains_text(const corundum::test::RecordingRenderer &renderer, std::string_view needle) {
+  for (const auto &call : renderer.log) {
     if (const auto *text = std::get_if<corundum::platform::DrawText>(&call); text != nullptr && text->text == needle)
       return true;
   }
@@ -90,7 +90,7 @@ TEST_CASE("settings_scroll_to_cursor follows the cursor past the visible window"
 }
 
 TEST_CASE("settings: General tab renders the row labels and their values") {
-  corundum::test::RecordingRenderer r;
+  corundum::test::RecordingRenderer renderer;
   const corundum::ui::PanelStyle style = make_style();
   const corundum::ui::SettingsState state{};
   const corundum::ui::SettingsValues values{
@@ -104,47 +104,47 @@ TEST_CASE("settings: General tab renders the row labels and their values") {
       .window_mode = corundum::core::WindowMode::Fullscreen,
   };
 
-  corundum::ui::settings_panel_render(r, style, corundum::test::make_border(), state, values,
+  corundum::ui::settings_panel_render(renderer, style, corundum::test::make_border(), state, values,
                                       corundum::input::default_bindings(), {.x = 800.f, .y = 600.f});
 
-  CHECK(contains_text(r, "Settings"));
-  CHECK(contains_text(r, "General"));
-  CHECK(contains_text(r, "Controls"));
-  CHECK(contains_text(r, "Master Volume"));
-  CHECK(contains_text(r, "50%"));
-  CHECK(contains_text(r, "Music Volume"));
-  CHECK(contains_text(r, "30%"));
-  CHECK(contains_text(r, "Sound Volume"));
-  CHECK(contains_text(r, "20%"));
-  CHECK(contains_text(r, "Ambience Volume"));
-  CHECK(contains_text(r, "70%"));
-  CHECK(contains_text(r, "Voice Volume"));
-  CHECK(contains_text(r, "60%"));
-  CHECK(contains_text(r, "Text Speed"));
-  CHECK(contains_text(r, "Instant"));
-  CHECK(contains_text(r, "UI Scale"));
-  CHECK(contains_text(r, "125%"));
-  CHECK(contains_text(r, "Window Mode"));
-  CHECK(contains_text(r, "fullscreen"));
+  CHECK(contains_text(renderer, "Settings"));
+  CHECK(contains_text(renderer, "General"));
+  CHECK(contains_text(renderer, "Controls"));
+  CHECK(contains_text(renderer, "Master Volume"));
+  CHECK(contains_text(renderer, "50%"));
+  CHECK(contains_text(renderer, "Music Volume"));
+  CHECK(contains_text(renderer, "30%"));
+  CHECK(contains_text(renderer, "Sound Volume"));
+  CHECK(contains_text(renderer, "20%"));
+  CHECK(contains_text(renderer, "Ambience Volume"));
+  CHECK(contains_text(renderer, "70%"));
+  CHECK(contains_text(renderer, "Voice Volume"));
+  CHECK(contains_text(renderer, "60%"));
+  CHECK(contains_text(renderer, "Text Speed"));
+  CHECK(contains_text(renderer, "Instant"));
+  CHECK(contains_text(renderer, "UI Scale"));
+  CHECK(contains_text(renderer, "125%"));
+  CHECK(contains_text(renderer, "Window Mode"));
+  CHECK(contains_text(renderer, "fullscreen"));
 }
 
 TEST_CASE("settings: Controls tab renders action names and their bound inputs") {
-  corundum::test::RecordingRenderer r;
+  corundum::test::RecordingRenderer renderer;
   const corundum::ui::PanelStyle style = make_style();
   corundum::ui::SettingsState state{};
   state.tab = corundum::ui::SettingsTab::Controls;
   state.cursor = static_cast<int>(corundum::input::Action::MoveUp);
   const corundum::ui::SettingsValues values{};
 
-  corundum::ui::settings_panel_render(r, style, corundum::test::make_border(), state, values,
+  corundum::ui::settings_panel_render(renderer, style, corundum::test::make_border(), state, values,
                                       corundum::input::default_bindings(), {.x = 800.f, .y = 600.f});
 
-  CHECK(contains_text(r, "MoveUp"));
-  CHECK(contains_text(r, "W, Up, LeftStickUp, DpadUp"));
+  CHECK(contains_text(renderer, "MoveUp"));
+  CHECK(contains_text(renderer, "W, Up, LeftStickUp, DpadUp"));
 }
 
 TEST_CASE("settings: Controls tab renders the Reset to Defaults row when scrolled to it") {
-  corundum::test::RecordingRenderer r;
+  corundum::test::RecordingRenderer renderer;
   const corundum::ui::PanelStyle style = make_style();
   corundum::ui::SettingsState state{};
   state.tab = corundum::ui::SettingsTab::Controls;
@@ -153,14 +153,14 @@ TEST_CASE("settings: Controls tab renders the Reset to Defaults row when scrolle
                                           corundum::ui::k_settings_max_visible_rows);
   const corundum::ui::SettingsValues values{};
 
-  corundum::ui::settings_panel_render(r, style, corundum::test::make_border(), state, values,
+  corundum::ui::settings_panel_render(renderer, style, corundum::test::make_border(), state, values,
                                       corundum::input::default_bindings(), {.x = 800.f, .y = 600.f});
 
-  CHECK(contains_text(r, "Reset to Defaults"));
+  CHECK(contains_text(renderer, "Reset to Defaults"));
 }
 
 TEST_CASE("settings: the row being rebound shows the capture prompt") {
-  corundum::test::RecordingRenderer r;
+  corundum::test::RecordingRenderer renderer;
   const corundum::ui::PanelStyle style = make_style();
   corundum::ui::SettingsState state{};
   state.tab = corundum::ui::SettingsTab::Controls;
@@ -168,48 +168,48 @@ TEST_CASE("settings: the row being rebound shows the capture prompt") {
   state.rebinding = true;
   const corundum::ui::SettingsValues values{};
 
-  corundum::ui::settings_panel_render(r, style, corundum::test::make_border(), state, values,
+  corundum::ui::settings_panel_render(renderer, style, corundum::test::make_border(), state, values,
                                       corundum::input::default_bindings(), {.x = 800.f, .y = 600.f});
 
-  CHECK(contains_text(r, "(press a key)"));
+  CHECK(contains_text(renderer, "(press a key)"));
 }
 
 TEST_CASE("settings: InGame presentation draws the compact panel with no backdrop") {
-  corundum::test::RecordingRenderer r;
+  corundum::test::RecordingRenderer renderer;
   const corundum::ui::PanelStyle style = make_style();
   const corundum::ui::SettingsState state{};
   const corundum::ui::SettingsValues values{};
   const corundum::core::math::Vec2 viewport{.x = 800.f, .y = 600.f};
 
-  corundum::ui::settings_panel_render(r, style, corundum::test::make_border(), state, values,
+  corundum::ui::settings_panel_render(renderer, style, corundum::test::make_border(), state, values,
                                       corundum::input::default_bindings(), viewport);
 
   // The first command is the compact panel fill, not a full-viewport backdrop.
-  REQUIRE(!r.log.empty());
-  const auto &first = std::get<corundum::platform::DrawRect>(r.log[0]);
+  REQUIRE(!renderer.log.empty());
+  const auto &first = std::get<corundum::platform::DrawRect>(renderer.log[0]);
   CHECK(first.size.x < viewport.x);
   CHECK(first.size.y < viewport.y);
 }
 
 TEST_CASE("settings: Framing presentation draws an opaque full-viewport backdrop") {
-  corundum::test::RecordingRenderer r;
+  corundum::test::RecordingRenderer renderer;
   const corundum::ui::PanelStyle style = make_style();
   corundum::ui::SettingsState state{};
   state.presentation = corundum::ui::SettingsPresentation::Framing;
   const corundum::ui::SettingsValues values{};
   const corundum::core::math::Vec2 viewport{.x = 800.f, .y = 600.f};
 
-  corundum::ui::settings_panel_render(r, style, corundum::test::make_border(), state, values,
+  corundum::ui::settings_panel_render(renderer, style, corundum::test::make_border(), state, values,
                                       corundum::input::default_bindings(), viewport);
 
-  REQUIRE(r.log.size() >= 2);
-  const auto &backdrop = std::get<corundum::platform::DrawRect>(r.log[0]);
+  REQUIRE(renderer.log.size() >= 2);
+  const auto &backdrop = std::get<corundum::platform::DrawRect>(renderer.log[0]);
   CHECK(backdrop.size.x == viewport.x);
   CHECK(backdrop.size.y == viewport.y);
   CHECK(backdrop.colour.a == 255);
 
   // The panel then fills the viewport minus the shared screen margin.
-  const auto &panel = std::get<corundum::platform::DrawRect>(r.log[1]);
+  const auto &panel = std::get<corundum::platform::DrawRect>(renderer.log[1]);
   CHECK(panel.size.x == viewport.x - (style.margin * 2.f));
   CHECK(panel.size.y == viewport.y - (style.margin * 2.f));
 }

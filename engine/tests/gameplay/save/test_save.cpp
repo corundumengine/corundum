@@ -62,22 +62,22 @@ constexpr std::chrono::sys_seconds k_saved_at{std::chrono::seconds{k_saved_at_un
 }
 
 corundum::core::GameConfig make_world_config(const fs::path &fixtures) {
-  corundum::core::GameConfig cfg{};
-  cfg.window_title = "save_test";
-  cfg.win_w = 320;
-  cfg.win_h = 240;
-  cfg.show_title = false;
-  cfg.paths.sprites_dir = (fixtures / "sprites").string();
-  cfg.paths.font_dir = (fixtures / "fonts").string();
-  corundum::test::set_missing_fonts(cfg.paths);
-  cfg.paths.world_manifest_path = (fixtures / "worlds/transition/manifest.json").string();
-  cfg.paths.spawn_points_dir = (fixtures / "spawn_points").string();
-  cfg.paths.portals_dir = (fixtures / "portals").string();
-  cfg.paths.dialogue_dir.clear();
-  cfg.paths.quests_dir.clear();
-  cfg.paths.sounds_dir.clear();
-  cfg.game_id = "test_game";
-  return cfg;
+  corundum::core::GameConfig config{};
+  config.window_title = "save_test";
+  config.win_w = 320;
+  config.win_h = 240;
+  config.show_title = false;
+  config.paths.sprites_dir = (fixtures / "sprites").string();
+  config.paths.font_dir = (fixtures / "fonts").string();
+  corundum::test::set_missing_fonts(config.paths);
+  config.paths.world_manifest_path = (fixtures / "worlds/transition/manifest.json").string();
+  config.paths.spawn_points_dir = (fixtures / "spawn_points").string();
+  config.paths.portals_dir = (fixtures / "portals").string();
+  config.paths.dialogue_dir.clear();
+  config.paths.quests_dir.clear();
+  config.paths.sounds_dir.clear();
+  config.game_id = "test_game";
+  return config;
 }
 
 /** A scratch directory with user storage rooted at it, for tests that check real files.
@@ -214,7 +214,7 @@ TEST_CASE("save: parse rejects an unknown mode") {
 
 TEST_CASE("save: load_game refuses a save for a different game_id") {
   corundum::Engine engine;
-  engine.cfg.game_id = "keystone";
+  engine.config.game_id = "keystone";
 
   MemoryUserStorage storage;
   corundum::save::SaveState s;
@@ -229,7 +229,7 @@ TEST_CASE("save: load_game refuses a save for a different game_id") {
 
 TEST_CASE("save: load_game refuses a save whose version is newer than the engine") {
   corundum::Engine engine;
-  engine.cfg.game_id = "test_game";
+  engine.config.game_id = "test_game";
 
   MemoryUserStorage storage;
   REQUIRE(corundum::core::write_json(storage, slot_name("newer_version"),
@@ -248,10 +248,10 @@ TEST_CASE("save: single-map save/load restores the interior, zone_id, and player
 
   const fs::path fixtures = fixture_root();
 
-  corundum::core::GameConfig cfg = make_world_config(fixtures);
-  cfg.paths.world_manifest_path.clear(); // single-map mode
-  cfg.paths.tilemap_path = (fixtures / "tilemaps/interior.json").string();
-  REQUIRE(initialize_with_world(engine, std::move(cfg)).has_value());
+  corundum::core::GameConfig config = make_world_config(fixtures);
+  config.paths.world_manifest_path.clear(); // single-map mode
+  config.paths.tilemap_path = (fixtures / "tilemaps/interior.json").string();
+  REQUIRE(initialize_with_world(engine, std::move(config)).has_value());
   REQUIRE(corundum::render::mode(engine.render) == corundum::render::RenderMode::SingleMap);
 
   engine.flags["zone.interior.chest"] = 1;
@@ -397,10 +397,10 @@ TEST_CASE("save: a failed load leaves the engine's flags untouched") {
 
   const fs::path fixtures = fixture_root();
 
-  corundum::core::GameConfig cfg = make_world_config(fixtures);
-  cfg.paths.world_manifest_path.clear(); // single-map mode
-  cfg.paths.tilemap_path = (fixtures / "tilemaps/interior.json").string();
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config = make_world_config(fixtures);
+  config.paths.world_manifest_path.clear(); // single-map mode
+  config.paths.tilemap_path = (fixtures / "tilemaps/interior.json").string();
+  REQUIRE(engine.initialize(std::move(config)).has_value());
 
   engine.flags["keep.me"] = 1;
 

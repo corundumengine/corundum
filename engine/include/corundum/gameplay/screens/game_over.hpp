@@ -51,7 +51,7 @@ struct GameOverLayout {
 };
 
 /** Compute the game-over menu's panel and row geometry for `viewport`. */
-[[nodiscard]] GameOverLayout game_over_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
+[[nodiscard]] GameOverLayout game_over_panel_layout(const platform::Renderer &renderer, const ui::PanelStyle &style,
                                                     core::math::Vec2 viewport, input::InputDevice last_device);
 
 /** Draw the game-over screen over an opaque backdrop.
@@ -59,15 +59,15 @@ struct GameOverLayout {
  *  Pure render, invoked only while GameOver is on top of the UI stack. Reload draws dimmed
  *  when the session has no last slot.
  *
- *  @param r           Renderer; emits a full-viewport backdrop, panel chrome and text.
+ *  @param renderer    Renderer; emits a full-viewport backdrop, panel chrome and text.
  *  @param style       Panel style supplying fonts, sizes and colours.
  *  @param border      Pre-loaded nine-patch frame.
  *  @param state       Highlighted row and Reload availability.
  *  @param viewport    Screen size in logical pixels.
  *  @param last_device Device of the player's most recent press; picks the footer glyphs.
  */
-void game_over_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
-                            const GameOverState &state, core::math::Vec2 viewport,
+void game_over_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style,
+                            const ui::NinePatchBorder &border, const GameOverState &state, core::math::Vec2 viewport,
                             input::InputDevice last_device = input::InputDevice::Keyboard);
 
 } // namespace corundum::gameplay::screens

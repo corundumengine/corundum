@@ -49,16 +49,17 @@ corundum::gameplay::dialogue::Graph make_talk_graph(std::string text) {
   return g;
 }
 
-bool contains_text(const corundum::test::RecordingRenderer &r, std::string_view needle) {
-  for (const auto &call : r.log) {
+bool contains_text(const corundum::test::RecordingRenderer &renderer, std::string_view needle) {
+  for (const auto &call : renderer.log) {
     if (const auto *text = std::get_if<corundum::platform::DrawText>(&call); text != nullptr && text->text == needle)
       return true;
   }
   return false;
 }
 
-const corundum::platform::DrawText *find_text(const corundum::test::RecordingRenderer &r, std::string_view needle) {
-  for (const auto &call : r.log) {
+const corundum::platform::DrawText *find_text(const corundum::test::RecordingRenderer &renderer,
+                                              std::string_view needle) {
+  for (const auto &call : renderer.log) {
     if (const auto *text = std::get_if<corundum::platform::DrawText>(&call); text != nullptr && text->text == needle)
       return text;
   }
@@ -76,11 +77,12 @@ TEST_CASE("dialog reveal: a zero rate draws the full body immediately") {
   const corundum::ui::PanelSkin skin{};
   const float text_speed = 0.f;
 
-  corundum::test::RecordingRenderer r;
-  corundum::gameplay::screens::dialog_box_update(box, conversation, r, {.x = 800.f, .y = 600.f}, skin, text_speed);
-  corundum::gameplay::screens::dialog_box_render(box, r, skin, corundum::input::InputDevice::Keyboard);
+  corundum::test::RecordingRenderer renderer;
+  corundum::gameplay::screens::dialog_box_update(box, conversation, renderer, {.x = 800.f, .y = 600.f}, skin,
+                                                 text_speed);
+  corundum::gameplay::screens::dialog_box_render(box, renderer, skin, corundum::input::InputDevice::Keyboard);
 
-  CHECK(contains_text(r, "Hello world"));
+  CHECK(contains_text(renderer, "Hello world"));
 }
 
 TEST_CASE("dialog reveal: advance reveals a codepoint prefix of the body") {
@@ -92,17 +94,18 @@ TEST_CASE("dialog reveal: advance reveals a codepoint prefix of the body") {
   const corundum::ui::PanelSkin skin{};
   const float text_speed = 10.f / corundum::gameplay::screens::k_base_reveal_chars_per_second;
 
-  corundum::test::RecordingRenderer r;
-  corundum::gameplay::screens::dialog_box_update(box, conversation, r, {.x = 800.f, .y = 600.f}, skin, text_speed);
+  corundum::test::RecordingRenderer renderer;
+  corundum::gameplay::screens::dialog_box_update(box, conversation, renderer, {.x = 800.f, .y = 600.f}, skin,
+                                                 text_speed);
   REQUIRE(box.reveal_chars == doctest::Approx(0.f));
 
   corundum::gameplay::screens::dialog_box_advance(box, conversation, 0.2f, text_speed);
   corundum::gameplay::screens::dialog_box_advance(box, conversation, 0.3f, text_speed);
   REQUIRE(box.reveal_chars == doctest::Approx(5.f));
 
-  corundum::gameplay::screens::dialog_box_render(box, r, skin, corundum::input::InputDevice::Keyboard);
-  CHECK(contains_text(r, "Hello"));
-  CHECK_FALSE(contains_text(r, "Hello world"));
+  corundum::gameplay::screens::dialog_box_render(box, renderer, skin, corundum::input::InputDevice::Keyboard);
+  CHECK(contains_text(renderer, "Hello"));
+  CHECK_FALSE(contains_text(renderer, "Hello world"));
 }
 
 TEST_CASE("dialog reveal: switching node resets the reveal") {
@@ -114,14 +117,16 @@ TEST_CASE("dialog reveal: switching node resets the reveal") {
   const corundum::ui::PanelSkin skin{};
   const float text_speed = 10.f / corundum::gameplay::screens::k_base_reveal_chars_per_second;
 
-  corundum::test::RecordingRenderer r;
-  corundum::gameplay::screens::dialog_box_update(box, conversation, r, {.x = 800.f, .y = 600.f}, skin, text_speed);
+  corundum::test::RecordingRenderer renderer;
+  corundum::gameplay::screens::dialog_box_update(box, conversation, renderer, {.x = 800.f, .y = 600.f}, skin,
+                                                 text_speed);
   corundum::gameplay::screens::dialog_box_advance(box, conversation, 1.f, text_speed);
   REQUIRE(box.reveal_chars > 0.f);
 
   // A stale reveal marker simulates the conversation having moved to a new node.
   box.reveal_node_id = "some_other_node";
-  corundum::gameplay::screens::dialog_box_update(box, conversation, r, {.x = 800.f, .y = 600.f}, skin, text_speed);
+  corundum::gameplay::screens::dialog_box_update(box, conversation, renderer, {.x = 800.f, .y = 600.f}, skin,
+                                                 text_speed);
   CHECK(box.reveal_chars == doctest::Approx(0.f));
 }
 
@@ -135,19 +140,20 @@ TEST_CASE("dialog reveal: a budget spanning a style boundary reveals each segmen
   skin.style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Dialogue)] = corundum::test::make_font_family(10);
   const float text_speed = 10.f / corundum::gameplay::screens::k_base_reveal_chars_per_second;
 
-  corundum::test::RecordingRenderer r;
-  corundum::gameplay::screens::dialog_box_update(box, conversation, r, {.x = 800.f, .y = 600.f}, skin, text_speed);
+  corundum::test::RecordingRenderer renderer;
+  corundum::gameplay::screens::dialog_box_update(box, conversation, renderer, {.x = 800.f, .y = 600.f}, skin,
+                                                 text_speed);
   corundum::gameplay::screens::dialog_box_advance(box, conversation, 0.3f, text_speed); // 3 codepoints
-  corundum::gameplay::screens::dialog_box_render(box, r, skin, corundum::input::InputDevice::Keyboard);
+  corundum::gameplay::screens::dialog_box_render(box, renderer, skin, corundum::input::InputDevice::Keyboard);
 
-  const corundum::platform::DrawText *regular = find_text(r, "a ");
-  const corundum::platform::DrawText *italic = find_text(r, "b");
+  const corundum::platform::DrawText *regular = find_text(renderer, "a ");
+  const corundum::platform::DrawText *italic = find_text(renderer, "b");
   REQUIRE(regular != nullptr);
   REQUIRE(italic != nullptr);
   CHECK(regular->font_id == FontId{10});
   CHECK(italic->font_id == FontId{12});
   CHECK(italic->position.x > regular->position.x); // the italic run continues the line, not restarts it
-  CHECK_FALSE(contains_text(r, " c"));
+  CHECK_FALSE(contains_text(renderer, " c"));
 }
 
 TEST_CASE("dialog reveal: the full styled body draws each run with its own font and keeps the markup out of the text") {
@@ -159,18 +165,18 @@ TEST_CASE("dialog reveal: the full styled body draws each run with its own font 
   corundum::ui::PanelSkin skin{};
   skin.style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Dialogue)] = corundum::test::make_font_family(10);
 
-  corundum::test::RecordingRenderer r;
-  corundum::gameplay::screens::dialog_box_update(box, conversation, r, {.x = 800.f, .y = 600.f}, skin, 0.f);
-  corundum::gameplay::screens::dialog_box_render(box, r, skin, corundum::input::InputDevice::Keyboard);
+  corundum::test::RecordingRenderer renderer;
+  corundum::gameplay::screens::dialog_box_update(box, conversation, renderer, {.x = 800.f, .y = 600.f}, skin, 0.f);
+  corundum::gameplay::screens::dialog_box_render(box, renderer, skin, corundum::input::InputDevice::Keyboard);
 
-  const corundum::platform::DrawText *bold = find_text(r, "b");
-  const corundum::platform::DrawText *italic = find_text(r, "i");
+  const corundum::platform::DrawText *bold = find_text(renderer, "b");
+  const corundum::platform::DrawText *italic = find_text(renderer, "i");
   REQUIRE(bold != nullptr);
   REQUIRE(italic != nullptr);
   CHECK(bold->font_id == FontId{11});
   CHECK(italic->font_id == FontId{12});
-  CHECK_FALSE(contains_text(r, "**b**"));
-  CHECK_FALSE(contains_text(r, "*i*"));
+  CHECK_FALSE(contains_text(renderer, "**b**"));
+  CHECK_FALSE(contains_text(renderer, "*i*"));
 }
 
 TEST_CASE("dialog_box_render: the Talk footer follows the last input device") {

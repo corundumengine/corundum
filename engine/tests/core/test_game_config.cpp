@@ -101,32 +101,33 @@ TEST_CASE("load_game_config - full valid JSON loads all fields") {
     })");
   const auto result = load_game_config(disk(), p);
   REQUIRE(result.has_value());
-  const auto &cfg = *result;
-  CHECK_EQ(cfg.win_w, 1280u);
-  CHECK_EQ(cfg.win_h, 720u);
-  CHECK(cfg.simulation_fps == 30u);
-  CHECK(cfg.interact_radius == doctest::Approx(64.f));
-  CHECK(cfg.player_speed == doctest::Approx(150.f));
-  CHECK(cfg.character_scale == doctest::Approx(3.f));
-  CHECK(cfg.tile_scale == doctest::Approx(4.f));
-  CHECK(cfg.elevation_step_px == doctest::Approx(6.f));
-  CHECK(cfg.paths.font_dir == "game/assets/fonts");
-  CHECK(cfg.paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Dialogue)].regular == "dReg.ttf");
-  CHECK(cfg.paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Dialogue)].bold == "dBold.ttf");
-  CHECK(cfg.paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Dialogue)].italic == "dItalic.ttf");
-  CHECK(cfg.paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Dialogue)].bold_italic == "dBoldItalic.ttf");
-  CHECK(cfg.paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)].regular == "qReg.ttf");
-  CHECK(cfg.paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)].bold.empty());
-  CHECK(cfg.paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Ui)].regular == "uReg.ttf");
-  CHECK(cfg.paths.tilemap_path == "data/tilemaps/dungeon.json");
-  CHECK(cfg.paths.sprites_dir == "data/sprite_sheets/dungeon.json");
-  CHECK(cfg.paths.dialogue_dir == "data/npc");
-  CHECK(cfg.dialogue_render.font_size_speaker == 30u);
-  CHECK(cfg.dialogue_render.font_size_body == 24u);
-  CHECK(cfg.dialogue_render.font_size_prompt == 16u);
-  CHECK(cfg.dialogue_render.margin == doctest::Approx(15.f));
-  CHECK(cfg.dialogue_render.line_spacing == doctest::Approx(28.f));
-  CHECK(cfg.dialogue_render.panel_height_frac == doctest::Approx(0.4f));
+  const auto &config = *result;
+  CHECK_EQ(config.win_w, 1280u);
+  CHECK_EQ(config.win_h, 720u);
+  CHECK(config.simulation_fps == 30u);
+  CHECK(config.interact_radius == doctest::Approx(64.f));
+  CHECK(config.player_speed == doctest::Approx(150.f));
+  CHECK(config.character_scale == doctest::Approx(3.f));
+  CHECK(config.tile_scale == doctest::Approx(4.f));
+  CHECK(config.elevation_step_px == doctest::Approx(6.f));
+  CHECK(config.paths.font_dir == "game/assets/fonts");
+  CHECK(config.paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Dialogue)].regular == "dReg.ttf");
+  CHECK(config.paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Dialogue)].bold == "dBold.ttf");
+  CHECK(config.paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Dialogue)].italic == "dItalic.ttf");
+  CHECK(config.paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Dialogue)].bold_italic ==
+        "dBoldItalic.ttf");
+  CHECK(config.paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)].regular == "qReg.ttf");
+  CHECK(config.paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)].bold.empty());
+  CHECK(config.paths.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Ui)].regular == "uReg.ttf");
+  CHECK(config.paths.tilemap_path == "data/tilemaps/dungeon.json");
+  CHECK(config.paths.sprites_dir == "data/sprite_sheets/dungeon.json");
+  CHECK(config.paths.dialogue_dir == "data/npc");
+  CHECK(config.dialogue_render.font_size_speaker == 30u);
+  CHECK(config.dialogue_render.font_size_body == 24u);
+  CHECK(config.dialogue_render.font_size_prompt == 16u);
+  CHECK(config.dialogue_render.margin == doctest::Approx(15.f));
+  CHECK(config.dialogue_render.line_spacing == doctest::Approx(28.f));
+  CHECK(config.dialogue_render.panel_height_frac == doctest::Approx(0.4f));
 }
 
 TEST_CASE("load_game_config - partial JSON overrides only specified fields") {
@@ -135,12 +136,12 @@ TEST_CASE("load_game_config - partial JSON overrides only specified fields") {
   write_file(p, R"({"win_w": 1024, "player_speed": 300.0})");
   const auto result = load_game_config(disk(), p);
   REQUIRE(result.has_value());
-  const auto &cfg = *result;
-  CHECK_EQ(cfg.win_w, 1024u);
-  CHECK_EQ(cfg.win_h, 600u); // default
-  CHECK(cfg.player_speed == doctest::Approx(300.f));
-  CHECK(cfg.character_scale == doctest::Approx(2.f));   // default
-  CHECK(cfg.elevation_step_px == doctest::Approx(4.f)); // default
+  const auto &config = *result;
+  CHECK_EQ(config.win_w, 1024u);
+  CHECK_EQ(config.win_h, 600u); // default
+  CHECK(config.player_speed == doctest::Approx(300.f));
+  CHECK(config.character_scale == doctest::Approx(2.f));   // default
+  CHECK(config.elevation_step_px == doctest::Approx(4.f)); // default
 }
 
 TEST_CASE("load_game_config - win_w <= 0 returns error") {
@@ -462,9 +463,9 @@ TEST_CASE("load_game_config - absent dialogue_render uses defaults") {
   write_file(p, "{}");
   const auto result = load_game_config(disk(), p);
   REQUIRE(result.has_value());
-  const auto &cfg = *result;
-  CHECK(cfg.dialogue_render.font_size_body == 22u);
-  CHECK(cfg.dialogue_render.panel_height_frac == doctest::Approx(0.32f));
+  const auto &config = *result;
+  CHECK(config.dialogue_render.font_size_body == 22u);
+  CHECK(config.dialogue_render.panel_height_frac == doctest::Approx(0.32f));
 }
 
 TEST_CASE("load_game_config - partial dialogue_render merges with defaults") {
@@ -473,10 +474,10 @@ TEST_CASE("load_game_config - partial dialogue_render merges with defaults") {
   write_file(p, R"({"dialogue_render": {"font_size_body": 28}})");
   const auto result = load_game_config(disk(), p);
   REQUIRE(result.has_value());
-  const auto &cfg = *result;
-  CHECK(cfg.dialogue_render.font_size_body == 28u);
-  CHECK(cfg.dialogue_render.font_size_speaker == 26u); // default
-  CHECK(cfg.dialogue_render.font_size_prompt == 18u);  // default
+  const auto &config = *result;
+  CHECK(config.dialogue_render.font_size_body == 28u);
+  CHECK(config.dialogue_render.font_size_speaker == 26u); // default
+  CHECK(config.dialogue_render.font_size_prompt == 18u);  // default
 }
 
 TEST_CASE("load_game_config - dialogue_render not an object returns error") {
@@ -494,8 +495,8 @@ TEST_CASE("load_game_config - quests_dir defaults to data/quests when absent") {
   write_file(p, "{}");
   const auto result = load_game_config(disk(), p);
   REQUIRE(result.has_value());
-  const auto &cfg = *result;
-  CHECK(cfg.paths.quests_dir == "data/quests");
+  const auto &config = *result;
+  CHECK(config.paths.quests_dir == "data/quests");
 }
 
 TEST_CASE("load_game_config - resource directories default to the standard project layout") {
@@ -504,13 +505,13 @@ TEST_CASE("load_game_config - resource directories default to the standard proje
   write_file(p, "{}");
   const auto result = load_game_config(disk(), p);
   REQUIRE(result.has_value());
-  const auto &cfg = *result;
-  CHECK(cfg.paths.font_dir == "assets/fonts");
-  CHECK(cfg.paths.sprites_dir == "data/sprite_sheets");
-  CHECK(cfg.paths.spawn_points_dir == "data/spawn_points");
-  CHECK(cfg.paths.portals_dir == "data/portals");
-  CHECK(cfg.paths.dialogue_dir == "data/dialogue");
-  CHECK_EQ(cfg.paths.ui_borders_file, "data/sprite_sheets/ui/borders.json");
+  const auto &config = *result;
+  CHECK(config.paths.font_dir == "assets/fonts");
+  CHECK(config.paths.sprites_dir == "data/sprite_sheets");
+  CHECK(config.paths.spawn_points_dir == "data/spawn_points");
+  CHECK(config.paths.portals_dir == "data/portals");
+  CHECK(config.paths.dialogue_dir == "data/dialogue");
+  CHECK_EQ(config.paths.ui_borders_file, "data/sprite_sheets/ui/borders.json");
 }
 
 TEST_CASE("load_game_config - ui_borders_file overrides the default") {
@@ -537,8 +538,8 @@ TEST_CASE("load_game_config - unknown top-level key is silently ignored") {
   write_file(p, R"({"win_w": 1024, "future_feature": true})");
   const auto result = load_game_config(disk(), p);
   REQUIRE(result.has_value());
-  const auto &cfg = *result;
-  CHECK_EQ(cfg.win_w, 1024u);
+  const auto &config = *result;
+  CHECK_EQ(config.win_w, 1024u);
 }
 
 TEST_CASE("load_game_config - absent player block uses defaults") {
@@ -547,11 +548,11 @@ TEST_CASE("load_game_config - absent player block uses defaults") {
   write_file(p, "{}");
   const auto result = load_game_config(disk(), p);
   REQUIRE(result.has_value());
-  const auto &cfg = *result;
-  CHECK(cfg.player.walk_sprite == "player_walk");
-  CHECK(cfg.player.idle_sprite == "player_idle");
-  CHECK(cfg.player.col == doctest::Approx(8.f));
-  CHECK(cfg.player.row == doctest::Approx(8.f));
+  const auto &config = *result;
+  CHECK(config.player.walk_sprite == "player_walk");
+  CHECK(config.player.idle_sprite == "player_idle");
+  CHECK(config.player.col == doctest::Approx(8.f));
+  CHECK(config.player.row == doctest::Approx(8.f));
 }
 
 TEST_CASE("load_game_config - full player block parsed") {
@@ -567,11 +568,11 @@ TEST_CASE("load_game_config - full player block parsed") {
   })");
   const auto result = load_game_config(disk(), p);
   REQUIRE(result.has_value());
-  const auto &cfg = *result;
-  CHECK(cfg.player.walk_sprite == "hero_walk");
-  CHECK(cfg.player.idle_sprite == "hero_idle");
-  CHECK(cfg.player.col == doctest::Approx(12.5f));
-  CHECK(cfg.player.row == doctest::Approx(3.f));
+  const auto &config = *result;
+  CHECK(config.player.walk_sprite == "hero_walk");
+  CHECK(config.player.idle_sprite == "hero_idle");
+  CHECK(config.player.col == doctest::Approx(12.5f));
+  CHECK(config.player.row == doctest::Approx(3.f));
 }
 
 TEST_CASE("load_game_config - partial player block merges with defaults") {
@@ -582,11 +583,11 @@ TEST_CASE("load_game_config - partial player block merges with defaults") {
   })");
   const auto result = load_game_config(disk(), p);
   REQUIRE(result.has_value());
-  const auto &cfg = *result;
-  CHECK(cfg.player.walk_sprite == "hero_walk");
-  CHECK(cfg.player.idle_sprite == "player_idle"); // default
-  CHECK(cfg.player.col == doctest::Approx(8.f));  // default
-  CHECK(cfg.player.row == doctest::Approx(8.f));  // default
+  const auto &config = *result;
+  CHECK(config.player.walk_sprite == "hero_walk");
+  CHECK(config.player.idle_sprite == "player_idle"); // default
+  CHECK(config.player.col == doctest::Approx(8.f));  // default
+  CHECK(config.player.row == doctest::Approx(8.f));  // default
 }
 
 TEST_CASE("load_game_config - player not an object returns error") {

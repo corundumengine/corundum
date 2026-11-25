@@ -43,7 +43,7 @@ struct CreditsState {
  *  Independent of the viewport, so a caller can clamp the scroll and the render can advance
  *  without measuring the same text twice.
  */
-[[nodiscard]] float credits_content_height(const platform::Renderer &r, const ui::PanelStyle &style,
+[[nodiscard]] float credits_content_height(const platform::Renderer &renderer, const ui::PanelStyle &style,
                                            const CreditsState &state);
 
 /** Draw the credits over an opaque backdrop or background image.
@@ -53,12 +53,12 @@ struct CreditsState {
  *  shifted up by CreditsState::scroll. When a background image is available it is scaled to
  *  cover the viewport and the text switches to dark ink.
  *
- *  @param r        Renderer; emits the backdrop, background and the section text.
+ *  @param renderer Renderer; emits the backdrop, background and the section text.
  *  @param style    Panel style supplying fonts, sizes and colours.
  *  @param state    Loaded sections, background and scroll offset.
  *  @param viewport Screen size in logical pixels.
  */
-void credits_panel_render(platform::Renderer &r, const ui::PanelStyle &style, core::math::Vec2 viewport,
+void credits_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style, core::math::Vec2 viewport,
                           const CreditsState &state);
 
 } // namespace corundum::gameplay::screens

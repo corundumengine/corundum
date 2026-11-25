@@ -108,15 +108,15 @@ TEST_CASE("load_tool_config - --config resolves paths against the config's direc
   })");
 
   Args args({"tool", "--config", config_path.string()});
-  const auto cfg = load_tool_config(args.argc(), args.argv());
-  REQUIRE(cfg.has_value());
+  const auto config = load_tool_config(args.argc(), args.argv());
+  REQUIRE(config.has_value());
 
   const fs::path config_dir = fs::weakly_canonical(config_path).parent_path();
-  CHECK(cfg->data_root == fs::weakly_canonical(config_dir / "data"));
-  CHECK(cfg->dialogue_dir == fs::weakly_canonical(config_dir / "dialogue"));
-  CHECK(cfg->elevation_step_px == doctest::Approx(7.5f));
-  CHECK(cfg->tile_diamond_w == 96);
-  CHECK(cfg->tile_diamond_h == 48);
+  CHECK(config->data_root == fs::weakly_canonical(config_dir / "data"));
+  CHECK(config->dialogue_dir == fs::weakly_canonical(config_dir / "dialogue"));
+  CHECK(config->elevation_step_px == doctest::Approx(7.5f));
+  CHECK(config->tile_diamond_w == 96);
+  CHECK(config->tile_diamond_h == 48);
 
   fs::remove_all(dir);
 }
@@ -127,24 +127,24 @@ TEST_CASE("load_tool_config - missing fields fall back to defaults") {
   write_file(config_path, "{}");
 
   Args args({"tool", "--config", config_path.string()});
-  const auto cfg = load_tool_config(args.argc(), args.argv());
-  REQUIRE(cfg.has_value());
+  const auto config = load_tool_config(args.argc(), args.argv());
+  REQUIRE(config.has_value());
 
-  CHECK(cfg->data_root.empty());
-  CHECK(cfg->elevation_step_px == doctest::Approx(4.f));
-  CHECK(cfg->max_step_height == 4u);
-  CHECK(cfg->tile_diamond_w == 128);
-  CHECK(cfg->tile_diamond_h == 64);
+  CHECK(config->data_root.empty());
+  CHECK(config->elevation_step_px == doctest::Approx(4.f));
+  CHECK(config->max_step_height == 4u);
+  CHECK(config->tile_diamond_w == 128);
+  CHECK(config->tile_diamond_h == 64);
 
   fs::remove_all(dir);
 }
 
 TEST_CASE("load_tool_config - reports a missing config file") {
   Args args({"tool", "--config", "/corundum/definitely/not/here/tools.json"});
-  const auto cfg = load_tool_config(args.argc(), args.argv());
+  const auto config = load_tool_config(args.argc(), args.argv());
 
-  REQUIRE_FALSE(cfg.has_value());
-  CHECK(cfg.error().starts_with("Cannot load tool config"));
+  REQUIRE_FALSE(config.has_value());
+  CHECK(config.error().starts_with("Cannot load tool config"));
 }
 
 TEST_CASE("load_tool_config - rejects a non-object JSON document") {
@@ -153,10 +153,10 @@ TEST_CASE("load_tool_config - rejects a non-object JSON document") {
   write_file(config_path, "[1, 2, 3]");
 
   Args args({"tool", "--config", config_path.string()});
-  const auto cfg = load_tool_config(args.argc(), args.argv());
+  const auto config = load_tool_config(args.argc(), args.argv());
 
-  REQUIRE_FALSE(cfg.has_value());
-  CHECK(cfg.error() == "Tool config must be a JSON object");
+  REQUIRE_FALSE(config.has_value());
+  CHECK(config.error() == "Tool config must be a JSON object");
 
   fs::remove_all(dir);
 }
@@ -168,10 +168,10 @@ TEST_CASE("load_tool_config - CORUNDUM_TOOLS_CONFIG is used when --config is abs
 
   const ScopedEnv env("CORUNDUM_TOOLS_CONFIG", config_path.string());
   Args args({"tool"});
-  const auto cfg = load_tool_config(args.argc(), args.argv());
+  const auto config = load_tool_config(args.argc(), args.argv());
 
-  REQUIRE(cfg.has_value());
-  CHECK(cfg->tile_diamond_w == 32);
+  REQUIRE(config.has_value());
+  CHECK(config->tile_diamond_w == 32);
 
   fs::remove_all(dir);
 }

@@ -43,10 +43,10 @@ using corundum::test::run_one_step;
 
 /** Like make_world_config but with the 5×1 streaming-world manifest. */
 corundum::core::GameConfig make_streaming_config(const fs::path &fixtures) {
-  corundum::core::GameConfig cfg = make_world_config(fixtures);
-  cfg.window_title = "streaming_test";
-  cfg.paths.world_manifest_path = (fixtures / "worlds/streaming/manifest.json").string();
-  return cfg;
+  corundum::core::GameConfig config = make_world_config(fixtures);
+  config.window_title = "streaming_test";
+  config.paths.world_manifest_path = (fixtures / "worlds/streaming/manifest.json").string();
+  return config;
 }
 
 /** Read the player's tile col/row from the scene transforms. */
@@ -62,10 +62,11 @@ std::string interior_path(const fs::path &fixtures) {
 
 /** Run one fixed simulation step (physics + portal detection) with no input. */
 void advance(corundum::Engine &engine) {
-  const auto map = corundum::world::build_map_view(engine.render, engine.cfg);
+  const auto map = corundum::world::build_map_view(engine.render, engine.config);
   const corundum::input::InputState input{};
-  corundum::world::update(engine.scene, engine.cfg, input, map, 1.f / 60.f, static_cast<float>(engine.window_width()),
-                          static_cast<float>(engine.window_height()), engine.input_mapper.last_device());
+  corundum::world::update(engine.scene, engine.config, input, map, 1.f / 60.f,
+                          static_cast<float>(engine.window_width()), static_cast<float>(engine.window_height()),
+                          engine.input_mapper.last_device());
 }
 
 /** Drive fixed steps until the queued click-to-move path empties. Capped, so a path that
@@ -226,10 +227,10 @@ TEST_CASE("world transition - single-map boot with a return_to_world portal is i
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures = CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR;
-  corundum::core::GameConfig cfg = make_world_config(fixtures);
-  cfg.paths.world_manifest_path.clear(); // single-map mode: no overworld to return to
-  cfg.paths.tilemap_path = interior_path(fixtures);
-  REQUIRE(initialize_with_world(engine, std::move(cfg)).has_value());
+  corundum::core::GameConfig config = make_world_config(fixtures);
+  config.paths.world_manifest_path.clear(); // single-map mode: no overworld to return to
+  config.paths.tilemap_path = interior_path(fixtures);
+  REQUIRE(initialize_with_world(engine, std::move(config)).has_value());
   REQUIRE(corundum::render::mode(engine.render) == RenderMode::SingleMap);
 
   engine.scene.pending_transition =
@@ -337,7 +338,7 @@ TEST_CASE("world transition - pick_tile resolves a tile in world mode (hover wor
   REQUIRE(initialize_with_world(engine, make_world_config(fixtures)).has_value());
   REQUIRE(player_tile(engine) == std::pair{8, 8});
 
-  const auto map = corundum::world::build_map_view(engine.render, engine.cfg);
+  const auto map = corundum::world::build_map_view(engine.render, engine.config);
   // World-mode MapView carries world_area (not elevation_map); pick_tile must use it.
   REQUIRE(map.world_area != nullptr);
   CHECK(map.elevation_map == nullptr);
@@ -350,7 +351,7 @@ TEST_CASE("world transition - pick_tile resolves a tile in world mode (hover wor
       .half_tw = map.projection.half_tw,
       .half_th = map.projection.half_th,
       .x_origin = map.projection.x_origin,
-      .elev_step = engine.cfg.elevation_step_px * map.tile_scale,
+      .elev_step = engine.config.elevation_step_px * map.tile_scale,
   };
   const auto result = corundum::world::pick_tile(mouse_x, mouse_y, camera, map, pick_iso);
 

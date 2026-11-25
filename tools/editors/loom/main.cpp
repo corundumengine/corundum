@@ -104,24 +104,24 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  auto cfg_result = corundum::toolkit::host::load_tool_config(argc, argv);
-  if (!cfg_result) {
-    std::println(stderr, "[Loom] FATAL: {}", cfg_result.error());
+  auto config_result = corundum::toolkit::host::load_tool_config(argc, argv);
+  if (!config_result) {
+    std::println(stderr, "[Loom] FATAL: {}", config_result.error());
     return 1;
   }
-  const corundum::toolkit::host::ToolConfig cfg = std::move(*cfg_result);
+  const corundum::toolkit::host::ToolConfig config = std::move(*config_result);
 
   EditorState state;
 
-  if (!cfg.quests_dir.empty() && std::filesystem::is_directory(cfg.quests_dir)) {
+  if (!config.quests_dir.empty() && std::filesystem::is_directory(config.quests_dir)) {
     [[maybe_unused]] const auto quest_count =
-        state.quest_registry.load_all(corundum::core::DirectoryContentSource{}, cfg.quests_dir.string());
+        state.quest_registry.load_all(corundum::core::DirectoryContentSource{}, config.quests_dir.string());
     state.quests_loaded_ = true;
   }
 
-  if (!cfg.dialogue_dir.empty() && std::filesystem::is_directory(cfg.dialogue_dir)) {
+  if (!config.dialogue_dir.empty() && std::filesystem::is_directory(config.dialogue_dir)) {
     [[maybe_unused]] const auto graph_count =
-        state.graph_registry_.load_all(corundum::core::DirectoryContentSource{}, cfg.dialogue_dir.string());
+        state.graph_registry_.load_all(corundum::core::DirectoryContentSource{}, config.dialogue_dir.string());
     state.graphs_loaded_ = true;
   }
 
@@ -155,11 +155,11 @@ int main(int argc, char *argv[]) {
   }
   auto host = std::move(*host_result);
 
-  [[maybe_unused]] const auto _ = load_tool_fonts(cfg);
+  [[maybe_unused]] const auto _ = load_tool_fonts(config);
 
   ThemeColors theme = ApplyEditorThemeRefined();
-  if (!cfg.theme_path.empty()) {
-    if (auto t = load_theme(cfg.theme_path.string()))
+  if (!config.theme_path.empty()) {
+    if (auto t = load_theme(config.theme_path.string()))
       theme = *t;
     else
       state.toast.show(std::format("[Loom] Theme load failed: {} — using fallback", t.error()));

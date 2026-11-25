@@ -39,21 +39,21 @@ constexpr std::chrono::steady_clock::time_point k_frame_time{};
 }
 
 inline core::GameConfig make_world_config(const std::filesystem::path &fixtures) {
-  core::GameConfig cfg{};
-  cfg.window_title = "world_transition_test";
-  cfg.win_w = 320;
-  cfg.win_h = 240;
-  cfg.show_title = false;
-  cfg.paths.sprites_dir = (fixtures / "sprites").string();
-  cfg.paths.font_dir = (fixtures / "fonts").string();
-  set_missing_fonts(cfg.paths);
-  cfg.paths.world_manifest_path = (fixtures / "worlds/transition/manifest.json").string();
-  cfg.paths.spawn_points_dir = (fixtures / "spawn_points").string();
-  cfg.paths.portals_dir = (fixtures / "portals").string();
-  cfg.paths.dialogue_dir.clear();
-  cfg.paths.quests_dir.clear();
-  cfg.paths.sounds_dir.clear();
-  return cfg;
+  core::GameConfig config{};
+  config.window_title = "world_transition_test";
+  config.win_w = 320;
+  config.win_h = 240;
+  config.show_title = false;
+  config.paths.sprites_dir = (fixtures / "sprites").string();
+  config.paths.font_dir = (fixtures / "fonts").string();
+  set_missing_fonts(config.paths);
+  config.paths.world_manifest_path = (fixtures / "worlds/transition/manifest.json").string();
+  config.paths.spawn_points_dir = (fixtures / "spawn_points").string();
+  config.paths.portals_dir = (fixtures / "portals").string();
+  config.paths.dialogue_dir.clear();
+  config.paths.quests_dir.clear();
+  config.paths.sounds_dir.clear();
+  return config;
 }
 
 inline void adopt_platform(Engine &engine, unsigned w, unsigned h) {
@@ -64,8 +64,8 @@ inline void adopt_platform(Engine &engine, unsigned w, unsigned h) {
 /** Initialise `engine` and build the configured initial scene, as a game that skips the Title
  *  does. Engine::initialize() itself loads no world.
  */
-[[nodiscard]] inline std::expected<void, std::string> initialize_with_world(Engine &engine, core::GameConfig cfg) {
-  if (std::expected<void, std::string> result = engine.initialize(std::move(cfg)); !result)
+[[nodiscard]] inline std::expected<void, std::string> initialize_with_world(Engine &engine, core::GameConfig config) {
+  if (std::expected<void, std::string> result = engine.initialize(std::move(config)); !result)
     return result;
   return world::load_initial_scene(engine);
 }
@@ -74,10 +74,10 @@ inline void adopt_platform(Engine &engine, unsigned w, unsigned h) {
  *  the portal-confirm prompt's Select/Cancel path through update_transition_prompt().
  */
 inline void advance_with(Engine &engine, input::Action action) {
-  const auto map = world::build_map_view(engine.render, engine.cfg);
+  const auto map = world::build_map_view(engine.render, engine.config);
   input::InputState input{};
   input.pressed.set(static_cast<std::size_t>(action));
-  world::update(engine.scene, engine.cfg, input, map, 1.f / 60.f, static_cast<float>(engine.window_width()),
+  world::update(engine.scene, engine.config, input, map, 1.f / 60.f, static_cast<float>(engine.window_width()),
                 static_cast<float>(engine.window_height()), engine.input_mapper.last_device());
 }
 

@@ -472,7 +472,7 @@ private:
   /** Fade the title music out; called once a playthrough's world has loaded. */
   void stop_title_music() noexcept;
 
-  /** Load `cfg.paths.credits_file` into credits_screen, recording whether it succeeded
+  /** Load `config.paths.credits_file` into credits_screen, recording whether it succeeded
    *  in TitleState::credits_available. A missing path, unreadable file or malformed document
    *  hides the Credits row; a non-empty path that fails logs one warning. A non-empty
    *  background path is loaded through the renderer, logging one warning and leaving the flat

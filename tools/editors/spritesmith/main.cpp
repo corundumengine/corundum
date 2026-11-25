@@ -89,16 +89,16 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  auto cfg_result = corundum::toolkit::host::load_tool_config(argc, argv);
-  if (!cfg_result) {
-    std::println(stderr, "[Spritesmith] FATAL: {}", cfg_result.error());
+  auto config_result = corundum::toolkit::host::load_tool_config(argc, argv);
+  if (!config_result) {
+    std::println(stderr, "[Spritesmith] FATAL: {}", config_result.error());
     return 1;
   }
-  const corundum::toolkit::host::ToolConfig cfg = std::move(*cfg_result);
+  const corundum::toolkit::host::ToolConfig config = std::move(*config_result);
 
   EditorState state;
-  state.tile_diamond_w = cfg.tile_diamond_w;
-  state.tile_diamond_h = cfg.tile_diamond_h;
+  state.tile_diamond_w = config.tile_diamond_w;
+  state.tile_diamond_h = config.tile_diamond_h;
   if (argc == 2) {
     try {
       tools::spritesmith::load_sheet(state, argv[1]);
@@ -123,10 +123,10 @@ int main(int argc, char *argv[]) {
   }
   auto host = std::move(*host_result);
 
-  const corundum::toolkit::widgets::FontHandles fonts = load_tool_fonts(cfg);
+  const corundum::toolkit::widgets::FontHandles fonts = load_tool_fonts(config);
   ThemeColors theme = ApplyEditorThemeRefined();
-  if (!cfg.theme_path.empty()) {
-    if (auto t = load_theme(cfg.theme_path.string()))
+  if (!config.theme_path.empty()) {
+    if (auto t = load_theme(config.theme_path.string()))
       theme = *t;
     else
       std::println(stderr, "[Spritesmith] Theme load failed: {} — using fallback", t.error());

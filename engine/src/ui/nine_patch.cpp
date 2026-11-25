@@ -10,7 +10,8 @@
 
 namespace corundum::ui {
 
-void nine_patch_render(platform::Renderer &r, const NinePatchBorder &border, float x, float y, float w, float h) {
+void nine_patch_render(platform::Renderer &renderer, const NinePatchBorder &border, float x, float y, float w,
+                       float h) {
   if (border.texture_id == platform::TextureId::Invalid || border.tile_w <= 0 || border.tile_h <= 0)
     return;
 
@@ -24,7 +25,7 @@ void nine_patch_render(platform::Renderer &r, const NinePatchBorder &border, flo
   // DrawSprite::scale multiplies the source cell, and position is the quad's top-left,
   // so the edge scales below stretch a cell to the inner span.
   const auto emit = [&](core::math::IntRect src, float px, float py, float scale_x = 1.f, float scale_y = 1.f) {
-    r.draw(platform::DrawSprite{
+    renderer.draw(platform::DrawSprite{
         .texture_id = border.texture_id,
         .position = {.x = px, .y = py},
         .source = src,

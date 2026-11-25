@@ -107,16 +107,16 @@ void drop_battle(Engine &engine, Gameplay &gameplay) noexcept {
   gameplay.battle.reset();
 }
 
-/** Parse ev.args[index] as an int; returns `fallback` if absent, unparseable, or only
+/** Parse event.args[index] as an int; returns `fallback` if absent, unparseable, or only
  *  partially numeric.
  */
-int event_int_arg(const dialogue::EventAction &ev, std::size_t index, int fallback) noexcept {
-  if (index >= ev.args.size())
+int event_int_arg(const dialogue::EventAction &event, std::size_t index, int fallback) noexcept {
+  if (index >= event.args.size())
     return fallback;
-  const std::string &s = ev.args[index];
+  const std::string &text = event.args[index];
   int value{fallback};
-  const auto [end, error] = std::from_chars(s.data(), s.data() + s.size(), value);
-  if (error != std::errc{} || end != s.data() + s.size())
+  const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+  if (error != std::errc{} || end != text.data() + text.size())
     return fallback;
   return value;
 }
@@ -147,33 +147,34 @@ enum class EventHookResult : std::uint8_t {
  *  on the dispatch loop holds. A throwing hook maps to Threw so dispatch does not also report
  *  the event as unknown.
  */
-EventHookResult invoke_event_hook(const Gameplay &gameplay, Engine &engine, const dialogue::EventAction &ev) noexcept {
+EventHookResult invoke_event_hook(const Gameplay &gameplay, Engine &engine,
+                                  const dialogue::EventAction &event) noexcept {
   if (!gameplay.on_event)
     return EventHookResult::NotHandled;
   try {
-    return gameplay.on_event(engine, ev) ? EventHookResult::Handled : EventHookResult::NotHandled;
+    return gameplay.on_event(engine, event) ? EventHookResult::Handled : EventHookResult::NotHandled;
   } catch (...) {
-    warn_log("[gameplay] WARN: on_event handler threw on '{}'", ev.name);
+    warn_log("[gameplay] WARN: on_event handler threw on '{}'", event.name);
     return EventHookResult::Threw;
   }
 }
 
-void handle_play_sound(Engine &engine, const dialogue::EventAction &ev) {
-  const auto result = engine.audio.play_sound(ev.args[0]);
+void handle_play_sound(Engine &engine, const dialogue::EventAction &event) {
+  const auto result = engine.audio.play_sound(event.args[0]);
   if (!result)
     warn_log("[gameplay] WARN: {}", result.error());
 }
 
 void handle_quest_start(Engine &engine, const Gameplay &gameplay, quest::Runner &quest_runner,
-                        const dialogue::EventAction &ev) {
-  const bool already_started = quest::get_stage(ev.args[0], engine.flags) > 0;
-  if (auto result = quest_runner.start(ev.args[0]); !result) {
+                        const dialogue::EventAction &event) {
+  const bool already_started = quest::get_stage(event.args[0], engine.flags) > 0;
+  if (auto result = quest_runner.start(event.args[0]); !result) {
     warn_log("[gameplay] WARN: {}", result.error());
     return;
   }
   if (already_started)
     return;
-  const quest::Quest *quest = gameplay.quests.find(ev.args[0]);
+  const quest::Quest *quest = gameplay.quests.find(event.args[0]);
   if (quest != nullptr)
     engine.notify(std::format("Quest started: {}", quest->name), ui::k_toast_default_colour);
   // Auto-track the newly started quest only when nothing else is tracked, so the HUD has a
@@ -183,21 +184,21 @@ void handle_quest_start(Engine &engine, const Gameplay &gameplay, quest::Runner 
         return started != nullptr && world::has_flag(engine.flags, quest::tracked_flag_key(started->quest_id));
       });
   if (!any_tracked)
-    world::set_flag(engine.flags, quest::tracked_flag_key(ev.args[0]));
+    world::set_flag(engine.flags, quest::tracked_flag_key(event.args[0]));
 }
 
 void handle_quest_advance(Engine &engine, const Gameplay &gameplay, quest::Runner &quest_runner,
-                          const dialogue::EventAction &ev) {
-  const int stage_before = quest::get_stage(ev.args[0], engine.flags);
-  if (auto result = quest_runner.advance(ev.args[0], ev.args[1]); !result) {
+                          const dialogue::EventAction &event) {
+  const int stage_before = quest::get_stage(event.args[0], engine.flags);
+  if (auto result = quest_runner.advance(event.args[0], event.args[1]); !result) {
     warn_log("[gameplay] WARN: {}", result.error());
     return;
   }
   // advance() reports ok even when the stage name was unknown (a logged no-op), so only
   // notify when the stage integer actually moved.
-  if (quest::get_stage(ev.args[0], engine.flags) == stage_before)
+  if (quest::get_stage(event.args[0], engine.flags) == stage_before)
     return;
-  const quest::Quest *quest = gameplay.quests.find(ev.args[0]);
+  const quest::Quest *quest = gameplay.quests.find(event.args[0]);
   if (quest == nullptr)
     return;
   switch (quest::lifecycle(*quest, engine.flags)) {
@@ -219,10 +220,10 @@ std::string item_flag_key(std::string_view id) {
   return std::format("{}{}", item::k_flag_prefix, id);
 }
 
-void handle_take_item(Engine &engine, const dialogue::EventAction &ev) {
-  const std::string key{item_flag_key(ev.args[0])};
+void handle_take_item(Engine &engine, const dialogue::EventAction &event) {
+  const std::string key{item_flag_key(event.args[0])};
   if (const auto it = engine.flags.find(key); it != engine.flags.end()) {
-    it->second -= event_int_arg(ev, 1, /*fallback=*/1);
+    it->second -= event_int_arg(event, 1, /*fallback=*/1);
     if (it->second <= 0)
       engine.flags.erase(it);
   }
@@ -237,81 +238,81 @@ void refuse_fight(Engine &engine, std::string_view reason) {
 /** Queue a `start_encounter(actor, creature, ...)` fight, one pair per hostile; fixed_step()
  *  starts it once the mode is back to Exploring, after the dialogue that asked for it closes.
  */
-void handle_start_encounter(Engine &engine, Gameplay &gameplay, const dialogue::EventAction &ev) {
+void handle_start_encounter(Engine &engine, Gameplay &gameplay, const dialogue::EventAction &event) {
   if (gameplay.battle || gameplay.pending_encounter) {
-    warn_log("[gameplay] WARN: start_encounter('{}') ignored: a fight is already queued or under way", ev.args[0]);
+    warn_log("[gameplay] WARN: start_encounter('{}') ignored: a fight is already queued or under way", event.args[0]);
     return;
   }
-  if (ev.args.size() % 2 != 0) {
+  if (event.args.size() % 2 != 0) {
     refuse_fight(engine, std::format("[gameplay] start_encounter takes actor and creature pairs, not {} arguments",
-                                     ev.args.size()));
+                                     event.args.size()));
     return;
   }
   combat::EncounterRequest request;
-  for (std::size_t i = 0; i < ev.args.size(); i += 2)
-    request.hostiles.push_back({.actor_id = ev.args[i], .creature_id = ev.args[i + 1]});
+  for (std::size_t i = 0; i < event.args.size(); i += 2)
+    request.hostiles.push_back({.actor_id = event.args[i], .creature_id = event.args[i + 1]});
   gameplay.pending_encounter = std::move(request);
 }
 
 /** Add a `reputation(faction, delta)` event's delta to the faction's standing. A non-numeric
  *  delta parses to 0 and is skipped so no zero-valued standing flag is created.
  */
-void handle_reputation(Engine &engine, const dialogue::EventAction &ev) {
-  const int delta = event_int_arg(ev, 1, /*fallback=*/0);
+void handle_reputation(Engine &engine, const dialogue::EventAction &event) {
+  const int delta = event_int_arg(event, 1, /*fallback=*/0);
   if (delta == 0)
     return;
-  const std::string key = faction::standing_flag_key(ev.args[0]);
+  const std::string key = faction::standing_flag_key(event.args[0]);
   engine.flags[key] = world::visit_count(engine.flags, key) + delta;
 }
 
 /** Unlock a codex entry (`unlock_codex('id')`): set its `codex.<id>` flag, mark the codex
  *  cache stale, and notify only when the entry was not already unlocked.
  */
-void handle_unlock_codex(Engine &engine, Gameplay &gameplay, const dialogue::EventAction &ev) {
-  const std::string key{codex::flag_key(ev.args[0])};
+void handle_unlock_codex(Engine &engine, Gameplay &gameplay, const dialogue::EventAction &event) {
+  const std::string key{codex::flag_key(event.args[0])};
   screens::codex_mark_dirty(gameplay.codex_screen);
   if (world::has_flag(engine.flags, key))
     return;
   world::set_flag(engine.flags, key);
-  if (const codex::CodexEntry *entry = gameplay.codex.find(ev.args[0]); entry != nullptr)
+  if (const codex::CodexEntry *entry = gameplay.codex.find(event.args[0]); entry != nullptr)
     engine.notify(std::format("Codex updated: {}", entry->title), ui::k_toast_default_colour);
 }
 
 /** Discover a fast-travel location (`discover_location('id')`): set its discovery flag and
  *  notify only when it was not already known.
  */
-void handle_discover_location(Engine &engine, const Gameplay &gameplay, const dialogue::EventAction &ev) {
-  const std::string key{location::discovery_flag_key(ev.args[0])};
+void handle_discover_location(Engine &engine, const Gameplay &gameplay, const dialogue::EventAction &event) {
+  const std::string key{location::discovery_flag_key(event.args[0])};
   if (world::has_flag(engine.flags, key))
     return;
   world::set_flag(engine.flags, key);
-  if (const location::Location *location = gameplay.locations.find(ev.args[0]); location != nullptr)
+  if (const location::Location *location = gameplay.locations.find(event.args[0]); location != nullptr)
     engine.notify(std::format("Location discovered: {}", location->name), ui::k_toast_default_colour);
 }
 
 /** Open a container's two-pane loot screen (`open_container('id')`). The screen is pushed onto
  *  the UI stack so closing it returns to whatever was beneath (dialogue included).
  */
-void handle_open_container(Engine &engine, Gameplay &gameplay, const dialogue::EventAction &ev) {
-  gameplay.active_container_id = ev.args[0];
+void handle_open_container(Engine &engine, Gameplay &gameplay, const dialogue::EventAction &event) {
+  gameplay.active_container_id = event.args[0];
   gameplay.loot_screen = {};
   engine.scene.ui.push(screens::Loot);
 }
 
 /** Open a merchant's barter screen (`open_shop('id')`). Unknown ids warn and are ignored. */
-void handle_open_shop(Engine &engine, Gameplay &gameplay, const dialogue::EventAction &ev) {
-  if (gameplay.shops.find(ev.args[0]) == nullptr) {
-    warn_log("[gameplay] WARN: open_shop unknown shop '{}'", ev.args[0]);
+void handle_open_shop(Engine &engine, Gameplay &gameplay, const dialogue::EventAction &event) {
+  if (gameplay.shops.find(event.args[0]) == nullptr) {
+    warn_log("[gameplay] WARN: open_shop unknown shop '{}'", event.args[0]);
     return;
   }
-  gameplay.active_shop_id = ev.args[0];
+  gameplay.active_shop_id = event.args[0];
   gameplay.barter_screen = {};
   engine.scene.ui.push(screens::Barter);
 }
 
 /** Add the event's item count to its `item.<id>` flag (`give_item('id', n)`). */
-void handle_give_item(Engine &engine, const dialogue::EventAction &ev) {
-  engine.flags[item_flag_key(ev.args[0])] += event_int_arg(ev, 1, /*fallback=*/1);
+void handle_give_item(Engine &engine, const dialogue::EventAction &event) {
+  engine.flags[item_flag_key(event.args[0])] += event_int_arg(event, 1, /*fallback=*/1);
 }
 
 /** One row of the built-in dialogue-event table. */
@@ -329,84 +330,84 @@ constexpr auto k_builtin_events = std::to_array<BuiltinEvent>({
         .name = "play_sound",
         .min_args = 1,
         .handle = [](Engine &e, Gameplay &, quest::Runner &,
-                     const dialogue::EventAction &ev) { handle_play_sound(e, ev); },
+                     const dialogue::EventAction &event) { handle_play_sound(e, event); },
     },
     {
         .name = "quest_start",
         .min_args = 1,
         .handle = [](Engine &e, Gameplay &g, quest::Runner &q,
-                     const dialogue::EventAction &ev) { handle_quest_start(e, g, q, ev); },
+                     const dialogue::EventAction &event) { handle_quest_start(e, g, q, event); },
     },
     {
         .name = "quest_advance",
         .min_args = 2,
         .handle = [](Engine &e, Gameplay &g, quest::Runner &q,
-                     const dialogue::EventAction &ev) { handle_quest_advance(e, g, q, ev); },
+                     const dialogue::EventAction &event) { handle_quest_advance(e, g, q, event); },
     },
     {
         .name = "give_item",
         .min_args = 1,
         .handle = [](Engine &e, Gameplay &, quest::Runner &,
-                     const dialogue::EventAction &ev) { handle_give_item(e, ev); },
+                     const dialogue::EventAction &event) { handle_give_item(e, event); },
     },
     {
         .name = "take_item",
         .min_args = 1,
         .handle = [](Engine &e, Gameplay &, quest::Runner &,
-                     const dialogue::EventAction &ev) { handle_take_item(e, ev); },
+                     const dialogue::EventAction &event) { handle_take_item(e, event); },
     },
     {
         .name = "unlock_codex",
         .min_args = 1,
         .handle = [](Engine &e, Gameplay &g, quest::Runner &,
-                     const dialogue::EventAction &ev) { handle_unlock_codex(e, g, ev); },
+                     const dialogue::EventAction &event) { handle_unlock_codex(e, g, event); },
     },
     {
         .name = "discover_location",
         .min_args = 1,
         .handle = [](Engine &e, Gameplay &g, quest::Runner &,
-                     const dialogue::EventAction &ev) { handle_discover_location(e, g, ev); },
+                     const dialogue::EventAction &event) { handle_discover_location(e, g, event); },
     },
     {
         .name = "open_container",
         .min_args = 1,
         .handle = [](Engine &e, Gameplay &g, quest::Runner &,
-                     const dialogue::EventAction &ev) { handle_open_container(e, g, ev); },
+                     const dialogue::EventAction &event) { handle_open_container(e, g, event); },
     },
     {
         .name = "open_shop",
         .min_args = 1,
         .handle = [](Engine &e, Gameplay &g, quest::Runner &,
-                     const dialogue::EventAction &ev) { handle_open_shop(e, g, ev); },
+                     const dialogue::EventAction &event) { handle_open_shop(e, g, event); },
     },
     {
         .name = "reputation",
         .min_args = 2,
         .handle = [](Engine &e, Gameplay &, quest::Runner &,
-                     const dialogue::EventAction &ev) { handle_reputation(e, ev); },
+                     const dialogue::EventAction &event) { handle_reputation(e, event); },
     },
     {
         .name = "start_encounter",
         .min_args = 2,
         .handle = [](Engine &e, Gameplay &g, quest::Runner &,
-                     const dialogue::EventAction &ev) { handle_start_encounter(e, g, ev); },
+                     const dialogue::EventAction &event) { handle_start_encounter(e, g, event); },
     },
 });
 
 void dispatch_dialogue_event(Gameplay &gameplay, Engine &engine, quest::Runner &quest_runner,
-                             const dialogue::EventAction &ev) noexcept {
+                             const dialogue::EventAction &event) noexcept {
   try {
     const BuiltinEvent *builtin = nullptr;
     for (const BuiltinEvent &row : k_builtin_events) {
-      if (row.name == ev.name && row.min_args <= ev.args.size()) {
+      if (row.name == event.name && row.min_args <= event.args.size()) {
         builtin = &row;
         break;
       }
     }
     if (builtin != nullptr) {
-      builtin->handle(engine, gameplay, quest_runner, ev);
-    } else if (invoke_event_hook(gameplay, engine, ev) == EventHookResult::NotHandled) {
-      warn_log("[gameplay] WARN: unknown dialogue event '{}'", ev.name);
+      builtin->handle(engine, gameplay, quest_runner, event);
+    } else if (invoke_event_hook(gameplay, engine, event) == EventHookResult::NotHandled) {
+      warn_log("[gameplay] WARN: unknown dialogue event '{}'", event.name);
     }
   } catch (...) {
     // Skip events whose processing throws (e.g. allocation failure); preserves the noexcept
@@ -1096,11 +1097,12 @@ void update_confirm(Engine &engine, Gameplay &gameplay, const input::InputIntent
 /** Draw the confirmation modal while Confirm is the top mode. Pure render; prompt_box_render
  *  owns the layout so there is nothing to share with hit-testing.
  */
-void render_confirm(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 viewport) {
+void render_confirm(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+                    core::math::Vec2 viewport) {
   if (engine.scene.mode() != screens::Confirm)
     return;
-  ui::prompt_box_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border, gameplay.confirm.question,
-                        gameplay.confirm.yes_selected, viewport);
+  ui::prompt_box_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
+                        gameplay.confirm.question, gameplay.confirm.yes_selected, viewport);
 }
 
 /** Move the title cursor by `delta`, wrapping and skipping disabled rows (Continue when no
@@ -1126,8 +1128,8 @@ void apply_title_pointer(const Engine &engine, Gameplay &gameplay, const input::
     return;
   screens::TitleState &state = gameplay.title_screen;
   const screens::TitleLayout layout = screens::title_panel_layout(
-      engine.renderer(), engine.render.panel_skin.style, state, core::game_title(engine.cfg), screen_viewport(engine),
-      engine.input_mapper.last_device());
+      engine.renderer(), engine.render.panel_skin.style, state, core::game_title(engine.config),
+      screen_viewport(engine), engine.input_mapper.last_device());
   const core::math::Vec2 cursor = intent_cursor(intent);
   if (pointer_focus(intent)) {
     if (const int hovered = ui::hovered_row(cursor, layout.rows);
@@ -1175,11 +1177,13 @@ void update_title(Engine &engine, Gameplay &gameplay, const input::InputIntent &
   run_title_row(engine, gameplay, row);
 }
 
-void render_title(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 viewport) {
+void render_title(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+                  core::math::Vec2 viewport) {
   if (engine.scene.mode() != screens::Title)
     return;
-  screens::title_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border, gameplay.title_screen,
-                              core::game_title(engine.cfg), viewport, engine.input_mapper.last_device());
+  screens::title_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
+                              gameplay.title_screen, core::game_title(engine.config), viewport,
+                              engine.input_mapper.last_device());
 }
 
 /** Read the sheet's values again after a change, keeping the cursor on a row that still exists. */
@@ -1228,9 +1232,9 @@ void update_character(Engine &engine, Gameplay &gameplay, const input::InputInte
     activate_character_row(engine, gameplay);
 }
 
-void render_character(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
+void render_character(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
                       core::math::Vec2 viewport) {
-  screens::character_sheet_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
+  screens::character_sheet_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
                                   gameplay.character_sheet_info, viewport, engine.input_mapper.last_device(),
                                   gameplay.character_sheet_state);
 }
@@ -1241,10 +1245,10 @@ void update_loading(Gameplay &gameplay) {
 }
 
 /** Draw "Loading..." and record that it happened, so the next step may run the queued work. */
-void render_loading(const Engine &engine, Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 viewport) {
+void render_loading(const Engine &engine, Gameplay &gameplay, platform::Renderer &renderer, core::math::Vec2 viewport) {
   if (engine.scene.mode() != screens::Loading)
     return;
-  screens::loading_panel_render(r, engine.render.panel_skin.style, viewport);
+  screens::loading_panel_render(renderer, engine.render.panel_skin.style, viewport);
   gameplay.notify_loading_rendered();
 }
 
@@ -1278,10 +1282,11 @@ void update_credits(Engine &engine, Gameplay &gameplay, const input::InputIntent
   state.scroll = std::min(state.scroll + (k_credits_scroll_speed * engine.timer.target_dt), content);
 }
 
-void render_credits(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 viewport) {
+void render_credits(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+                    core::math::Vec2 viewport) {
   if (engine.scene.mode() != screens::Credits)
     return;
-  screens::credits_panel_render(r, engine.render.panel_skin.style, viewport, gameplay.credits_screen);
+  screens::credits_panel_render(renderer, engine.render.panel_skin.style, viewport, gameplay.credits_screen);
 }
 
 /** Step the Splash screen. engine.screen_transition carries each image's fade: the image fades
@@ -1320,10 +1325,11 @@ void update_splash(Engine &engine, Gameplay &gameplay, const input::InputIntent 
     fade.begin_fade_out(screens::k_splash_fade_seconds);
 }
 
-void render_splash(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 viewport) {
+void render_splash(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+                   core::math::Vec2 viewport) {
   if (engine.scene.mode() != screens::Splash)
     return;
-  screens::splash_render(r, viewport, gameplay.splash_screen);
+  screens::splash_render(renderer, viewport, gameplay.splash_screen);
 }
 
 /** Apply mouse intent to the game-over screen: a hovered enabled row takes focus and the wheel moves it. */
@@ -1374,11 +1380,11 @@ void update_game_over(Engine &engine, Gameplay &gameplay, const input::InputInte
                     screens::game_over_row_at(std::clamp(state.cursor, 0, screens::k_game_over_row_count - 1)));
 }
 
-void render_game_over(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
+void render_game_over(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
                       core::math::Vec2 viewport) {
   if (engine.scene.mode() != screens::GameOver)
     return;
-  screens::game_over_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
+  screens::game_over_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
                                   gameplay.game_over_screen, viewport, engine.input_mapper.last_device());
 }
 
@@ -1479,21 +1485,22 @@ void update_save_load(Engine &engine, Gameplay &gameplay, const input::InputInte
   activate_selected_slot(engine, gameplay, state, selected);
 }
 
-void render_save_load(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
+void render_save_load(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
                       core::math::Vec2 viewport) {
   if (engine.scene.mode() != screens::SaveLoad)
     return;
-  screens::save_load_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
+  screens::save_load_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
                                   gameplay.save_load_screen, viewport, engine.input_mapper.last_device());
 }
 
 /** Gameplay HUD strip: hidden while any modal is up. The engine gates the Hud layer on an
  *  empty UI stack and no transition prompt; the dialogue check is defensive.
  */
-void render_hud(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 /*viewport*/) {
+void render_hud(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+                core::math::Vec2 /*viewport*/) {
   if (gameplay.dialogue)
     return;
-  screens::hud_strip_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
+  screens::hud_strip_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
                             screens::build_hud_strip(engine.flags, gameplay.quests, engine.scene.zone_id));
 }
 
@@ -1502,110 +1509,118 @@ void render_hud(const Engine &engine, const Gameplay &gameplay, platform::Render
  *  visibility only — the cached layout and reveal progress are untouched, so popping the
  *  screen above restores the box exactly.
  */
-void render_dialogue(const Engine &engine, Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 viewport) {
+void render_dialogue(const Engine &engine, Gameplay &gameplay, platform::Renderer &renderer,
+                     core::math::Vec2 viewport) {
   if (gameplay.dialogue && engine.scene.mode() == screens::Dialogue)
-    screens::dialog_box_update(gameplay.dialog_box, *gameplay.dialogue, r, viewport, engine.render.panel_skin,
+    screens::dialog_box_update(gameplay.dialog_box, *gameplay.dialogue, renderer, viewport, engine.render.panel_skin,
                                engine.render.text_speed);
   else
     screens::dialog_box_hide(gameplay.dialog_box);
-  screens::dialog_box_render(gameplay.dialog_box, r, engine.render.panel_skin, engine.input_mapper.last_device());
+  screens::dialog_box_render(gameplay.dialog_box, renderer, engine.render.panel_skin,
+                             engine.input_mapper.last_device());
 }
 
-void render_inventory(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r,
+void render_inventory(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
                       core::math::Vec2 viewport) {
-  screens::inventory_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
+  screens::inventory_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
                                   gameplay.inventory_lines, gameplay.inventory_equipment, gameplay.inventory_cursor,
                                   gameplay.inventory_scroll, viewport);
 }
 
-void render_journal(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 viewport) {
+void render_journal(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+                    core::math::Vec2 viewport) {
   screens::journal_panel_render(
-      r, engine.render.panel_skin.style, engine.render.panel_skin.border,
+      renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
       screens::build_journal_entries(gameplay.quests, engine.flags, gameplay.journal_screen.tab, engine.scene.zone_id),
       gameplay.journal_screen, viewport, engine.input_mapper.last_device());
 }
 
-void render_codex(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 viewport) {
+void render_codex(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+                  core::math::Vec2 viewport) {
   if (engine.scene.mode() != screens::Codex)
     return;
-  screens::codex_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
+  screens::codex_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
                               gameplay.codex_screen.entries, gameplay.codex_screen.cursor, gameplay.codex_screen.scroll,
                               viewport, engine.input_mapper.last_device());
 }
 
-void render_map(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 viewport) {
+void render_map(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+                core::math::Vec2 viewport) {
   if (engine.scene.mode() != screens::Map)
     return;
-  screens::map_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border,
+  screens::map_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
                             screens::build_map_entries(gameplay.locations, engine.flags, engine.scene.zone_id),
                             gameplay.map_screen.cursor, gameplay.map_screen.scroll, viewport,
                             engine.input_mapper.last_device());
 }
 
-void render_loot(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 viewport) {
+void render_loot(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+                 core::math::Vec2 viewport) {
   if (engine.scene.mode() != screens::Loot)
     return;
   const std::string container_name =
       gameplay.active_container_id.empty() ? std::string{"Container"} : gameplay.active_container_id;
-  screens::loot_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border, container_name,
+  screens::loot_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border, container_name,
                              screens::build_item_lines(engine.flags, gameplay.items,
                                                        item::container_flag_prefix(gameplay.active_container_id)),
                              screens::build_item_lines(engine.flags, gameplay.items, item::k_flag_prefix),
                              gameplay.loot_screen, viewport, engine.input_mapper.last_device());
 }
 
-void render_barter(const Engine &engine, const Gameplay &gameplay, platform::Renderer &r, core::math::Vec2 viewport) {
+void render_barter(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+                   core::math::Vec2 viewport) {
   if (engine.scene.mode() != screens::Barter)
     return;
   const shop::Shop *shop = gameplay.shops.find(gameplay.active_shop_id);
   if (shop == nullptr)
     return;
   const std::vector<screens::BarterLine> lines = screens::build_barter_stock(*shop, gameplay.items);
-  screens::barter_panel_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border, shop->name,
+  screens::barter_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border, shop->name,
                                world::visit_count(engine.flags, screens::k_gold_flag), lines, gameplay.barter_screen,
                                viewport, engine.input_mapper.last_device());
 }
 
 /** The hub tab strip draws over every hub panel, in the top margin so it never overlaps one. */
-void render_hub_strip(const Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) {
+void render_hub_strip(const Engine &engine, platform::Renderer &renderer, core::math::Vec2 viewport) {
   if (!screens::is_hub_mode(engine.scene.mode()))
     return;
-  screens::hub_tab_strip_render(r, engine.render.panel_skin.style, engine.scene.mode(), viewport,
+  screens::hub_tab_strip_render(renderer, engine.render.panel_skin.style, engine.scene.mode(), viewport,
                                 engine.input_mapper.last_device());
 }
 
 void load_content(Gameplay &gameplay, Engine &engine) {
   int dialogue_loaded{0};
-  if (!engine.cfg.paths.dialogue_dir.empty())
-    dialogue_loaded = gameplay.graphs.load_all(engine.content_source(), engine.cfg.paths.dialogue_dir);
+  if (!engine.config.paths.dialogue_dir.empty())
+    dialogue_loaded = gameplay.graphs.load_all(engine.content_source(), engine.config.paths.dialogue_dir);
   corundum::detail::info_log("[gameplay] Loaded {} dialogue graphs from '{}'", dialogue_loaded,
-                             engine.cfg.paths.dialogue_dir);
+                             engine.config.paths.dialogue_dir);
 
   int quest_loaded{0};
-  if (!engine.cfg.paths.quests_dir.empty())
-    quest_loaded = gameplay.quests.load_all(engine.content_source(), engine.cfg.paths.quests_dir);
-  corundum::detail::info_log("[gameplay] Loaded {} quests from '{}'", quest_loaded, engine.cfg.paths.quests_dir);
+  if (!engine.config.paths.quests_dir.empty())
+    quest_loaded = gameplay.quests.load_all(engine.content_source(), engine.config.paths.quests_dir);
+  corundum::detail::info_log("[gameplay] Loaded {} quests from '{}'", quest_loaded, engine.config.paths.quests_dir);
 
   int item_loaded{0};
-  if (!engine.cfg.paths.items_dir.empty())
-    item_loaded = gameplay.items.load_all(engine.content_source(), engine.cfg.paths.items_dir);
-  corundum::detail::info_log("[gameplay] Loaded {} items from '{}'", item_loaded, engine.cfg.paths.items_dir);
+  if (!engine.config.paths.items_dir.empty())
+    item_loaded = gameplay.items.load_all(engine.content_source(), engine.config.paths.items_dir);
+  corundum::detail::info_log("[gameplay] Loaded {} items from '{}'", item_loaded, engine.config.paths.items_dir);
 
   int codex_loaded{0};
-  if (!engine.cfg.paths.codex_dir.empty())
-    codex_loaded = gameplay.codex.load_all(engine.content_source(), engine.cfg.paths.codex_dir);
-  corundum::detail::info_log("[gameplay] Loaded {} codex entries from '{}'", codex_loaded, engine.cfg.paths.codex_dir);
+  if (!engine.config.paths.codex_dir.empty())
+    codex_loaded = gameplay.codex.load_all(engine.content_source(), engine.config.paths.codex_dir);
+  corundum::detail::info_log("[gameplay] Loaded {} codex entries from '{}'", codex_loaded,
+                             engine.config.paths.codex_dir);
 
   int location_loaded{0};
-  if (!engine.cfg.paths.locations_dir.empty())
-    location_loaded = gameplay.locations.load_all(engine.content_source(), engine.cfg.paths.locations_dir);
+  if (!engine.config.paths.locations_dir.empty())
+    location_loaded = gameplay.locations.load_all(engine.content_source(), engine.config.paths.locations_dir);
   corundum::detail::info_log("[gameplay] Loaded {} locations from '{}'", location_loaded,
-                             engine.cfg.paths.locations_dir);
+                             engine.config.paths.locations_dir);
 
   int shop_loaded{0};
-  if (!engine.cfg.paths.shops_dir.empty())
-    shop_loaded = gameplay.shops.load_all(engine.content_source(), engine.cfg.paths.shops_dir);
-  corundum::detail::info_log("[gameplay] Loaded {} shops from '{}'", shop_loaded, engine.cfg.paths.shops_dir);
+  if (!engine.config.paths.shops_dir.empty())
+    shop_loaded = gameplay.shops.load_all(engine.content_source(), engine.config.paths.shops_dir);
+  corundum::detail::info_log("[gameplay] Loaded {} shops from '{}'", shop_loaded, engine.config.paths.shops_dir);
 
   validate_quest_references(gameplay.graphs, gameplay.quests, gameplay.items);
   for (const auto &[shop_id, shop] : gameplay.shops) {
@@ -1714,8 +1729,8 @@ constexpr float k_target_line_thickness = 2.f;
 /** Outline the fight's target's tile in the selected colour, through the view the world just
  *  drew with so the outline stays on the ground while the camera moves.
  */
-void draw_target_marker(const Engine &engine, const combat::Battle &battle, platform::Renderer &r) {
-  const world::MapView map = world::build_map_view(engine.render, engine.cfg);
+void draw_target_marker(const Engine &engine, const combat::Battle &battle, platform::Renderer &renderer) {
+  const world::MapView map = world::build_map_view(engine.render, engine.config);
   const std::optional<world::TileCoord> target_tile = battle.target_tile();
   if (!target_tile)
     return;
@@ -1726,24 +1741,24 @@ void draw_target_marker(const Engine &engine, const combat::Battle &battle, plat
 
   const render::WorldView &view = engine.render.world_view;
   const core::math::Colour target_colour = engine.render.panel_skin.style.selected;
-  r.set_world_view(view.camera, view.viewport_size, view.zoom);
+  renderer.set_world_view(view.camera, view.viewport_size, view.zoom);
   for (std::size_t i = 0; i < corners.size(); ++i) {
-    r.draw(platform::DrawLine{
+    renderer.draw(platform::DrawLine{
         .start = corners[i],
         .end = corners[(i + 1) % corners.size()],
         .colour = target_colour,
         .thickness = k_target_line_thickness,
     });
   }
-  r.reset_screen_view();
+  renderer.reset_screen_view();
 }
 
 /** Draw the target's tile marker, then the combat HUD with `banner` (empty for none). */
-void render_combat(const Engine &engine, const combat::Battle &battle, platform::Renderer &r, core::math::Vec2 viewport,
-                   std::string_view banner) {
-  draw_target_marker(engine, battle, r);
-  screens::combat_hud_render(r, engine.render.panel_skin.style, engine.render.panel_skin.border, battle.hud(), viewport,
-                             engine.input_mapper.last_device(), banner);
+void render_combat(const Engine &engine, const combat::Battle &battle, platform::Renderer &renderer,
+                   core::math::Vec2 viewport, std::string_view banner) {
+  draw_target_marker(engine, battle, renderer);
+  screens::combat_hud_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border, battle.hud(),
+                             viewport, engine.input_mapper.last_device(), banner);
 }
 
 /** The paused fight's banner: "Paused" and the key that resumes it. */
@@ -1756,26 +1771,27 @@ std::string paused_banner(input::InputDevice device) {
  */
 void register_hub_screens(Gameplay &gameplay, Engine &engine) {
   engine.screens.add(screens::Dialogue, ScreenSpec{.owns_step = false});
-  engine.screens.add(screens::Combat, ScreenSpec{
-                                          .handles_back = false,
-                                          .owns_step = false,
-                                          .world_step = world::WorldStep::Runs,
-                                          .render =
-                                              [&gameplay](Engine &e, platform::Renderer &r, core::math::Vec2 viewport) {
-                                                if (gameplay.battle)
-                                                  render_combat(e, *gameplay.battle, r, viewport, "");
-                                              },
-                                      });
+  engine.screens.add(screens::Combat,
+                     ScreenSpec{
+                         .handles_back = false,
+                         .owns_step = false,
+                         .world_step = world::WorldStep::Runs,
+                         .render =
+                             [&gameplay](Engine &e, platform::Renderer &renderer, core::math::Vec2 viewport) {
+                               if (gameplay.battle)
+                                 render_combat(e, *gameplay.battle, renderer, viewport, "");
+                             },
+                     });
   engine.screens.add(screens::CombatPaused,
                      ScreenSpec{
                          .handles_back = false,
                          .owns_step = false,
                          .render =
-                             [&gameplay](Engine &e, platform::Renderer &r, core::math::Vec2 viewport) {
+                             [&gameplay](Engine &e, platform::Renderer &renderer, core::math::Vec2 viewport) {
                                if (!gameplay.battle)
                                  return;
                                const std::string banner = paused_banner(e.input_mapper.last_device());
-                               render_combat(e, *gameplay.battle, r, viewport, banner);
+                               render_combat(e, *gameplay.battle, renderer, viewport, banner);
                              },
                      });
   engine.screens.add(
@@ -1783,24 +1799,24 @@ void register_hub_screens(Gameplay &gameplay, Engine &engine) {
       ScreenSpec{
           .owns_step = true,
           .update = [&gameplay](Engine &e, const input::InputIntent &intent) { update_inventory(e, gameplay, intent); },
-          .render = [&gameplay](Engine &e, platform::Renderer &r,
-                                core::math::Vec2 viewport) { render_inventory(e, gameplay, r, viewport); },
+          .render = [&gameplay](Engine &e, platform::Renderer &renderer,
+                                core::math::Vec2 viewport) { render_inventory(e, gameplay, renderer, viewport); },
       });
   engine.screens.add(
       screens::Character,
       ScreenSpec{
           .owns_step = true,
           .update = [&gameplay](Engine &e, const input::InputIntent &intent) { update_character(e, gameplay, intent); },
-          .render = [&gameplay](Engine &e, platform::Renderer &r,
-                                core::math::Vec2 viewport) { render_character(e, gameplay, r, viewport); },
+          .render = [&gameplay](Engine &e, platform::Renderer &renderer,
+                                core::math::Vec2 viewport) { render_character(e, gameplay, renderer, viewport); },
       });
   engine.screens.add(
       screens::Journal,
       ScreenSpec{
           .owns_step = true,
           .update = [&gameplay](Engine &e, const input::InputIntent &intent) { update_journal(e, gameplay, intent); },
-          .render = [&gameplay](Engine &e, platform::Renderer &r,
-                                core::math::Vec2 viewport) { render_journal(e, gameplay, r, viewport); },
+          .render = [&gameplay](Engine &e, platform::Renderer &renderer,
+                                core::math::Vec2 viewport) { render_journal(e, gameplay, renderer, viewport); },
       });
   engine.screens.add(
       screens::Codex,
@@ -1835,8 +1851,8 @@ void register_modal_screens(Gameplay &gameplay, Engine &engine) {
       ScreenSpec{
           .owns_step = true,
           .update = [&gameplay](Engine &e, const input::InputIntent &intent) { update_confirm(e, gameplay, intent); },
-          .render = [&gameplay](Engine &e, platform::Renderer &r,
-                                core::math::Vec2 viewport) { render_confirm(e, gameplay, r, viewport); },
+          .render = [&gameplay](Engine &e, platform::Renderer &renderer,
+                                core::math::Vec2 viewport) { render_confirm(e, gameplay, renderer, viewport); },
       });
 }
 
@@ -1847,47 +1863,48 @@ void register_framing_screens(Gameplay &gameplay, Engine &engine) {
       ScreenSpec{
           .owns_step = true,
           .update = [&gameplay](Engine &e, const input::InputIntent &intent) { update_splash(e, gameplay, intent); },
-          .render = [&gameplay](Engine &e, platform::Renderer &r,
-                                core::math::Vec2 viewport) { render_splash(e, gameplay, r, viewport); },
+          .render = [&gameplay](Engine &e, platform::Renderer &renderer,
+                                core::math::Vec2 viewport) { render_splash(e, gameplay, renderer, viewport); },
       });
   engine.screens.add(
       screens::Title,
       ScreenSpec{
           .owns_step = true,
           .update = [&gameplay](Engine &e, const input::InputIntent &intent) { update_title(e, gameplay, intent); },
-          .render = [&gameplay](Engine &e, platform::Renderer &r,
-                                core::math::Vec2 viewport) { render_title(e, gameplay, r, viewport); },
+          .render = [&gameplay](Engine &e, platform::Renderer &renderer,
+                                core::math::Vec2 viewport) { render_title(e, gameplay, renderer, viewport); },
       });
   engine.screens.add(
       screens::SaveLoad,
       ScreenSpec{
           .owns_step = true,
           .update = [&gameplay](Engine &e, const input::InputIntent &intent) { update_save_load(e, gameplay, intent); },
-          .render = [&gameplay](Engine &e, platform::Renderer &r,
-                                core::math::Vec2 viewport) { render_save_load(e, gameplay, r, viewport); },
+          .render = [&gameplay](Engine &e, platform::Renderer &renderer,
+                                core::math::Vec2 viewport) { render_save_load(e, gameplay, renderer, viewport); },
       });
   engine.screens.add(
       screens::GameOver,
       ScreenSpec{
           .owns_step = true,
           .update = [&gameplay](Engine &e, const input::InputIntent &intent) { update_game_over(e, gameplay, intent); },
-          .render = [&gameplay](Engine &e, platform::Renderer &r,
-                                core::math::Vec2 viewport) { render_game_over(e, gameplay, r, viewport); },
+          .render = [&gameplay](Engine &e, platform::Renderer &renderer,
+                                core::math::Vec2 viewport) { render_game_over(e, gameplay, renderer, viewport); },
       });
-  engine.screens.add(screens::Loading,
-                     ScreenSpec{
-                         .owns_step = true,
-                         .update = [&gameplay](Engine &, const input::InputIntent &) { update_loading(gameplay); },
-                         .render = [&gameplay](Engine &e, platform::Renderer &r,
-                                               core::math::Vec2 viewport) { render_loading(e, gameplay, r, viewport); },
-                     });
+  engine.screens.add(
+      screens::Loading,
+      ScreenSpec{
+          .owns_step = true,
+          .update = [&gameplay](Engine &, const input::InputIntent &) { update_loading(gameplay); },
+          .render = [&gameplay](Engine &e, platform::Renderer &renderer,
+                                core::math::Vec2 viewport) { render_loading(e, gameplay, renderer, viewport); },
+      });
   engine.screens.add(
       screens::Credits,
       ScreenSpec{
           .owns_step = true,
           .update = [&gameplay](Engine &e, const input::InputIntent &intent) { update_credits(e, gameplay, intent); },
-          .render = [&gameplay](Engine &e, platform::Renderer &r,
-                                core::math::Vec2 viewport) { render_credits(e, gameplay, r, viewport); },
+          .render = [&gameplay](Engine &e, platform::Renderer &renderer,
+                                core::math::Vec2 viewport) { render_credits(e, gameplay, renderer, viewport); },
       });
 }
 
@@ -1913,20 +1930,23 @@ void register_hooks(Gameplay &gameplay, Engine &engine) {
 
 /** Register the gameplay render layers. */
 void register_render_layers(Gameplay &gameplay, Engine &engine) {
-  engine.screens.add_layer(RenderLayer::Hud, [&gameplay](Engine &e, platform::Renderer &r, core::math::Vec2 v) {
-    render_hud(e, gameplay, r, v);
+  engine.screens.add_layer(RenderLayer::Hud, [&gameplay](Engine &e, platform::Renderer &renderer, core::math::Vec2 v) {
+    render_hud(e, gameplay, renderer, v);
   });
-  engine.screens.add_layer(RenderLayer::Modal, [&gameplay](Engine &e, platform::Renderer &r, core::math::Vec2 v) {
-    render_dialogue(e, gameplay, r, v);
+  engine.screens.add_layer(RenderLayer::Modal,
+                           [&gameplay](Engine &e, platform::Renderer &renderer, core::math::Vec2 v) {
+                             render_dialogue(e, gameplay, renderer, v);
+                           });
+  engine.screens.add_layer(RenderLayer::HubPanel,
+                           [&gameplay](Engine &e, platform::Renderer &renderer, core::math::Vec2 v) {
+                             render_codex(e, gameplay, renderer, v);
+                             render_map(e, gameplay, renderer, v);
+                             render_loot(e, gameplay, renderer, v);
+                             render_barter(e, gameplay, renderer, v);
+                           });
+  engine.screens.add_layer(RenderLayer::HubStrip, [](Engine &e, platform::Renderer &renderer, core::math::Vec2 v) {
+    render_hub_strip(e, renderer, v);
   });
-  engine.screens.add_layer(RenderLayer::HubPanel, [&gameplay](Engine &e, platform::Renderer &r, core::math::Vec2 v) {
-    render_codex(e, gameplay, r, v);
-    render_map(e, gameplay, r, v);
-    render_loot(e, gameplay, r, v);
-    render_barter(e, gameplay, r, v);
-  });
-  engine.screens.add_layer(RenderLayer::HubStrip,
-                           [](Engine &e, platform::Renderer &r, core::math::Vec2 v) { render_hub_strip(e, r, v); });
 }
 
 /** Register the gameplay framework with `engine`: its fixed-step system, hub input hook,
@@ -1963,11 +1983,11 @@ void Gameplay::process_events() noexcept {
   const std::vector<dialogue::EventAction> events = std::exchange(pending_dialogue_events, {});
   const std::uint64_t batch_generation = session_generation_;
   quest::Runner quest_runner{quests, engine_->flags};
-  for (const dialogue::EventAction &ev : events) {
+  for (const dialogue::EventAction &event : events) {
     // Events after a session reset belong to the session that just ended.
     if (session_generation_ != batch_generation)
       break;
-    dispatch_dialogue_event(*this, *engine_, quest_runner, ev);
+    dispatch_dialogue_event(*this, *engine_, quest_runner, event);
   }
 }
 
@@ -2095,7 +2115,7 @@ void Gameplay::open_confirm(std::string question, std::function<void(Gameplay &)
 void Gameplay::open_title() {
   title_screen = {};
   if (engine_->user_storage) {
-    const std::vector<save::SaveSlotInfo> slots = save::list_saves(**engine_->user_storage, engine_->cfg.game_id);
+    const std::vector<save::SaveSlotInfo> slots = save::list_saves(**engine_->user_storage, engine_->config.game_id);
     title_screen.continue_available = screens::newest_valid_slot(slots).has_value();
   }
   refresh_credits();
@@ -2108,7 +2128,7 @@ void Gameplay::open_title() {
 bool Gameplay::open_splash() {
   splash_screen = {};
   platform::Renderer &renderer = engine_->renderer();
-  for (const std::string &path : engine_->cfg.paths.splash_images) {
+  for (const std::string &path : engine_->config.paths.splash_images) {
     const std::expected<platform::TextureId, std::string> texture = renderer.load_texture(path);
     if (!texture) {
       warn_log("[splash] cannot load '{}': {} (image skipped)", path, texture.error());
@@ -2146,7 +2166,7 @@ void Gameplay::advance_splash() {
 }
 
 void Gameplay::open_first_screen() {
-  if (engine_->cfg.show_title) {
+  if (engine_->config.show_title) {
     open_title();
     return;
   }
@@ -2158,7 +2178,7 @@ void Gameplay::open_first_screen() {
 }
 
 void Gameplay::play_title_music() {
-  const core::TitleMusicConfig &music = engine_->cfg.title_music;
+  const core::TitleMusicConfig &music = engine_->config.title_music;
   if (music.track.empty())
     return;
   const audio::MusicPlayback playback{
@@ -2185,7 +2205,7 @@ void Gameplay::refresh_credits() {
   // purge, and the reference is re-taken below before any purge.
   engine_->renderer().release_texture(credits_screen.background_texture);
   credits_screen = {};
-  const std::string &path = engine_->cfg.paths.credits_file;
+  const std::string &path = engine_->config.paths.credits_file;
   if (path.empty())
     return;
   std::expected<credits::CreditsFile, std::string> loaded =
@@ -2253,7 +2273,7 @@ void Gameplay::open_save_load(SaveLoadIntent intent) {
   save_load_screen = {};
   save_load_screen.saving = intent == SaveLoadIntent::Save;
   if (engine_->user_storage) {
-    save_load_screen.slots = screens::build_slot_rows(**engine_->user_storage, engine_->cfg.game_id);
+    save_load_screen.slots = screens::build_slot_rows(**engine_->user_storage, engine_->config.game_id);
   } else {
     engine_->notify(std::format("Cannot open saves: {}", engine_->user_storage.error()), ui::k_toast_failed_colour);
   }
@@ -2263,7 +2283,7 @@ void Gameplay::open_save_load(SaveLoadIntent intent) {
 std::expected<void, std::string> Gameplay::begin_new_playthrough() {
   Engine &engine = *engine_;
   engine.flags.clear();
-  for (const auto &[key, value] : engine.cfg.starting_flags)
+  for (const auto &[key, value] : engine.config.starting_flags)
     engine.flags[key] = value;
   engine.entered_from_world = false;
   playthrough = {};
@@ -2313,7 +2333,7 @@ std::expected<void, std::string> Gameplay::continue_game() {
     engine_->notify(std::format("Load failed: {}", engine_->user_storage.error()), ui::k_toast_failed_colour);
     return std::unexpected(engine_->user_storage.error());
   }
-  const std::vector<save::SaveSlotInfo> slots = save::list_saves(**engine_->user_storage, engine_->cfg.game_id);
+  const std::vector<save::SaveSlotInfo> slots = save::list_saves(**engine_->user_storage, engine_->config.game_id);
   const std::optional<std::string> newest = screens::newest_valid_slot(slots);
   if (!newest) {
     engine_->notify("No saved game to continue");

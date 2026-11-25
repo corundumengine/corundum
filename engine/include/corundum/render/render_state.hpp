@@ -252,10 +252,10 @@ struct CollisionGeometry {
 
 /** Isometric projection of a single map. */
 [[nodiscard]] inline core::math::IsometricParams isometric_params(const SingleMapArea &area,
-                                                                  const core::GameConfig &cfg) noexcept {
+                                                                  const core::GameConfig &config) noexcept {
   const world::tilemap::Tilemap &tm = area.map.tilemap;
-  return core::math::compute_isometric_params(tm.diamond_w(), tm.diamond_h(), tm.height, cfg.tile_scale,
-                                              cfg.elevation_step_px);
+  return core::math::compute_isometric_params(tm.diamond_w(), tm.diamond_h(), tm.height, config.tile_scale,
+                                              config.elevation_step_px);
 }
 
 /** Isometric projection of a streamed world: the first active chunk's diamond over the
@@ -263,12 +263,12 @@ struct CollisionGeometry {
  *  @pre area.chunks is non-empty, and every active chunk shares one diamond size.
  */
 [[nodiscard]] inline core::math::IsometricParams isometric_params(const WorldArea &area,
-                                                                  const core::GameConfig &cfg) noexcept {
+                                                                  const core::GameConfig &config) noexcept {
   assert(!area.chunks.active_empty());
   const world::tilemap::Tilemap &first = area.chunks.active_at(0).tilemap;
   return core::math::compute_isometric_params(first.diamond_w(), first.diamond_h(),
-                                              area.manifest.effective_tiles_tall(), cfg.tile_scale,
-                                              cfg.elevation_step_px);
+                                              area.manifest.effective_tiles_tall(), config.tile_scale,
+                                              config.elevation_step_px);
 }
 
 } // namespace corundum::render

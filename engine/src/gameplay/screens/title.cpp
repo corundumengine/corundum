@@ -76,12 +76,12 @@ bool title_row_enabled(TitleRow row, bool continue_available) noexcept {
   return row != TitleRow::Continue || continue_available;
 }
 
-TitleLayout title_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style, const TitleState &state,
+TitleLayout title_panel_layout(const platform::Renderer &renderer, const ui::PanelStyle &style, const TitleState &state,
                                std::string_view title, core::math::Vec2 viewport, input::InputDevice last_device) {
   std::array<std::string_view, k_title_row_count> storage{};
   const std::span<const std::string_view> labels = title_labels(state, storage);
   const detail::FramingMenuLayout framing =
-      detail::framing_menu_layout(r, style, viewport, labels, title, title_footer(last_device));
+      detail::framing_menu_layout(renderer, style, viewport, labels, title, title_footer(last_device));
   return TitleLayout{
       .panel_pos = framing.panel_pos,
       .panel_size = framing.panel_size,
@@ -89,7 +89,7 @@ TitleLayout title_panel_layout(const platform::Renderer &r, const ui::PanelStyle
   };
 }
 
-void title_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+void title_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                         const TitleState &state, std::string_view title, core::math::Vec2 viewport,
                         input::InputDevice last_device) {
   std::array<std::string_view, k_title_row_count> storage{};
@@ -102,9 +102,10 @@ void title_panel_render(platform::Renderer &r, const ui::PanelStyle &style, cons
   }
 
   const detail::FramingMenuLayout framing =
-      detail::framing_menu_layout(r, style, viewport, labels, title, title_footer(last_device));
-  detail::framing_menu_render(r, style, border, framing, labels, std::span<const bool>(enabled).first(labels.size()),
-                              state.cursor, title, title_footer(last_device), viewport);
+      detail::framing_menu_layout(renderer, style, viewport, labels, title, title_footer(last_device));
+  detail::framing_menu_render(renderer, style, border, framing, labels,
+                              std::span<const bool>(enabled).first(labels.size()), state.cursor, title,
+                              title_footer(last_device), viewport);
 }
 
 } // namespace corundum::gameplay::screens

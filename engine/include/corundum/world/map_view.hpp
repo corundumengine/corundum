@@ -4,6 +4,7 @@
 #pragma once
 #include <corundum/core/game_config.hpp>
 #include <corundum/core/math/isometric.hpp>
+#include <corundum/core/math/vec.hpp>
 #include <corundum/world/portals/portal.hpp>
 #include <corundum/world/tilemap/tilemap.hpp>
 #include <corundum/world/tilemap/walkability.hpp>
@@ -27,17 +28,11 @@ struct MapView {
   corundum::world::tilemap::CollisionRectsView collisions;
   corundum::world::tilemap::CollisionTrianglesView collision_triangles;
 
-  /** Total isometric world width in display pixels. */
-  float world_w_px{0.f};
+  /** Total isometric world size in display pixels. */
+  WorldBounds world_bounds{};
 
-  /** Total isometric world height in display pixels. */
-  float world_h_px{0.f};
-
-  /** Total map width in tile-grid columns. */
-  float world_w_tiles{0.f};
-
-  /** Total map height in tile-grid rows. */
-  float world_h_tiles{0.f};
+  /** Total map size in tile-grid columns (`width`) and rows (`height`). */
+  core::math::IntSize world_size_tiles{};
 
   /** Diamond, origin and elevation step this map draws and picks with. */
   core::math::IsometricParams projection{};
@@ -104,7 +99,7 @@ struct MapView {
  *  Handles both single-map and multi-chunk render modes.
  *
  *  @param render Current render state (collision data, tilemap info).
- *  @param cfg    Game configuration (tile scale).
+ *  @param config Game configuration (tile scale).
  *  @return A fully-populated MapView ready for the simulation step.
  *  @pre In World mode with resident chunks, every active chunk shares one diamond size
  *       and the world aggregates have already been rebuilt by rebuild_world_aggregates().
@@ -114,7 +109,7 @@ struct MapView {
  *  @note With no area, or a world with no resident chunks, returns the view of an empty
  *        single map.
  */
-[[nodiscard]] MapView build_map_view(const render::RenderState &render, const core::GameConfig &cfg) noexcept;
+[[nodiscard]] MapView build_map_view(const render::RenderState &render, const core::GameConfig &config) noexcept;
 
 /** World bounds of a single (non-chunked) tilemap.
  *

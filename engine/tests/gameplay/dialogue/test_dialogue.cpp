@@ -24,6 +24,7 @@
 
 #include "memory_content_source.hpp"
 #include <nlohmann/json.hpp>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -184,20 +185,20 @@ TEST_CASE("parse_action: add and subtract") {
 TEST_CASE("parse_action: event call") {
   auto r = corundum::gameplay::dialogue::parse_action("play_sound('coin')");
   REQUIRE(r.has_value());
-  const auto &ev = std::get<corundum::gameplay::dialogue::EventAction>(*r);
-  CHECK(ev.name == "play_sound");
-  REQUIRE(ev.args.size() == 1);
-  CHECK(ev.args[0] == "coin");
+  const auto &event = std::get<corundum::gameplay::dialogue::EventAction>(*r);
+  CHECK(event.name == "play_sound");
+  REQUIRE(event.args.size() == 1);
+  CHECK(event.args[0] == "coin");
 }
 
 TEST_CASE("parse_action: event call with multiple args") {
   auto r = corundum::gameplay::dialogue::parse_action("trigger_event('play_sound', 'inn_door')");
   REQUIRE(r.has_value());
-  const auto &ev = std::get<corundum::gameplay::dialogue::EventAction>(*r);
-  CHECK(ev.name == "trigger_event");
-  REQUIRE(ev.args.size() == 2);
-  CHECK(ev.args[0] == "play_sound");
-  CHECK(ev.args[1] == "inn_door");
+  const auto &event = std::get<corundum::gameplay::dialogue::EventAction>(*r);
+  CHECK(event.name == "trigger_event");
+  REQUIRE(event.args.size() == 2);
+  CHECK(event.args[0] == "play_sound");
+  CHECK(event.args[1] == "inn_door");
 }
 
 TEST_CASE("parse_action: parse error returns ActionError") {
@@ -675,6 +676,62 @@ TEST_CASE("validate_quest_refs: null items registry skips item checks") {
 
   // No item registry (loom) — item references are not validated.
   const auto errors = validate_quest_refs(g, {});
+  CHECK(errors.empty());
+}
+
+namespace {
+
+/** A one-node event graph whose node `n0` runs `actions`. */
+corundum::gameplay::dialogue::Graph make_event_graph(std::vector<std::string> actions) {
+  corundum::gameplay::dialogue::Graph graph;
+  graph.graph_id = "events";
+  corundum::gameplay::dialogue::Node node;
+  node.id = "n0";
+  node.type = corundum::gameplay::dialogue::NodeType::Event;
+  node.next_id = "end";
+  node.actions = std::move(actions);
+  graph.nodes.push_back(std::move(node));
+  return graph;
+}
+
+/** A quest registry holding quest `ember` with the single stage `start`. */
+corundum::gameplay::quest::Registry make_ember_quests() {
+  corundum::gameplay::quest::Registry quests;
+  corundum::gameplay::quest::Quest quest;
+  quest.quest_id = "ember";
+  quest.name = "Ember";
+  quest.stages.push_back({.name = "start", .sequence = 1});
+  quests.add(std::move(quest));
+  return quests;
+}
+
+} // namespace
+
+// Characterization: recorded before splitting check_action_quest_refs by event kind.
+TEST_CASE("validate_quest_refs: quest_start naming an unknown quest is reported") {
+  const auto errors = corundum::gameplay::dialogue::validate_quest_refs(make_event_graph({"quest_start('missing')"}),
+                                                                        make_ember_quests());
+  CHECK_EQ(errors, std::vector<std::string>{"node 'n0': quest_start references unknown quest 'missing'"});
+}
+
+// Characterization: recorded before splitting check_action_quest_refs by event kind.
+TEST_CASE("validate_quest_refs: quest_advance naming an unknown quest is reported") {
+  const auto errors = corundum::gameplay::dialogue::validate_quest_refs(
+      make_event_graph({"quest_advance('missing', 'start')"}), make_ember_quests());
+  CHECK_EQ(errors, std::vector<std::string>{"node 'n0': quest_advance references unknown quest 'missing'"});
+}
+
+// Characterization: recorded before splitting check_action_quest_refs by event kind.
+TEST_CASE("validate_quest_refs: quest_advance naming an unknown stage is reported") {
+  const auto errors = corundum::gameplay::dialogue::validate_quest_refs(
+      make_event_graph({"quest_advance('ember', 'finale')"}), make_ember_quests());
+  CHECK_EQ(errors, std::vector<std::string>{"node 'n0': quest_advance references unknown stage 'finale' in 'ember'"});
+}
+
+// Characterization: recorded before splitting check_action_quest_refs by event kind.
+TEST_CASE("validate_quest_refs: quest_advance with only a quest argument is not checked") {
+  const auto errors = corundum::gameplay::dialogue::validate_quest_refs(make_event_graph({"quest_advance('missing')"}),
+                                                                        make_ember_quests());
   CHECK(errors.empty());
 }
 

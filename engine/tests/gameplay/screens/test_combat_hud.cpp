@@ -106,29 +106,30 @@ screens::CombatHud make_second_page_hud() {
   return hud;
 }
 
-void render(RecordingRenderer &r, const screens::CombatHud &hud, InputDevice device, std::string_view banner) {
+void render(RecordingRenderer &renderer, const screens::CombatHud &hud, InputDevice device, std::string_view banner) {
   const corundum::ui::PanelStyle style{};
   const corundum::ui::NinePatchBorder border{};
-  screens::combat_hud_render(r, style, border, hud, k_viewport, device, banner);
+  screens::combat_hud_render(renderer, style, border, hud, k_viewport, device, banner);
 }
 
 /** Render `hud` in the default style with keyboard glyphs and `border`. */
-void render_hud(RecordingRenderer &r, const screens::CombatHud &hud, const corundum::ui::NinePatchBorder &border = {}) {
+void render_hud(RecordingRenderer &renderer, const screens::CombatHud &hud,
+                const corundum::ui::NinePatchBorder &border = {}) {
   const corundum::ui::PanelStyle style{};
-  screens::combat_hud_render(r, style, border, hud, k_viewport, InputDevice::Keyboard, "");
+  screens::combat_hud_render(renderer, style, border, hud, k_viewport, InputDevice::Keyboard, "");
 }
 
-std::vector<corundum::platform::DrawRect> drawn_rects(const RecordingRenderer &r) {
+std::vector<corundum::platform::DrawRect> drawn_rects(const RecordingRenderer &renderer) {
   std::vector<corundum::platform::DrawRect> rects;
-  for (const auto &call : r.log) {
+  for (const auto &call : renderer.log) {
     if (const auto *rect = std::get_if<corundum::platform::DrawRect>(&call); rect != nullptr)
       rects.push_back(*rect);
   }
   return rects;
 }
 
-corundum::platform::DrawText text_named(const RecordingRenderer &r, std::string_view text) {
-  for (const auto &call : r.log) {
+corundum::platform::DrawText text_named(const RecordingRenderer &renderer, std::string_view text) {
+  for (const auto &call : renderer.log) {
     if (const auto *drawn = std::get_if<corundum::platform::DrawText>(&call); drawn != nullptr && drawn->text == text)
       return *drawn;
   }
@@ -136,17 +137,17 @@ corundum::platform::DrawText text_named(const RecordingRenderer &r, std::string_
   return {};
 }
 
-std::vector<std::string_view> drawn_texts(const RecordingRenderer &r) {
+std::vector<std::string_view> drawn_texts(const RecordingRenderer &renderer) {
   std::vector<std::string_view> texts;
-  for (const auto &call : r.log) {
+  for (const auto &call : renderer.log) {
     if (const auto *text = std::get_if<corundum::platform::DrawText>(&call); text != nullptr)
       texts.emplace_back(text->text);
   }
   return texts;
 }
 
-corundum::core::math::Colour colour_of(const RecordingRenderer &r, std::string_view text) {
-  for (const auto &call : r.log) {
+corundum::core::math::Colour colour_of(const RecordingRenderer &renderer, std::string_view text) {
+  for (const auto &call : renderer.log) {
     if (const auto *drawn = std::get_if<corundum::platform::DrawText>(&call); drawn != nullptr && drawn->text == text)
       return drawn->colour;
   }
@@ -161,75 +162,77 @@ bool same_colour(corundum::core::math::Colour a, corundum::core::math::Colour b)
 } // namespace
 
 TEST_CASE("combat HUD: rows show name and Health, and the bar names the keys") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
 
-  render(r, make_hud(), InputDevice::Keyboard, "");
+  render(renderer, make_hud(), InputDevice::Keyboard, "");
 
-  CHECK_EQ(drawn_texts(r), std::vector<std::string_view>{"You  9 / 12", "Brann  3 / 7", "1 Attack", "2 Shield Bash",
-                                                         "3 Herbal Tonic (0)", "4 Salve"});
+  CHECK_EQ(drawn_texts(renderer), std::vector<std::string_view>{"You  9 / 12", "Brann  3 / 7", "1 Attack",
+                                                                "2 Shield Bash", "3 Herbal Tonic (0)", "4 Salve"});
 }
 
 TEST_CASE("combat HUD: on a gamepad the shown page names its buttons, and the bar says how to page") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
 
-  render(r, make_hud(), InputDevice::Gamepad, "");
+  render(renderer, make_hud(), InputDevice::Gamepad, "");
 
-  CHECK_EQ(drawn_texts(r), std::vector<std::string_view>{"You  9 / 12", "Brann  3 / 7", "A Attack", "Y Shield Bash",
-                                                         "B Herbal Tonic (0)", "Salve", "L1/R1 1/2"});
+  CHECK_EQ(drawn_texts(renderer),
+           std::vector<std::string_view>{"You  9 / 12", "Brann  3 / 7", "A Attack", "Y Shield Bash",
+                                         "B Herbal Tonic (0)", "Salve", "L1/R1 1/2"});
 }
 
 TEST_CASE("combat HUD: on a gamepad's second page the fourth command carries the button") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
 
-  render(r, make_second_page_hud(), InputDevice::Gamepad, "");
+  render(renderer, make_second_page_hud(), InputDevice::Gamepad, "");
 
-  CHECK_EQ(drawn_texts(r), std::vector<std::string_view>{"You  9 / 12", "Brann  3 / 7", "Attack", "Shield Bash",
-                                                         "Herbal Tonic (0)", "A Salve", "L1/R1 2/2"});
+  CHECK_EQ(drawn_texts(renderer), std::vector<std::string_view>{"You  9 / 12", "Brann  3 / 7", "Attack", "Shield Bash",
+                                                                "Herbal Tonic (0)", "A Salve", "L1/R1 2/2"});
 }
 
 TEST_CASE("combat HUD: a banner draws last") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
 
-  render(r, make_hud(), InputDevice::Keyboard, "Paused");
+  render(renderer, make_hud(), InputDevice::Keyboard, "Paused");
 
-  CHECK_EQ(drawn_texts(r), std::vector<std::string_view>{"You  9 / 12", "Brann  3 / 7", "1 Attack", "2 Shield Bash",
-                                                         "3 Herbal Tonic (0)", "4 Salve", "Paused"});
+  CHECK_EQ(drawn_texts(renderer),
+           std::vector<std::string_view>{"You  9 / 12", "Brann  3 / 7", "1 Attack", "2 Shield Bash",
+                                         "3 Herbal Tonic (0)", "4 Salve", "Paused"});
 }
 
 TEST_CASE("combat HUD: a queued command is highlighted, and an unavailable one dimmed") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
 
-  render(r, make_hud(), InputDevice::Keyboard, "");
+  render(renderer, make_hud(), InputDevice::Keyboard, "");
 
-  CHECK(same_colour(colour_of(r, "1 Attack"), style.body));
-  CHECK(same_colour(colour_of(r, "2 Shield Bash"), style.selected));
-  const corundum::core::math::Colour spent = colour_of(r, "3 Herbal Tonic (0)");
+  CHECK(same_colour(colour_of(renderer, "1 Attack"), style.body));
+  CHECK(same_colour(colour_of(renderer, "2 Shield Bash"), style.selected));
+  const corundum::core::math::Colour spent = colour_of(renderer, "3 Herbal Tonic (0)");
   CHECK_FALSE(same_colour(spent, style.body));
   CHECK_FALSE(same_colour(spent, style.selected));
 }
 
 TEST_CASE("combat HUD: a row longer than the minimum widens the panel and its bars") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   screens::CombatHud hud = make_hud();
   hud.rows[1].name = std::string(60, 'x');
   const float expected_row_width = k_glyph_width * static_cast<float>(60 + std::string_view{"  3 / 7"}.size());
 
-  render_hud(r, hud);
+  render_hud(renderer, hud);
 
-  const std::vector<corundum::platform::DrawRect> rects = drawn_rects(r);
+  const std::vector<corundum::platform::DrawRect> rects = drawn_rects(renderer);
   CHECK_EQ(rects[k_rows_panel_rect].size.x, doctest::Approx(expected_row_width + (2.f * k_thin_border_pad)));
   CHECK_EQ(rects[k_rows_panel_rect + 1].size.x, doctest::Approx(expected_row_width));
 }
 
 TEST_CASE("combat HUD: each row draws one bar, its Health, and no timer") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
 
-  render_hud(r, make_hud());
+  render_hud(renderer, make_hud());
 
   // The rows panel's fill, then each row's bar back and Health fill; the command bar's fill next.
-  const std::vector<corundum::platform::DrawRect> rects = drawn_rects(r);
+  const std::vector<corundum::platform::DrawRect> rects = drawn_rects(renderer);
   REQUIRE_GT(rects.size(), k_command_panel_rect);
   CHECK_EQ(rects[k_rows_panel_rect].size.x, doctest::Approx(k_min_row_width + (2.f * k_thin_border_pad)));
   CHECK_EQ(rects[1].size.x, doctest::Approx(k_min_row_width));
@@ -241,21 +244,21 @@ TEST_CASE("combat HUD: each row draws one bar, its Health, and no timer") {
 }
 
 TEST_CASE("combat HUD: a thick border insets both panels' content past its corner cells") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::NinePatchBorder border{
       .texture_id = corundum::platform::TextureId{1},
       .tile_w = 32,
       .tile_h = 40,
   };
 
-  render_hud(r, make_hud(), border);
+  render_hud(renderer, make_hud(), border);
 
-  const std::vector<corundum::platform::DrawRect> rects = drawn_rects(r);
+  const std::vector<corundum::platform::DrawRect> rects = drawn_rects(renderer);
   const corundum::platform::DrawRect rows_panel = rects[k_rows_panel_rect];
   const corundum::platform::DrawRect command_panel = rects[k_command_panel_rect];
-  const corundum::platform::DrawText first_row = text_named(r, "You  9 / 12");
-  const corundum::platform::DrawText first_command = text_named(r, "1 Attack");
-  const corundum::platform::DrawText last_command = text_named(r, "4 Salve");
+  const corundum::platform::DrawText first_row = text_named(renderer, "You  9 / 12");
+  const corundum::platform::DrawText first_command = text_named(renderer, "1 Attack");
+  const corundum::platform::DrawText last_command = text_named(renderer, "4 Salve");
   const float last_command_right =
       last_command.position.x + (k_glyph_width * static_cast<float>(last_command.text.size()));
   CHECK_EQ(first_row.position.x - rows_panel.position.x, doctest::Approx(32.f));
@@ -266,7 +269,7 @@ TEST_CASE("combat HUD: a thick border insets both panels' content past its corne
 }
 
 TEST_CASE("combat HUD: a thick border leaves the command bar a margin from the viewport's bottom") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
   const corundum::ui::NinePatchBorder border{
       .texture_id = corundum::platform::TextureId{1},
@@ -274,29 +277,29 @@ TEST_CASE("combat HUD: a thick border leaves the command bar a margin from the v
       .tile_h = 40,
   };
 
-  render_hud(r, make_hud(), border);
+  render_hud(renderer, make_hud(), border);
 
-  const corundum::platform::DrawRect command_panel = drawn_rects(r)[k_command_panel_rect];
+  const corundum::platform::DrawRect command_panel = drawn_rects(renderer)[k_command_panel_rect];
   CHECK_EQ(command_panel.position.y + command_panel.size.y, doctest::Approx(k_viewport.y - style.margin));
 }
 
 TEST_CASE("combat HUD: the target's row draws its name in the selected colour") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
   screens::CombatHud hud = make_hud();
   hud.rows[1].is_target = true;
 
-  render(r, hud, InputDevice::Keyboard, "");
+  render(renderer, hud, InputDevice::Keyboard, "");
 
-  CHECK(same_colour(colour_of(r, "Brann  3 / 7"), style.selected));
-  CHECK(same_colour(colour_of(r, "You  9 / 12"), style.body));
+  CHECK(same_colour(colour_of(renderer, "Brann  3 / 7"), style.selected));
+  CHECK(same_colour(colour_of(renderer, "You  9 / 12"), style.body));
 }
 
 TEST_CASE("combat HUD: a hostile that isn't the target keeps its own colour") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
 
-  render(r, make_hud(), InputDevice::Keyboard, "");
+  render(renderer, make_hud(), InputDevice::Keyboard, "");
 
-  CHECK(same_colour(colour_of(r, "Brann  3 / 7"), style.speaker));
+  CHECK(same_colour(colour_of(renderer, "Brann  3 / 7"), style.speaker));
 }

@@ -57,7 +57,7 @@ struct MapLayout {
  *  @param cursor Highlighted row; the returned `rows.first_row` keeps it inside the window.
  *  @param scroll Requested first visible row; clamped so `cursor` stays visible.
  */
-[[nodiscard]] MapLayout map_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
+[[nodiscard]] MapLayout map_panel_layout(const platform::Renderer &renderer, const ui::PanelStyle &style,
                                          const std::vector<MapEntry> &entries, int cursor, int scroll,
                                          core::math::Vec2 viewport, input::InputDevice last_device);
 
@@ -67,7 +67,7 @@ struct MapLayout {
  *  "(no locations)" line. The cursor is clamped into range locally; a current location is
  *  tagged "(here)".
  *
- *  @param r           Platform renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
+ *  @param renderer    Platform renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
  *  @param style       Dialog text style; reused so the map matches dialogue.
  *  @param border      Pre-loaded nine-patch frame; the same one the dialogue box uses.
  *  @param entries     Discovered destinations, as build_map_entries() produces.
@@ -75,7 +75,7 @@ struct MapLayout {
  *  @param viewport    Screen size in pixels; the panel is centered within this.
  *  @param last_device Device of the player's most recent press; picks the footer glyphs.
  */
-void map_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+void map_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                       const std::vector<MapEntry> &entries, int cursor, int scroll, core::math::Vec2 viewport,
                       input::InputDevice last_device = input::InputDevice::Keyboard);
 

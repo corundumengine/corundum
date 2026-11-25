@@ -76,10 +76,10 @@ struct CreditsTextStyle {
 };
 
 /** Draw `text` centered in `column` at `y`. */
-void draw_centered_line(platform::Renderer &r, const CreditsColumn &column, const CreditsTextStyle &text_style,
+void draw_centered_line(platform::Renderer &renderer, const CreditsColumn &column, const CreditsTextStyle &text_style,
                         std::string_view text, float y) {
-  const float width = r.measure_text(text_style.font, text, text_style.char_size);
-  r.draw(platform::DrawText{
+  const float width = renderer.measure_text(text_style.font, text, text_style.char_size);
+  renderer.draw(platform::DrawText{
       .font_id = text_style.font,
       .text = text,
       .position = {.x = column.center_x + ((column.width - width) * 0.5f), .y = y},
@@ -91,7 +91,7 @@ void draw_centered_line(platform::Renderer &r, const CreditsColumn &column, cons
 /** Cover-scale the parchment background across the whole viewport, never cropping it narrower
  *  than the roll. @return Whether a background drew; the roll switches to dark ink when one did.
  */
-bool draw_credits_background(platform::Renderer &r, core::math::Vec2 viewport, const CreditsState &state) {
+bool draw_credits_background(platform::Renderer &renderer, core::math::Vec2 viewport, const CreditsState &state) {
   const core::math::Vec2 size = state.background_size;
   if (state.background_texture == platform::TextureId::Invalid || size.x <= 0.f || size.y <= 0.f)
     return false;
@@ -99,7 +99,7 @@ bool draw_credits_background(platform::Renderer &r, core::math::Vec2 viewport, c
   const float scale = std::max(viewport.x / size.x, viewport.y / size.y);
   const float position_x = (viewport.x - (size.x * scale)) * 0.5f;
   const float position_y = (viewport.y - (size.y * scale)) * 0.5f;
-  r.draw(platform::DrawSprite{
+  renderer.draw(platform::DrawSprite{
       .texture_id = state.background_texture,
       .position = {.x = position_x, .y = position_y},
       .source = {.x = 0, .y = 0, .width = static_cast<int>(size.x), .height = static_cast<int>(size.y)},
@@ -110,10 +110,10 @@ bool draw_credits_background(platform::Renderer &r, core::math::Vec2 viewport, c
 
 } // namespace
 
-void credits_panel_render(platform::Renderer &r, const ui::PanelStyle &style, core::math::Vec2 viewport,
+void credits_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style, core::math::Vec2 viewport,
                           const CreditsState &state) {
-  ui::screen_backdrop(r, style, viewport);
-  const bool has_background = draw_credits_background(r, viewport, state);
+  ui::screen_backdrop(renderer, style, viewport);
+  const bool has_background = draw_credits_background(renderer, viewport, state);
 
   const CreditsTextStyle title_style{
       .font = style.family(ui::FontRole::Display).get(ui::FontStyle::Regular),
@@ -139,17 +139,17 @@ void credits_panel_render(platform::Renderer &r, const ui::PanelStyle &style, co
 
   float y = (viewport.y * 0.5f) - state.scroll;
   if (!state.title.empty()) {
-    draw_centered_line(r, column, title_style, state.title, y);
+    draw_centered_line(renderer, column, title_style, state.title, y);
     y += heading_h + k_credits_section_gap;
   }
 
   for (const credits::CreditsSection &section : state.sections) {
     if (!section.heading.empty()) {
-      draw_centered_line(r, column, heading_style, section.heading, y);
+      draw_centered_line(renderer, column, heading_style, section.heading, y);
       y += section_heading_h + k_credits_heading_gap;
     }
     for (const std::string &line : section.lines) {
-      draw_centered_line(r, column, body_style, line, y);
+      draw_centered_line(renderer, column, body_style, line, y);
       y += line_h;
     }
     y += k_credits_section_gap;

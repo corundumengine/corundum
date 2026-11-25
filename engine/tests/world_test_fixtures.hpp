@@ -68,8 +68,10 @@ inline world::MapView world_map_view(const render::RenderState &state) {
   m.collision_triangles = world_area.aggregates.triangles.view();
   m.walkability = &world_area.aggregates.walkability;
   m.world_area = &world_area;
-  m.world_w_tiles = static_cast<float>(world_area.manifest.chunks_wide * world_area.manifest.chunk_size);
-  m.world_h_tiles = static_cast<float>(world_area.manifest.chunks_tall * world_area.manifest.chunk_size);
+  m.world_size_tiles = {
+      .width = world_area.manifest.chunks_wide * world_area.manifest.chunk_size,
+      .height = world_area.manifest.chunks_tall * world_area.manifest.chunk_size,
+  };
   return m;
 }
 

@@ -47,7 +47,7 @@ struct BarterLayout {
 };
 
 /** Compute the barter panel's geometry for `viewport`. */
-[[nodiscard]] BarterLayout barter_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
+[[nodiscard]] BarterLayout barter_panel_layout(const platform::Renderer &renderer, const ui::PanelStyle &style,
                                                std::string_view shop_name, int gold,
                                                const std::vector<BarterLine> &lines, core::math::Vec2 viewport,
                                                input::InputDevice last_device);
@@ -56,7 +56,7 @@ struct BarterLayout {
  *
  *  Pure render, like inventory_panel_render. The rows are drawn with a cursor.
  *
- *  @param r           Platform renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
+ *  @param renderer    Platform renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
  *  @param style       Dialog text style; reused so the screen matches dialogue.
  *  @param border      Pre-loaded nine-patch frame; the same one the dialogue box uses.
  *  @param shop_name   Heading (the merchant's shop name).
@@ -66,7 +66,7 @@ struct BarterLayout {
  *  @param viewport    Screen size in pixels; the panel is centered within this.
  *  @param last_device Device of the player's most recent press; picks the footer glyphs.
  */
-void barter_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+void barter_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                          std::string_view shop_name, int gold, const std::vector<BarterLine> &lines,
                          const BarterState &state, core::math::Vec2 viewport,
                          input::InputDevice last_device = input::InputDevice::Keyboard);

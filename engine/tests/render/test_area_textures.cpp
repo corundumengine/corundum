@@ -186,15 +186,15 @@ TEST_CASE("area textures: a process-lifetime texture loaded before the area surv
 
 TEST_CASE("area textures: a failed load_map after a world leaves no area and releases the world's textures") {
   const std::filesystem::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  const GameConfig cfg = fixture_config();
+  const GameConfig config = fixture_config();
   CountingRenderer renderer;
   RenderState state;
-  REQUIRE(corundum::render::load_world(disk(), renderer, state, cfg, {}).has_value());
+  REQUIRE(corundum::render::load_world(disk(), renderer, state, config, {}).has_value());
   const std::vector<corundum::platform::TextureId> world_textures = state.area_texture_ids;
   REQUIRE_FALSE(world_textures.empty());
 
   const auto missing_map_path = fixtures / "tilemaps/missing.json";
-  const auto result = corundum::render::load_map(disk(), renderer, state, missing_map_path.string(), cfg);
+  const auto result = corundum::render::load_map(disk(), renderer, state, missing_map_path.string(), config);
 
   REQUIRE_FALSE(result.has_value());
   CHECK_EQ(result.error(), std::format("tilemap: cannot open: {}", missing_map_path.string()));
@@ -209,15 +209,16 @@ TEST_CASE("area textures: a failed load_map after a world leaves no area and rel
 
 TEST_CASE("area textures: a failed load_world after a single map leaves no area and releases the map's textures") {
   const std::filesystem::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  const GameConfig cfg = fixture_config();
+  const GameConfig config = fixture_config();
   CountingRenderer renderer;
   RenderState state;
-  REQUIRE(corundum::render::load_map(disk(), renderer, state, (fixtures / "tilemaps/lifecycle_test.json").string(), cfg)
-              .has_value());
+  REQUIRE(
+      corundum::render::load_map(disk(), renderer, state, (fixtures / "tilemaps/lifecycle_test.json").string(), config)
+          .has_value());
   const std::vector<corundum::platform::TextureId> map_textures = state.area_texture_ids;
   REQUIRE_FALSE(map_textures.empty());
 
-  GameConfig broken_cfg = cfg;
+  GameConfig broken_cfg = config;
   broken_cfg.paths.world_manifest_path = (fixtures / "worlds/missing/manifest.json").string();
   const auto result = corundum::render::load_world(disk(), renderer, state, broken_cfg, {});
 
@@ -237,9 +238,9 @@ TEST_CASE("load_world: a chunk whose portals file is malformed is marked failed 
   const std::filesystem::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
   CountingRenderer renderer;
   RenderState state;
-  GameConfig cfg = fixture_config();
-  cfg.paths.portals_dir = (fixtures / "portals_malformed").string();
-  REQUIRE(corundum::render::load_world(disk(), renderer, state, cfg, {}).has_value());
+  GameConfig config = fixture_config();
+  config.paths.portals_dir = (fixtures / "portals_malformed").string();
+  REQUIRE(corundum::render::load_world(disk(), renderer, state, config, {}).has_value());
 
   const auto &world_area = corundum::test::world_area_of(state);
   CHECK_FALSE(world_area.chunks.is_active({.col = 1, .row = 0}));

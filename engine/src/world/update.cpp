@@ -26,8 +26,8 @@
 namespace {
 
 void update_exploring(corundum::world::Scene &scene, const corundum::input::InputState &input,
-                      const corundum::world::MapView &map, const corundum::core::GameConfig &cfg, float dt, float win_w,
-                      float win_h, corundum::core::math::IsometricParams iso) {
+                      const corundum::world::MapView &map, const corundum::core::GameConfig &config, float dt,
+                      float win_w, float win_h, corundum::core::math::IsometricParams iso) {
   using corundum::entities::EntityId;
 
   auto &world = scene.world;
@@ -35,7 +35,7 @@ void update_exploring(corundum::world::Scene &scene, const corundum::input::Inpu
   const bool has_player = player_present(scene);
 
   if (has_player) {
-    corundum::physics::update_player(world.transforms, world.collisions, player, input, cfg.player_speed, map, scene,
+    corundum::physics::update_player(world.transforms, world.collisions, player, input, config.player_speed, map, scene,
                                      dt);
   }
 
@@ -48,7 +48,7 @@ void update_exploring(corundum::world::Scene &scene, const corundum::input::Inpu
   }
 
   corundum::animation::update(world.sprites, world.transforms, world.animations, world.facings, world.motion_sprites,
-                              world.clips, iso, cfg.player_speed, dt);
+                              world.clips, iso, config.player_speed, dt);
 
   corundum::animation::update_clips(world.sprites, world.transforms, world.animations, world.facings, world.clips, dt);
   corundum::entities::mark_finished_clips_for_deletion(world);
@@ -77,18 +77,19 @@ void update_exploring(corundum::world::Scene &scene, const corundum::input::Inpu
 constexpr float k_zoom_rate_per_sec = 3.f;
 
 void update_zoom(corundum::world::Scene &scene, const corundum::input::InputState &input,
-                 const corundum::core::GameConfig &cfg, float dt, float win_w, float win_h) {
+                 const corundum::core::GameConfig &config, float dt, float win_w, float win_h) {
   using corundum::input::Action;
 
   if (input.scroll_delta_y != 0.f) {
-    scene.camera.apply_zoom(input.scroll_delta_y, input.mouse_x, input.mouse_y, cfg.min_zoom, cfg.max_zoom);
+    scene.camera.apply_zoom(input.scroll_delta_y, input.mouse_x, input.mouse_y, config.min_zoom, config.max_zoom);
   }
 
   const float button_zoom = (input.is_held(Action::ZoomIn) ? 1.f : 0.f) - (input.is_held(Action::ZoomOut) ? 1.f : 0.f);
   if (button_zoom != 0.f) {
     const float center_x = win_w * 0.5f;
     const float center_y = win_h * 0.5f;
-    scene.camera.apply_zoom(button_zoom * k_zoom_rate_per_sec * dt, center_x, center_y, cfg.min_zoom, cfg.max_zoom);
+    scene.camera.apply_zoom(button_zoom * k_zoom_rate_per_sec * dt, center_x, center_y, config.min_zoom,
+                            config.max_zoom);
   }
 }
 
@@ -129,7 +130,7 @@ void update_transition_prompt(corundum::world::Scene &scene, const corundum::inp
  *  gated on proximity alone.
  */
 [[nodiscard]] std::optional<corundum::entities::EntityId>
-pick_interaction_target(const corundum::world::Scene &scene, const corundum::core::GameConfig &cfg,
+pick_interaction_target(const corundum::world::Scene &scene, const corundum::core::GameConfig &config,
                         const corundum::input::InputIntent &intent) {
   using corundum::entities::distance;
   using corundum::entities::EntityId;
@@ -149,7 +150,7 @@ pick_interaction_target(const corundum::world::Scene &scene, const corundum::cor
   const float player_row = world.transforms.row[player_slot];
 
   std::optional<EntityId> best;
-  float best_distance = cfg.interact_radius;
+  float best_distance = config.interact_radius;
   for (const EntityId eid : world.dialogue_refs.active_entities()) {
     if (!world.transforms.has(eid))
       continue;
@@ -178,7 +179,7 @@ pick_interaction_target(const corundum::world::Scene &scene, const corundum::cor
 
 namespace corundum::world {
 
-void update(Scene &scene, const corundum::core::GameConfig &cfg, const corundum::input::InputState &input,
+void update(Scene &scene, const corundum::core::GameConfig &config, const corundum::input::InputState &input,
             const MapView &map, float dt, float win_w, float win_h, input::InputDevice last_device,
             WorldStep world_step) {
   const input::InputIntent intent = input::make_input_intent(input, last_device);
@@ -191,7 +192,7 @@ void update(Scene &scene, const corundum::core::GameConfig &cfg, const corundum:
   // viewport via follow_player on the same step, which apply_zoom requires.
   const bool is_exploring = scene.mode() == GameMode::Exploring;
   if (is_exploring || world_step == WorldStep::Runs)
-    update_zoom(scene, input, cfg, dt, win_w, win_h);
+    update_zoom(scene, input, config, dt, win_w, win_h);
 
   // One projection for the whole frame: animation speed scaling (screen-space velocity),
   // camera tracking (cell-center anchor), and tile picking share the same params.
@@ -203,17 +204,17 @@ void update(Scene &scene, const corundum::core::GameConfig &cfg, const corundum:
   switch (scene.mode()) {
     case corundum::world::GameMode::Prompt: update_transition_prompt(scene, intent); break;
     case corundum::world::GameMode::Exploring:
-      update_exploring(scene, input, map, cfg, dt, win_w, win_h, iso);
+      update_exploring(scene, input, map, config, dt, win_w, win_h, iso);
       // The engine's exploring input handler records the generic interact target; the gameplay
       // fixed-step system consumes the one-frame pulse (see Scene::pending_interaction).
-      scene.pending_interaction = pick_interaction_target(scene, cfg, intent);
+      scene.pending_interaction = pick_interaction_target(scene, config, intent);
       break;
     default:
       // A mode that runs the world (a fight) moves everyone as Exploring does but targets no
       // interaction, so a click on an NPC starts no dialogue. A frozen mode (Dialogue) runs
       // nothing here, and step-owning screens skip world::update entirely.
       if (world_step == WorldStep::Runs)
-        update_exploring(scene, input, map, cfg, dt, win_w, win_h, iso);
+        update_exploring(scene, input, map, config, dt, win_w, win_h, iso);
       break;
   }
 }

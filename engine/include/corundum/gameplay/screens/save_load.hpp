@@ -70,7 +70,7 @@ struct SaveLoadLayout {
 /** Compute the Save/Load panel's geometry for `viewport`, scrolling to keep the cursor
  *  visible.
  */
-[[nodiscard]] SaveLoadLayout save_load_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
+[[nodiscard]] SaveLoadLayout save_load_panel_layout(const platform::Renderer &renderer, const ui::PanelStyle &style,
                                                     const SaveLoadState &state, core::math::Vec2 viewport,
                                                     input::InputDevice last_device);
 
@@ -80,8 +80,8 @@ struct SaveLoadLayout {
  *  Pure render. Empty slots draw as "(empty)"; corrupt slots show their error string in the
  *  detail pane and cannot be loaded.
  */
-void save_load_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
-                            const SaveLoadState &state, core::math::Vec2 viewport,
+void save_load_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style,
+                            const ui::NinePatchBorder &border, const SaveLoadState &state, core::math::Vec2 viewport,
                             input::InputDevice last_device = input::InputDevice::Keyboard);
 
 } // namespace corundum::gameplay::screens

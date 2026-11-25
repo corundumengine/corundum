@@ -82,7 +82,7 @@ struct HudStripLayout {
 };
 
 /** Measure every run of the strip and size the panel around them. */
-HudStripLayout measure_hud_strip(const platform::Renderer &r, const ui::PanelStyle &style,
+HudStripLayout measure_hud_strip(const platform::Renderer &renderer, const ui::PanelStyle &style,
                                  const ui::NinePatchBorder &border, const HudStripData &data) {
   const ui::FontFamily &ui_fonts = style.family(ui::FontRole::Ui);
   const ui::FontFamily &quest_fonts = style.family(ui::FontRole::Quest);
@@ -91,12 +91,16 @@ HudStripLayout measure_hud_strip(const platform::Renderer &r, const ui::PanelSty
   const platform::FontId quest_bold = quest_fonts.get(ui::FontStyle::Bold);
 
   const std::string gold_line = std::format("Gold: {}", data.gold);
-  const float gold_w = r.measure_text(ui_regular, gold_line, style.font_size_body);
-  const float separator_w = data.has_quest ? r.measure_text(ui_regular, k_hud_separator, style.font_size_body) : 0.f;
-  const float quest_name_w = data.has_quest ? r.measure_text(quest_bold, data.quest_name, style.font_size_body) : 0.f;
+  const float gold_w = renderer.measure_text(ui_regular, gold_line, style.font_size_body);
+  const float separator_w =
+      data.has_quest ? renderer.measure_text(ui_regular, k_hud_separator, style.font_size_body) : 0.f;
+  const float quest_name_w =
+      data.has_quest ? renderer.measure_text(quest_bold, data.quest_name, style.font_size_body) : 0.f;
   const bool has_objective = data.has_quest && !data.objective.empty();
-  const float dash_w = has_objective ? r.measure_text(quest_regular, k_hud_dash_separator, style.font_size_body) : 0.f;
-  const float objective_w = has_objective ? r.measure_text(quest_regular, data.objective, style.font_size_body) : 0.f;
+  const float dash_w =
+      has_objective ? renderer.measure_text(quest_regular, k_hud_dash_separator, style.font_size_body) : 0.f;
+  const float objective_w =
+      has_objective ? renderer.measure_text(quest_regular, data.objective, style.font_size_body) : 0.f;
 
   // Text must clear the nine-patch corners, whose cells are drawn at natural size; the
   // dialogue box insets content the same way (dialog_layout.hpp's `max(margin, tile)`).
@@ -129,11 +133,11 @@ HudStripLayout measure_hud_strip(const platform::Renderer &r, const ui::PanelSty
 /** Gold is HUD chrome (UI role); the tracked quest and objective are the quest tracker and
  *  follow the Quest family, with the quest name bolded.
  */
-void draw_hud_runs(platform::Renderer &r, const ui::PanelStyle &style, const HudStripData &data,
+void draw_hud_runs(platform::Renderer &renderer, const ui::PanelStyle &style, const HudStripData &data,
                    const HudStripLayout &layout) {
   const float y = layout.panel_pos.y + layout.pad_y;
   const auto draw_run = [&](platform::FontId font_id, std::string_view text, float x) {
-    r.draw(platform::DrawText{
+    renderer.draw(platform::DrawText{
         .font_id = font_id,
         .text = text,
         .position = {.x = x, .y = y},
@@ -160,18 +164,18 @@ void draw_hud_runs(platform::Renderer &r, const ui::PanelStyle &style, const Hud
 
 } // namespace
 
-void hud_strip_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+void hud_strip_render(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                       const HudStripData &data) {
-  const HudStripLayout layout = measure_hud_strip(r, style, border, data);
+  const HudStripLayout layout = measure_hud_strip(renderer, style, border, data);
 
   // Background and frame are separate calls: the HUD is persistent, so its fill is fully
   // opaque — the dialogue box's translucent style.bg would tint the world showing through it
   // for the whole session.
   core::math::Colour hud_bg = style.bg;
   hud_bg.a = 255;
-  ui::panel_fill(r, hud_bg, layout.panel_pos, layout.panel_size);
-  ui::panel_frame(r, border, layout.panel_pos, layout.panel_size);
-  draw_hud_runs(r, style, data, layout);
+  ui::panel_fill(renderer, hud_bg, layout.panel_pos, layout.panel_size);
+  ui::panel_frame(renderer, border, layout.panel_pos, layout.panel_size);
+  draw_hud_runs(renderer, style, data, layout);
 }
 
 } // namespace corundum::gameplay::screens

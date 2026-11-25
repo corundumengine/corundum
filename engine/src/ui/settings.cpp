@@ -252,20 +252,20 @@ SettingsLayout framing_settings_layout(const PanelStyle &style, core::math::Vec2
 }
 
 /** The compact in-game panel: sized to its widest visible row, title, tabs and footer. */
-SettingsLayout in_game_settings_layout(const platform::Renderer &r, const PanelStyle &style,
+SettingsLayout in_game_settings_layout(const platform::Renderer &renderer, const PanelStyle &style,
                                        std::span<const std::pair<std::string, std::string>> rows,
                                        core::math::Vec2 viewport, input::InputDevice last_device, float line_h,
                                        float title_h, float cursor_w, float general_w, float controls_w, int first_row,
                                        int visible_rows) {
   const platform::FontId font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
-  float widest = std::max(r.measure_text(font_id, k_settings_title, style.font_size_speaker),
+  float widest = std::max(renderer.measure_text(font_id, k_settings_title, style.font_size_speaker),
                           general_w + k_settings_tab_gap + controls_w);
   for (int i = first_row; i < first_row + visible_rows; ++i) {
     const auto &[label, value] = rows[static_cast<std::size_t>(i)];
-    widest = std::max(widest, cursor_w + r.measure_text(font_id, label, style.font_size_body) + k_settings_value_gap +
-                                  r.measure_text(font_id, value, style.font_size_body));
+    widest = std::max(widest, cursor_w + renderer.measure_text(font_id, label, style.font_size_body) +
+                                  k_settings_value_gap + renderer.measure_text(font_id, value, style.font_size_body));
   }
-  widest = std::max(widest, r.measure_text(font_id, settings_footer(last_device), style.font_size_body));
+  widest = std::max(widest, renderer.measure_text(font_id, settings_footer(last_device), style.font_size_body));
 
   const float panel_w = std::max(k_settings_min_w, widest + (k_settings_pad_x * 2.f));
   const float panel_h = (k_settings_pad_y * 2.f) + title_h + k_settings_title_gap + line_h + k_settings_title_gap +
@@ -279,12 +279,13 @@ SettingsLayout in_game_settings_layout(const platform::Renderer &r, const PanelS
 
 } // namespace
 
-SettingsLayout settings_panel_layout(const platform::Renderer &r, const PanelStyle &style, const SettingsState &state,
-                                     const SettingsValues &values, const input::Bindings &bindings,
-                                     core::math::Vec2 viewport, input::InputDevice last_device) {
+SettingsLayout settings_panel_layout(const platform::Renderer &renderer, const PanelStyle &style,
+                                     const SettingsState &state, const SettingsValues &values,
+                                     const input::Bindings &bindings, core::math::Vec2 viewport,
+                                     input::InputDevice last_device) {
   const float line_h = settings_line_height(style);
   const float title_h = std::max(line_h, static_cast<float>(style.font_size_speaker) + 4.f);
-  const float cursor_w = cursor_advance(r, style);
+  const float cursor_w = cursor_advance(renderer, style);
 
   const std::vector<std::pair<std::string, std::string>> rows = build_rows(state, values, bindings);
   const int row_count = static_cast<int>(rows.size());
@@ -292,19 +293,21 @@ SettingsLayout settings_panel_layout(const platform::Renderer &r, const PanelSty
   const int first_row = std::clamp(state.scroll, 0, std::max(0, row_count - visible_rows));
 
   const platform::FontId font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
-  const float general_w = r.measure_text(font_id, settings_tab_label(SettingsTab::General), style.font_size_body);
-  const float controls_w = r.measure_text(font_id, settings_tab_label(SettingsTab::Controls), style.font_size_body);
+  const float general_w =
+      renderer.measure_text(font_id, settings_tab_label(SettingsTab::General), style.font_size_body);
+  const float controls_w =
+      renderer.measure_text(font_id, settings_tab_label(SettingsTab::Controls), style.font_size_body);
 
   if (state.presentation == SettingsPresentation::Framing)
     return framing_settings_layout(style, viewport, line_h, title_h, general_w, controls_w, first_row, visible_rows);
-  return in_game_settings_layout(r, style, rows, viewport, last_device, line_h, title_h, cursor_w, general_w,
+  return in_game_settings_layout(renderer, style, rows, viewport, last_device, line_h, title_h, cursor_w, general_w,
                                  controls_w, first_row, visible_rows);
 }
 
-void settings_panel_render(platform::Renderer &r, const PanelStyle &style, const NinePatchBorder &border,
+void settings_panel_render(platform::Renderer &renderer, const PanelStyle &style, const NinePatchBorder &border,
                            const SettingsState &state, const SettingsValues &values, const input::Bindings &bindings,
                            core::math::Vec2 viewport, input::InputDevice last_device) {
-  const SettingsLayout layout = settings_panel_layout(r, style, state, values, bindings, viewport, last_device);
+  const SettingsLayout layout = settings_panel_layout(renderer, style, state, values, bindings, viewport, last_device);
   const bool framing = state.presentation == SettingsPresentation::Framing;
   const float line_h = layout.rows.row_height;
   const float pad_x = framing ? k_framing_settings_pad_x : k_settings_pad_x;
@@ -317,13 +320,13 @@ void settings_panel_render(platform::Renderer &r, const PanelStyle &style, const
 
   // The framing page owns an opaque backdrop; the in-game panel floats over the world.
   if (framing)
-    screen_backdrop(r, style, viewport);
-  panel_chrome(r, style.bg, border, layout.panel_pos, layout.panel_size);
+    screen_backdrop(renderer, style, viewport);
+  panel_chrome(renderer, style.bg, border, layout.panel_pos, layout.panel_size);
 
   const platform::FontId font_id = style.family(FontRole::Ui).get(FontStyle::Regular);
-  const float title_w = r.measure_text(font_id, k_settings_title, style.font_size_speaker);
+  const float title_w = renderer.measure_text(font_id, k_settings_title, style.font_size_speaker);
   const float title_y = layout.panel_pos.y + pad_y;
-  r.draw(platform::DrawText{
+  renderer.draw(platform::DrawText{
       .font_id = font_id,
       .text = k_settings_title,
       .position = {.x = layout.panel_pos.x + ((layout.panel_size.x - title_w) * 0.5f), .y = title_y},
@@ -333,14 +336,14 @@ void settings_panel_render(platform::Renderer &r, const PanelStyle &style, const
 
   // Tab header: active tab in the speaker colour, inactive dimmed. The tab rects double as
   // mouse hit targets for switch-on-click (see update_settings).
-  r.draw(platform::DrawText{
+  renderer.draw(platform::DrawText{
       .font_id = font_id,
       .text = settings_tab_label(SettingsTab::General),
       .position = layout.tabs[0].pos,
       .char_size = style.font_size_body,
       .colour = state.tab == SettingsTab::General ? style.speaker : style.choice,
   });
-  r.draw(platform::DrawText{
+  renderer.draw(platform::DrawText{
       .font_id = font_id,
       .text = settings_tab_label(SettingsTab::Controls),
       .position = layout.tabs[1].pos,
@@ -353,10 +356,10 @@ void settings_panel_render(platform::Renderer &r, const PanelStyle &style, const
   for (int i = first_row; i < first_row + visible_rows; ++i) {
     const bool selected = i == clamped_cursor;
     const auto &[label, value] = rows[static_cast<std::size_t>(i)];
-    draw_option(r, style, label, {.x = layout.rows.row_pos.x, .y = y}, selected);
+    draw_option(renderer, style, label, {.x = layout.rows.row_pos.x, .y = y}, selected);
 
-    const float value_w = r.measure_text(font_id, value, style.font_size_body);
-    r.draw(platform::DrawText{
+    const float value_w = renderer.measure_text(font_id, value, style.font_size_body);
+    renderer.draw(platform::DrawText{
         .font_id = font_id,
         .text = value,
         .position = {.x = layout.panel_pos.x + layout.panel_size.x - pad_x - value_w, .y = y},
@@ -369,13 +372,13 @@ void settings_panel_render(platform::Renderer &r, const PanelStyle &style, const
   // A scroll affordance so a short page does not look like the whole list.
   if (first_row > 0 || first_row + visible_rows < row_count) {
     const std::string scroll = std::format("{}/{}", clamped_cursor + 1, row_count);
-    r.draw(platform::DrawText{
+    renderer.draw(platform::DrawText{
         .font_id = font_id,
         .text = scroll,
         .position =
             {
                 .x = layout.panel_pos.x + layout.panel_size.x - pad_x -
-                     r.measure_text(font_id, scroll, style.font_size_prompt),
+                     renderer.measure_text(font_id, scroll, style.font_size_prompt),
                 .y = layout.panel_pos.y + layout.panel_size.y - pad_y - line_h,
             },
         .char_size = style.font_size_prompt,
@@ -384,7 +387,7 @@ void settings_panel_render(platform::Renderer &r, const PanelStyle &style, const
   }
 
   const std::string footer = settings_footer(last_device);
-  r.draw(platform::DrawText{
+  renderer.draw(platform::DrawText{
       .font_id = font_id,
       .text = footer,
       .position =

@@ -42,9 +42,9 @@ TEST_CASE("hub_tab_label: names the four tabs and nothing else") {
  */
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("hub_tab_strip: tabs are ordered, non-overlapping and centered") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
-  const auto strip = hub_tab_strip(r, style, {.x = 1280.f, .y = 720.f});
+  const auto strip = hub_tab_strip(renderer, style, {.x = 1280.f, .y = 720.f});
 
   REQUIRE(strip.tabs.size() == 4);
   CHECK(strip.tabs[0].pos.x < strip.tabs[1].pos.x);
@@ -63,13 +63,13 @@ TEST_CASE("hub_tab_strip: tabs are ordered, non-overlapping and centered") {
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): CHECK expands to branches.
 TEST_CASE("hub_tab_strip_render: draws the bumper hints, all four labels, and highlights active") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
-  corundum::gameplay::screens::hub_tab_strip_render(r, style, screens::Codex, {.x = 1280.f, .y = 720.f},
+  corundum::gameplay::screens::hub_tab_strip_render(renderer, style, screens::Codex, {.x = 1280.f, .y = 720.f},
                                                     corundum::input::InputDevice::Keyboard);
 
   std::vector<std::string> texts;
-  for (const auto &call : r.log)
+  for (const auto &call : renderer.log)
     if (std::holds_alternative<corundum::platform::DrawText>(call))
       texts.emplace_back(std::get<corundum::platform::DrawText>(call).text);
 
@@ -82,7 +82,9 @@ TEST_CASE("hub_tab_strip_render: draws the bumper hints, all four labels, and hi
   CHECK(texts[5] == "]");
 
   // The active tab uses the speaker colour; the others use the dim choice colour.
-  const auto colour_of = [&](std::size_t index) { return std::get<corundum::platform::DrawText>(r.log[index]).colour; };
+  const auto colour_of = [&](std::size_t index) {
+    return std::get<corundum::platform::DrawText>(renderer.log[index]).colour;
+  };
   const auto same_rgb = [](const corundum::core::math::Colour &a, const corundum::core::math::Colour &b) {
     return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a;
   };
@@ -91,21 +93,21 @@ TEST_CASE("hub_tab_strip_render: draws the bumper hints, all four labels, and hi
 }
 
 TEST_CASE("hub_tab_strip_render: the bumper hints follow the last-used device") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
-  corundum::gameplay::screens::hub_tab_strip_render(r, style, screens::Inventory, {.x = 1280.f, .y = 720.f},
+  corundum::gameplay::screens::hub_tab_strip_render(renderer, style, screens::Inventory, {.x = 1280.f, .y = 720.f},
                                                     corundum::input::InputDevice::Gamepad);
 
-  const auto &prev = std::get<corundum::platform::DrawText>(r.log.front());
-  const auto &next = std::get<corundum::platform::DrawText>(r.log.back());
+  const auto &prev = std::get<corundum::platform::DrawText>(renderer.log.front());
+  const auto &next = std::get<corundum::platform::DrawText>(renderer.log.back());
   CHECK(prev.text == "L1");
   CHECK(next.text == "R1");
 }
 
 TEST_CASE("hub_tab_at: maps a cursor to the tab it is over, or -1") {
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   const corundum::ui::PanelStyle style{};
-  const auto strip = hub_tab_strip(r, style, {.x = 1280.f, .y = 720.f});
+  const auto strip = hub_tab_strip(renderer, style, {.x = 1280.f, .y = 720.f});
 
   for (std::size_t i = 0; i < strip.tabs.size(); ++i) {
     const float cx = strip.tabs[i].pos.x + (strip.tabs[i].width * 0.5f);

@@ -48,12 +48,12 @@ bool on_candidate_diagonal(int col, int row, int u_floor) noexcept {
 
 /** Highest-depth candidate cell under the mouse, or std::nullopt when none matches. */
 std::optional<TileCoord> best_candidate(const MapView &map, const core::math::Vec2 &world,
-                                        const core::math::IsometricParams &iso, int u_floor, int grid_w,
-                                        int grid_h) noexcept {
+                                        const core::math::IsometricParams &iso, int u_floor, int grid_width,
+                                        int grid_height) noexcept {
   std::optional<TileCoord> best;
   float best_depth = -std::numeric_limits<float>::infinity();
-  for (int row = 0; row < grid_h; ++row) {
-    for (int col = 0; col < grid_w; ++col) {
+  for (int row = 0; row < grid_height; ++row) {
+    for (int col = 0; col < grid_width; ++col) {
       if (!on_candidate_diagonal(col, row, u_floor))
         continue;
       const std::optional<CandidateHit> hit = hit_at(map, world, col, row, iso);
@@ -75,15 +75,15 @@ std::optional<TileCoord> pick_tile(float mouse_x, float mouse_y, const Camera &c
   if (camera.zoom <= 0.f || iso.half_tw <= 0.f || iso.half_th <= 0.f)
     return std::nullopt;
 
-  const int grid_w = map.elevation_map != nullptr ? map.elevation_map->width : static_cast<int>(map.world_w_tiles);
-  const int grid_h = map.elevation_map != nullptr ? map.elevation_map->height : static_cast<int>(map.world_h_tiles);
+  const int grid_width = map.elevation_map != nullptr ? map.elevation_map->width : map.world_size_tiles.width;
+  const int grid_height = map.elevation_map != nullptr ? map.elevation_map->height : map.world_size_tiles.height;
 
   const core::math::Vec2 world{.x = (mouse_x / camera.zoom) + camera.x, .y = (mouse_y / camera.zoom) + camera.y};
 
   const float u = (world.x - iso.x_origin) / iso.half_tw;
   const int u_floor = static_cast<int>(std::floor(u));
 
-  return best_candidate(map, world, iso, u_floor, grid_w, grid_h);
+  return best_candidate(map, world, iso, u_floor, grid_width, grid_height);
 }
 
 TileDiamond tile_diamond(TileCoord tile, int elevation, const core::math::IsometricParams &iso) noexcept {

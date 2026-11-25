@@ -116,10 +116,10 @@ public:
   }
 
   /** Invoke every hook in `layer`, in registration order. */
-  void render_layer(RenderLayer layer, Engine &engine, platform::Renderer &r, core::math::Vec2 viewport) const {
+  void render_layer(RenderLayer layer, Engine &engine, platform::Renderer &renderer, core::math::Vec2 viewport) const {
     core::verify(layer != RenderLayer::Count, "render_layer: RenderLayer::Count is not a layer");
     for (const ScreenRenderFn &hook : layers_[static_cast<std::size_t>(layer)])
-      hook(engine, r, viewport);
+      hook(engine, renderer, viewport);
   }
 
 private:

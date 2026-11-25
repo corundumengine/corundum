@@ -43,22 +43,22 @@ using corundum::test::k_frame_time;
  *  `<sprites_dir>/characters/<sheet>.json` resolves correctly.
  */
 corundum::core::GameConfig make_fixture_config(const fs::path &fixtures_root) {
-  corundum::core::GameConfig cfg{};
-  cfg.window_title = "lifecycle_test";
-  cfg.win_w = 320;
-  cfg.win_h = 240;
-  cfg.show_title = false;
-  cfg.paths.sprites_dir = (fixtures_root / "sprites").string();
-  cfg.paths.tilemap_path = (fixtures_root / "tilemaps/lifecycle_test.json").string();
-  cfg.paths.font_dir = (fixtures_root / "fonts").string();
-  corundum::test::set_missing_fonts(cfg.paths);
-  cfg.paths.world_manifest_path.clear();
-  cfg.paths.spawn_points_dir = (fixtures_root / "spawn_points").string();
-  cfg.paths.portals_dir = (fixtures_root / "portals").string();
-  cfg.paths.dialogue_dir.clear();
-  cfg.paths.quests_dir.clear();
-  cfg.paths.sounds_dir.clear();
-  return cfg;
+  corundum::core::GameConfig config{};
+  config.window_title = "lifecycle_test";
+  config.win_w = 320;
+  config.win_h = 240;
+  config.show_title = false;
+  config.paths.sprites_dir = (fixtures_root / "sprites").string();
+  config.paths.tilemap_path = (fixtures_root / "tilemaps/lifecycle_test.json").string();
+  config.paths.font_dir = (fixtures_root / "fonts").string();
+  corundum::test::set_missing_fonts(config.paths);
+  config.paths.world_manifest_path.clear();
+  config.paths.spawn_points_dir = (fixtures_root / "spawn_points").string();
+  config.paths.portals_dir = (fixtures_root / "portals").string();
+  config.paths.dialogue_dir.clear();
+  config.paths.quests_dir.clear();
+  config.paths.sounds_dir.clear();
+  return config;
 }
 
 /** Adopt the NullPlatform into `engine` and reset engine state between tests. */
@@ -157,8 +157,8 @@ TEST_CASE("lifecycle: initialize succeeds with NullPlatform and a fixture GameCo
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
   REQUIRE(fs::is_directory(fixtures));
 
-  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  const std::expected<void, std::string> result{engine.initialize(std::move(cfg))};
+  corundum::core::GameConfig config{make_fixture_config(fixtures)};
+  const std::expected<void, std::string> result{engine.initialize(std::move(config))};
   REQUIRE(result.has_value());
   CHECK(engine.window().is_open());
   engine.cleanup();
@@ -170,11 +170,11 @@ TEST_CASE("lifecycle: initialize failure runs cleanup so the window is closed") 
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
+  corundum::core::GameConfig config{make_fixture_config(fixtures)};
   const fs::path sprites_dir = fixtures / "no_such_sprites_dir";
-  cfg.paths.sprites_dir = sprites_dir.string();
+  config.paths.sprites_dir = sprites_dir.string();
 
-  const std::expected<void, std::string> result{engine.initialize(std::move(cfg))};
+  const std::expected<void, std::string> result{engine.initialize(std::move(config))};
   REQUIRE_FALSE(result.has_value());
   CHECK_MESSAGE(result.error().starts_with(std::format("Characters sprite sheets are missing: Error accessing {}: ",
                                                        (sprites_dir / "characters").string())),
@@ -187,8 +187,8 @@ TEST_CASE("lifecycle: the window is revealed only after the first frame is prese
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(config)).has_value());
 
   // Asset loading happens with the window hidden, so the OS never composites a blank window.
   CHECK_FALSE(null_window(engine)->visible);
@@ -205,8 +205,8 @@ TEST_CASE("lifecycle: cleanup is idempotent and post-cleanup run_frame returns f
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(config)).has_value());
 
   engine.cleanup();
   // Second cleanup must not crash.
@@ -223,8 +223,8 @@ TEST_CASE("lifecycle: on_fixed_update calling request_quit ends the main loop") 
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(config)).has_value());
 
   int hook_calls{0};
   engine.on_fixed_update = [&hook_calls](corundum::Engine &e, float) {
@@ -252,8 +252,8 @@ TEST_CASE("lifecycle: run_frame steps the simulation N times then returns false"
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(config)).has_value());
 
   constexpr float k_steps_to_accumulate{2.f};
   constexpr int k_frames_to_pump{5};
@@ -276,8 +276,8 @@ TEST_CASE("lifecycle: single-map startup camera frames the map with per-axis bou
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  REQUIRE(initialize_with_world(engine, std::move(cfg)).has_value());
+  corundum::core::GameConfig config{make_fixture_config(fixtures)};
+  REQUIRE(initialize_with_world(engine, std::move(config)).has_value());
 
   // lifecycle_test.json is 2x2 with a 32x16 diamond and tile_scale 2, so the world is
   // 3 * 32 * 2 = 192 px wide and 3 * 16 * 2 = 96 px tall — both smaller than the
@@ -296,8 +296,8 @@ TEST_CASE("lifecycle: focus loss stops fixed steps and pauses audio") {
   const RecordingAudioBackend *audio = adopt_recording_audio(engine);
 
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(config)).has_value());
 
   // Queue a fixed step so a running engine would consume one.
   engine.timer.accumulator = engine.timer.target_dt * 2.f;
@@ -324,8 +324,8 @@ TEST_CASE("lifecycle: focus gain resumes with no catch-up burst") {
   const RecordingAudioBackend *audio = adopt_recording_audio(engine);
 
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(config)).has_value());
 
   null_window(engine)->scripted_events.focus_lost = true;
   REQUIRE(engine.run_frame(k_frame_time));
@@ -351,8 +351,8 @@ TEST_CASE("lifecycle: quit_requested ends run_frame") {
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(config)).has_value());
 
   null_window(engine)->scripted_events.quit_requested = true;
   CHECK_FALSE(engine.run_frame(k_frame_time));
@@ -366,8 +366,8 @@ TEST_CASE("lifecycle: on_platform_event hook observes display changes") {
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(config)).has_value());
 
   EventRecorder recorder;
   engine.on_platform_event = std::ref(recorder);
@@ -389,9 +389,9 @@ TEST_CASE("lifecycle: the configured window mode is applied when the window is f
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  cfg.window_mode = corundum::core::WindowMode::Fullscreen;
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config{make_fixture_config(fixtures)};
+  config.window_mode = corundum::core::WindowMode::Fullscreen;
+  REQUIRE(engine.initialize(std::move(config)).has_value());
 
   // Deferred until after show(): entering fullscreen while the window is hidden leaves it hidden
   // on macOS, so the mode is applied by reveal_window() on the first frame.
@@ -410,8 +410,8 @@ TEST_CASE("lifecycle: a game pause survives a focus round-trip") {
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(config)).has_value());
 
   engine.pause(corundum::PauseReason::Game);
 
@@ -433,8 +433,8 @@ TEST_CASE("lifecycle: losing the active controller pauses") {
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(config)).has_value());
 
   disconnect_active_controller(engine);
 
@@ -448,8 +448,8 @@ TEST_CASE("lifecycle: reconnecting the controller resumes") {
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(config)).has_value());
 
   disconnect_active_controller(engine);
   REQUIRE(engine.is_paused_for(corundum::PauseReason::Controller));
@@ -468,8 +468,8 @@ TEST_CASE("lifecycle: a keyboard press resumes a controller pause") {
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(config)).has_value());
 
   disconnect_active_controller(engine);
   REQUIRE(engine.is_paused_for(corundum::PauseReason::Controller));
@@ -489,8 +489,8 @@ TEST_CASE("lifecycle: a disconnect while playing on keyboard does not pause") {
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(config)).has_value());
 
   null_window(engine)->scripted_keys.emplace_back(corundum::input::Key::W, true);
   null_window(engine)->gamepad = corundum::input::GamepadState{};
@@ -510,8 +510,8 @@ TEST_CASE("lifecycle: resume drops presses latched while paused") {
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(config)).has_value());
 
   null_window(engine)->scripted_events.focus_lost = true;
   REQUIRE(engine.run_frame(k_frame_time));
@@ -533,8 +533,8 @@ TEST_CASE("lifecycle: cursor movement does not resume a controller pause") {
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(config)).has_value());
 
   disconnect_active_controller(engine);
   REQUIRE(engine.is_paused_for(corundum::PauseReason::Controller));
@@ -555,9 +555,9 @@ TEST_CASE("lifecycle: starting_flags are seeded into the FlagStore when gameplay
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  cfg.starting_flags = {{"gold", 50}, {"rep.village", -1}, {"intro_seen", 1}};
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config{make_fixture_config(fixtures)};
+  config.starting_flags = {{"gold", 50}, {"rep.village", -1}, {"intro_seen", 1}};
+  REQUIRE(engine.initialize(std::move(config)).has_value());
   // Constructed for its side effects (screen/hook registration); its hooks mutate it later.
   // NOLINTNEXTLINE(misc-const-correctness)
   corundum::gameplay::Gameplay gameplay{engine};
@@ -574,8 +574,8 @@ TEST_CASE("lifecycle: an empty starting_flags config seeds nothing") {
   adopt_platform(engine, 320, 240);
 
   const fs::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  corundum::core::GameConfig cfg{make_fixture_config(fixtures)};
-  REQUIRE(engine.initialize(std::move(cfg)).has_value());
+  corundum::core::GameConfig config{make_fixture_config(fixtures)};
+  REQUIRE(engine.initialize(std::move(config)).has_value());
   // Constructed for its side effects (screen/hook registration); its hooks mutate it later.
   // NOLINTNEXTLINE(misc-const-correctness)
   corundum::gameplay::Gameplay gameplay{engine};

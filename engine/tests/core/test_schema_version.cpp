@@ -20,7 +20,7 @@ constexpr int k_current = 3;
 
 } // namespace
 
-TEST_CASE("prepare_schema_version: absent field is legacy version 1 and migrates") {
+TEST_CASE("prepare_schema_version: absent field reads as version 1 and runs the migration hook") {
   json root = json::object();
   int called_with = 0;
   const core::SchemaMigration migration = [&called_with](json & /*root*/, int from_version,

@@ -24,7 +24,7 @@ namespace corundum::debug {
  */
 struct OverlayInput {
   const render::RenderState *render_state = nullptr;
-  const core::GameConfig *cfg = nullptr;
+  const core::GameConfig *config = nullptr;
   const world::Scene *scene = nullptr;
   const core::time::LoopTimer *timer = nullptr;
 
@@ -82,13 +82,13 @@ public:
    *  the EMA even when disabled means toggling the overlay on later shows a
    *  settled value instead of climbing from zero.
    *
-   *  @param r     Active renderer between begin_frame/end_frame.
-   *  @param input Bundle of engine subsystems required by the overlay.
+   *  @param renderer Active renderer between begin_frame/end_frame.
+   *  @param input    Bundle of engine subsystems required by the overlay.
    *  @pre begin_frame() must have been called before this method.
    *  @post platform::Renderer is left in screen-space view; nothing is drawn and
    *        the renderer is untouched when `enabled` is false.
    */
-  void render(platform::Renderer &r, const OverlayInput &input);
+  void render(platform::Renderer &renderer, const OverlayInput &input);
 
 private:
   /** Resolve the isometric projection parameters from the active render mode.
@@ -99,10 +99,10 @@ private:
    *  (initial frames, or mode == None) — callers use this as a "no iso" sentinel.
    */
   [[nodiscard]] static core::math::IsometricParams resolve_isometric(const render::RenderState &render,
-                                                                     const core::GameConfig &cfg) noexcept;
+                                                                     const core::GameConfig &config) noexcept;
 
   /** Draw the collision geometry (rects and triangles) in world space. */
-  static void draw_collision(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
+  static void draw_collision(platform::Renderer &renderer, core::math::Vec2 camera, core::math::Vec2 viewport,
                              world::tilemap::CollisionRectsView rects, world::tilemap::CollisionTrianglesView tris,
                              core::math::IsometricParams iso, float zoom) noexcept;
 
@@ -118,9 +118,9 @@ private:
    *  entity is missing the Transform/Collision components needed to anchor
    *  the marker at its feet.
    */
-  static void draw_player_marker(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport, float zoom,
-                                 const render::RenderState &render, const entities::World &w, entities::EntityId player,
-                                 core::math::IsometricParams iso) noexcept;
+  static void draw_player_marker(platform::Renderer &renderer, core::math::Vec2 camera, core::math::Vec2 viewport,
+                                 float zoom, const render::RenderState &render, const entities::World &w,
+                                 entities::EntityId player, core::math::IsometricParams iso) noexcept;
 
   /** Draw every entity's collision footprint in world space.
    *
@@ -130,12 +130,12 @@ private:
    *  footprint uses the player colour; everything else uses the footprint colour.
    *  Entities with no transform row or no positive span are skipped.
    */
-  static void draw_entity_footprints(platform::Renderer &r, core::math::Vec2 camera, core::math::Vec2 viewport,
+  static void draw_entity_footprints(platform::Renderer &renderer, core::math::Vec2 camera, core::math::Vec2 viewport,
                                      float zoom, const render::RenderState &render, const entities::World &w,
                                      entities::EntityId player, core::math::IsometricParams iso) noexcept;
 
   /** Draw the top-right HUD text panel (FPS, grid, speed, camera, stats). */
-  void draw_text_panel(platform::Renderer &r, const render::RenderState &render, const core::GameConfig &cfg,
+  void draw_text_panel(platform::Renderer &renderer, const render::RenderState &render, const core::GameConfig &config,
                        const world::Scene &scene, core::math::Vec2 viewport) const;
 };
 

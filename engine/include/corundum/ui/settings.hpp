@@ -166,7 +166,7 @@ struct SettingsLayout {
  *  presentation chooses between the compact centered panel (InGame) and the full-viewport
  *  framing page (Framing).
  */
-[[nodiscard]] SettingsLayout settings_panel_layout(const platform::Renderer &r, const PanelStyle &style,
+[[nodiscard]] SettingsLayout settings_panel_layout(const platform::Renderer &renderer, const PanelStyle &style,
                                                    const SettingsState &state, const SettingsValues &values,
                                                    const input::Bindings &bindings, core::math::Vec2 viewport,
                                                    input::InputDevice last_device);
@@ -177,7 +177,7 @@ struct SettingsLayout {
  *  Framing presentation it fills the viewport over an opaque backdrop; in the InGame
  *  presentation it is the compact centered panel the pause menu opens.
  *
- *  @param r           Platform renderer.
+ *  @param renderer    Platform renderer.
  *  @param style       Dialog text style; reused so the screen matches dialogue.
  *  @param border      Pre-loaded nine-patch frame; the same one the dialogue box uses.
  *  @param state       Active tab, cursor, scroll, presentation and rebind flag.
@@ -186,7 +186,7 @@ struct SettingsLayout {
  *  @param viewport    Screen size in pixels; the panel is centered within this.
  *  @param last_device Device of the player's most recent press; picks the footer glyphs.
  */
-void settings_panel_render(platform::Renderer &r, const PanelStyle &style, const NinePatchBorder &border,
+void settings_panel_render(platform::Renderer &renderer, const PanelStyle &style, const NinePatchBorder &border,
                            const SettingsState &state, const SettingsValues &values, const input::Bindings &bindings,
                            core::math::Vec2 viewport, input::InputDevice last_device = input::InputDevice::Keyboard);
 

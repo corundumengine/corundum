@@ -131,26 +131,26 @@ TEST_CASE("mode: tracks the area alternative") {
 
 TEST_CASE("build_map_view: no area gives an empty single-map view") {
   const render_data::RenderState state;
-  const corundum::core::GameConfig cfg;
+  const corundum::core::GameConfig config;
 
-  const corundum::world::MapView view = corundum::world::build_map_view(state, cfg);
+  const corundum::world::MapView view = corundum::world::build_map_view(state, config);
 
   CHECK(view.world_area == nullptr);
   CHECK_EQ(view.collisions.size(), 0u);
   CHECK_EQ(view.collision_triangles.size(), 0u);
-  CHECK_EQ(view.world_w_tiles, 0.f);
-  CHECK_EQ(view.world_h_tiles, 0.f);
+  CHECK_EQ(view.world_size_tiles.width, 0);
+  CHECK_EQ(view.world_size_tiles.height, 0);
 }
 
 TEST_CASE("build_map_view: a world with no resident chunks gives an empty single-map view") {
   render_data::RenderState state;
   corundum::test::emplace_world_area(state);
-  const corundum::core::GameConfig cfg;
+  const corundum::core::GameConfig config;
 
-  const corundum::world::MapView view = corundum::world::build_map_view(state, cfg);
+  const corundum::world::MapView view = corundum::world::build_map_view(state, config);
 
   CHECK(view.world_area == nullptr);
-  CHECK_EQ(view.world_w_tiles, 0.f);
+  CHECK_EQ(view.world_size_tiles.width, 0);
 }
 
 TEST_CASE("snapshot_previous_step: keys entity positions by entity index and copies the camera") {
@@ -221,12 +221,12 @@ TEST_CASE("render: alpha 0 draws the start-of-step camera and alpha 1 the curren
   engine.scene.camera.y = 80.f;
   engine.scene.camera.zoom = 1.5f;
 
-  render_system::render(renderer, engine.render, engine.cfg, engine.scene, 0.f, {.width = 800, .height = 600});
+  render_system::render(renderer, engine.render, engine.config, engine.scene, 0.f, {.width = 800, .height = 600});
   CHECK(renderer.last_camera_top_left().x == doctest::Approx(100.f));
   CHECK(renderer.last_camera_top_left().y == doctest::Approx(50.f));
   CHECK(renderer.last_zoom() == doctest::Approx(2.f));
 
-  render_system::render(renderer, engine.render, engine.cfg, engine.scene, 1.f, {.width = 800, .height = 600});
+  render_system::render(renderer, engine.render, engine.config, engine.scene, 1.f, {.width = 800, .height = 600});
   CHECK(renderer.last_camera_top_left().x == doctest::Approx(140.f));
   CHECK(renderer.last_camera_top_left().y == doctest::Approx(80.f));
   CHECK(renderer.last_zoom() == doctest::Approx(1.5f));
@@ -244,7 +244,7 @@ TEST_CASE("render: a normal single-step frame still blends the camera between sn
   engine.scene.camera.y = 80.f;
   engine.scene.camera.zoom = 1.5f;
 
-  render_system::render(renderer, engine.render, engine.cfg, engine.scene, 0.5f, {.width = 800, .height = 600});
+  render_system::render(renderer, engine.render, engine.config, engine.scene, 0.5f, {.width = 800, .height = 600});
 
   CHECK(renderer.last_camera_top_left().x == doctest::Approx(120.f));
   CHECK(renderer.last_camera_top_left().y == doctest::Approx(65.f));
@@ -308,9 +308,9 @@ TEST_CASE("stream_world_chunks: a freshly loaded pending chunk marks the chunk w
   scene.world.transforms.insert(scene.player, 24.f, 24.f, 0.f, 0.f); // tile (24,24) -> chunk (1,1)
 
   corundum::platform::null::NullRenderer renderer;
-  const corundum::core::GameConfig cfg{};
+  const corundum::core::GameConfig config{};
 
-  render_system::stream_world_chunks(renderer, state, cfg, scene);
+  render_system::stream_world_chunks(renderer, state, config, scene);
 
   CHECK_EQ(world_area.chunks.active_size(), 2);
   CHECK(world_area.chunks.consume_dirty()); // fails before the fix
@@ -464,24 +464,24 @@ corundum::core::GameConfig add_one_chunk_world(corundum::test::MemoryContentSour
                           R"("layers":[{{"name":"ground","tiles":["0,0","0,0"]}}],)"
                           R"("tilesets":[{{"first_gid":0,"source":"{}"}}]}})",
                           k_one_chunk_tileset_path));
-  corundum::core::GameConfig cfg{};
-  cfg.paths.world_manifest_path = "one_chunk_world/manifest.json";
-  return cfg;
+  corundum::core::GameConfig config{};
+  config.paths.world_manifest_path = "one_chunk_world/manifest.json";
+  return config;
 }
 
 } // namespace
 
 TEST_CASE("load_world: a world loaded again after its tileset file changed reads the changed tileset") {
   corundum::test::MemoryContentSource content;
-  const corundum::core::GameConfig cfg = add_one_chunk_world(content);
+  const corundum::core::GameConfig config = add_one_chunk_world(content);
   content.add(k_one_chunk_tileset_path, one_tile_atlas_json("textures/before_edit.png"));
   corundum::platform::null::NullRenderer renderer;
   render_data::RenderState state;
-  const auto first_load = corundum::render::load_world(content, renderer, state, cfg);
+  const auto first_load = corundum::render::load_world(content, renderer, state, config);
   REQUIRE_MESSAGE(first_load.has_value(), first_load.error());
 
   content.add(k_one_chunk_tileset_path, one_tile_atlas_json("textures/after_edit.png"));
-  const auto second_load = corundum::render::load_world(content, renderer, state, cfg);
+  const auto second_load = corundum::render::load_world(content, renderer, state, config);
 
   REQUIRE_MESSAGE(second_load.has_value(), second_load.error());
   const auto &chunks = corundum::test::world_area_of(state).chunks.active();

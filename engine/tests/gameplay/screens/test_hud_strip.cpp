@@ -131,22 +131,22 @@ TEST_CASE("hud_strip_render: an opaque panel plus one line with gold and the obj
   data.quest_name = "Ember";
   data.objective = "Find the shrine";
 
-  RecordingRenderer r;
+  RecordingRenderer renderer;
   corundum::ui::PanelStyle style{};
   style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Ui)] = corundum::test::make_font_family(1);
   style.fonts[static_cast<std::size_t>(corundum::ui::FontRole::Quest)] = corundum::test::make_font_family(5);
-  corundum::gameplay::screens::hud_strip_render(r, style, make_border(), data);
+  corundum::gameplay::screens::hud_strip_render(renderer, style, make_border(), data);
 
   // The fill rect, the border's 8 sprites, then the line: gold (UI) + separator + the tracked
   // quest name and objective (Quest), each its own draw so the quest portion can use its role.
-  REQUIRE(r.log.size() == 9 + 5);
-  const auto &fill = std::get<corundum::platform::DrawRect>(r.log[0]);
+  REQUIRE(renderer.log.size() == 9 + 5);
+  const auto &fill = std::get<corundum::platform::DrawRect>(renderer.log[0]);
   CHECK(fill.colour.a == 255); // opaque: a translucent fill would tint the world behind it
   for (std::size_t i = 1; i < 9; ++i)
-    CHECK(std::holds_alternative<corundum::platform::DrawSprite>(r.log[i]));
+    CHECK(std::holds_alternative<corundum::platform::DrawSprite>(renderer.log[i]));
 
   const auto draw_text = [&](std::size_t i) -> const corundum::platform::DrawText & {
-    return std::get<corundum::platform::DrawText>(r.log[i]);
+    return std::get<corundum::platform::DrawText>(renderer.log[i]);
   };
   CHECK(draw_text(9).text == "Gold: 50");
   CHECK(draw_text(10).text == "    ");

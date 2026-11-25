@@ -76,7 +76,7 @@ struct CodexLayout {
 };
 
 /** Compute the codex panel's visible geometry for `viewport`. */
-[[nodiscard]] CodexLayout codex_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style,
+[[nodiscard]] CodexLayout codex_panel_layout(const platform::Renderer &renderer, const ui::PanelStyle &style,
                                              const std::vector<gameplay::codex::CodexEntry> &entries, int cursor,
                                              core::math::Vec2 viewport, input::InputDevice last_device);
 
@@ -85,7 +85,7 @@ struct CodexLayout {
  *  Pure render. An empty codex renders a single "(no entries)" line. The selected entry's
  *  body is word-wrapped into the right pane; the cursor is clamped into range locally.
  *
- *  @param r           Platform renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
+ *  @param renderer    Platform renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
  *  @param style       Dialog text style; reused so the codex matches dialogue.
  *  @param border      Pre-loaded nine-patch frame; the same one the dialogue box uses.
  *  @param entries     Unlocked rows, as refresh_codex() stores them.
@@ -94,7 +94,7 @@ struct CodexLayout {
  *  @param viewport    Screen size in pixels; the panel is centered within this.
  *  @param last_device Device of the player's most recent press; picks the footer glyphs.
  */
-void codex_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+void codex_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                         const std::vector<gameplay::codex::CodexEntry> &entries, int cursor, float scroll,
                         core::math::Vec2 viewport, input::InputDevice last_device = input::InputDevice::Keyboard);
 

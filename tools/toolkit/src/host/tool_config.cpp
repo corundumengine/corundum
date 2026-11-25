@@ -16,11 +16,13 @@
 #include <string>
 #include <string_view>
 
-using json = nlohmann::json;
+using nlohmann::json;
 
 namespace corundum::toolkit::host {
 
-static std::filesystem::path find_config_path(int argc, char *argv[]) {
+namespace {
+
+std::filesystem::path find_config_path(int argc, char *argv[]) {
   for (int i = 1; i < argc - 1; ++i) {
     if (std::string_view(argv[i]) == "--config")
       return argv[i + 1];
@@ -30,19 +32,20 @@ static std::filesystem::path find_config_path(int argc, char *argv[]) {
   return "tools/tools.json";
 }
 
-static std::filesystem::path resolve_with_fallback(const std::filesystem::path &candidate,
-                                                   const std::string &fallback_name) {
+std::filesystem::path resolve_with_fallback(const std::filesystem::path &candidate, const std::string &fallback_name) {
   if (!candidate.empty() && std::filesystem::exists(candidate))
     return candidate;
   // Fallback relative to tools/toolkit/assets/ (searched relative to CWD)
-  const auto fallback = std::filesystem::path("tools") / "toolkit" / "assets" / fallback_name;
+  auto fallback = std::filesystem::path("tools") / "toolkit" / "assets" / fallback_name;
   if (std::filesystem::exists(fallback))
     return fallback;
   return candidate;
 }
 
+} // namespace
+
 std::expected<ToolConfig, std::string> load_tool_config(int argc, char *argv[]) {
-  auto config_path = find_config_path(argc, argv);
+  const auto config_path = find_config_path(argc, argv);
 
   auto json_result = corundum::core::read_json(corundum::core::DirectoryContentSource{}, config_path);
   if (!json_result)
@@ -54,7 +57,7 @@ std::expected<ToolConfig, std::string> load_tool_config(int argc, char *argv[]) 
 
   const auto config_dir = std::filesystem::weakly_canonical(config_path).parent_path();
 
-  auto resolve = [&](const std::string &key) -> std::filesystem::path {
+  const auto resolve = [&](const std::string &key) -> std::filesystem::path {
     if (!j.contains(key))
       return {};
     const std::string raw = j[key].get<std::string>();
@@ -66,24 +69,20 @@ std::expected<ToolConfig, std::string> load_tool_config(int argc, char *argv[]) 
     return std::filesystem::weakly_canonical(p);
   };
 
-  ToolConfig cfg;
-  cfg.data_root = resolve("data_root");
-  cfg.font_path = resolve_with_fallback(resolve("font_path"), "NotoSans.ttf");
-  cfg.icons_font_path = resolve_with_fallback(resolve("icons_font_path"), "NotoSans.ttf");
-  cfg.theme_path = resolve_with_fallback(resolve("theme_path"), "editor_dark.json");
-  cfg.dialogue_dir = resolve("dialogue_dir");
-  cfg.quests_dir = resolve("quests_dir");
+  ToolConfig config;
+  config.data_root = resolve("data_root");
+  config.font_path = resolve_with_fallback(resolve("font_path"), "NotoSans.ttf");
+  config.icons_font_path = resolve_with_fallback(resolve("icons_font_path"), "NotoSans.ttf");
+  config.theme_path = resolve_with_fallback(resolve("theme_path"), "editor_dark.json");
+  config.dialogue_dir = resolve("dialogue_dir");
+  config.quests_dir = resolve("quests_dir");
 
-  if (j.contains("elevation_step_px"))
-    cfg.elevation_step_px = j["elevation_step_px"].get<float>();
-  if (j.contains("max_step_height"))
-    cfg.max_step_height = j["max_step_height"].get<unsigned int>();
-  if (j.contains("tile_diamond_w"))
-    cfg.tile_diamond_w = j["tile_diamond_w"].get<int>();
-  if (j.contains("tile_diamond_h"))
-    cfg.tile_diamond_h = j["tile_diamond_h"].get<int>();
+  config.elevation_step_px = j.value("elevation_step_px", config.elevation_step_px);
+  config.max_step_height = j.value("max_step_height", config.max_step_height);
+  config.tile_diamond_w = j.value("tile_diamond_w", config.tile_diamond_w);
+  config.tile_diamond_h = j.value("tile_diamond_h", config.tile_diamond_h);
 
-  return cfg;
+  return config;
 }
 
 } // namespace corundum::toolkit::host

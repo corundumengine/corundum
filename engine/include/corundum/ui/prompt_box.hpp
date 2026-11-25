@@ -19,14 +19,14 @@ namespace corundum::ui {
  *  Pure render — no state, no measurement caching. The caller is responsible for
  *  only invoking this while a prompt is active.
  *
- *  @param r             Platform renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
+ *  @param renderer      Platform renderer; receives DrawRect, nine-patch DrawSprite, and DrawText commands.
  *  @param style         Dialog text style (font, size, colour); reused so prompt boxes match dialogue.
  *  @param border        Pre-loaded nine-patch border texture/tile dims; same one used by the dialogue box.
  *  @param question      Single-line question text (e.g. "Enter?" or "Leave?").
  *  @param yes_selected  True if the Yes option is highlighted; false for No.
  *  @param viewport      Screen size in pixels; the box is centered within this.
  */
-void prompt_box_render(platform::Renderer &r, const PanelStyle &style, const NinePatchBorder &border,
+void prompt_box_render(platform::Renderer &renderer, const PanelStyle &style, const NinePatchBorder &border,
                        std::string_view question, bool yes_selected, core::math::Vec2 viewport);
 
 } // namespace corundum::ui

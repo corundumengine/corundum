@@ -19,20 +19,18 @@ namespace corundum::world {
 namespace {
 
 /** MapView for a single map. */
-[[nodiscard]] MapView build_single_map_view(const render::SingleMapArea &area, const core::GameConfig &cfg) noexcept {
+[[nodiscard]] MapView build_single_map_view(const render::SingleMapArea &area,
+                                            const core::GameConfig &config) noexcept {
   const tilemap::Tilemap &tm = area.map.tilemap;
-  const core::math::IsometricParams isometric = render::isometric_params(area, cfg);
-  const WorldBounds bounds{single_map_bounds(tm, isometric.half_tw, isometric.half_th)};
+  const core::math::IsometricParams isometric = render::isometric_params(area, config);
   return {
       .collisions = tm.collisions.view(),
       .collision_triangles = tm.collision_triangles.view(),
-      .world_w_px = bounds.width_px,
-      .world_h_px = bounds.height_px,
-      .world_w_tiles = static_cast<float>(tm.width),
-      .world_h_tiles = static_cast<float>(tm.height),
+      .world_bounds = single_map_bounds(tm, isometric.half_tw, isometric.half_th),
+      .world_size_tiles = {.width = tm.width, .height = tm.height},
       .projection = isometric,
-      .character_scale = cfg.character_scale,
-      .tile_scale = cfg.tile_scale,
+      .character_scale = config.character_scale,
+      .tile_scale = config.tile_scale,
       .portals = area.map.portals,
       .elevation_map = &tm,
       .walkability = &area.walkability,
@@ -42,21 +40,17 @@ namespace {
 /** MapView for a streamed world.
  *  @pre `area` has at least one active chunk and its aggregates are rebuilt.
  */
-[[nodiscard]] MapView build_world_map_view(const render::WorldArea &area, const core::GameConfig &cfg) noexcept {
+[[nodiscard]] MapView build_world_map_view(const render::WorldArea &area, const core::GameConfig &config) noexcept {
   const tilemap::WorldManifest &manifest = area.manifest;
-  const int total_h{manifest.effective_tiles_tall()};
-  const core::math::IsometricParams isometric = render::isometric_params(area, cfg);
-  const auto [iso_w, iso_h] = tilemap::world_bounds_iso(manifest, isometric.half_tw, isometric.half_th);
+  const core::math::IsometricParams isometric = render::isometric_params(area, config);
   return {
       .collisions = area.aggregates.collisions.view(),
       .collision_triangles = area.aggregates.triangles.view(),
-      .world_w_px = iso_w,
-      .world_h_px = iso_h,
-      .world_w_tiles = static_cast<float>(manifest.effective_tiles_wide()),
-      .world_h_tiles = static_cast<float>(total_h),
+      .world_bounds = tilemap::world_bounds_iso(manifest, isometric.half_tw, isometric.half_th),
+      .world_size_tiles = {.width = manifest.effective_tiles_wide(), .height = manifest.effective_tiles_tall()},
       .projection = isometric,
-      .character_scale = cfg.character_scale,
-      .tile_scale = cfg.tile_scale,
+      .character_scale = config.character_scale,
+      .tile_scale = config.tile_scale,
       .portals = std::span{area.aggregates.portals},
       .walkability = &area.aggregates.walkability,
       .world_area = &area,
@@ -73,13 +67,13 @@ namespace {
 
 } // namespace
 
-[[nodiscard]] MapView build_map_view(const render::RenderState &render, const core::GameConfig &cfg) noexcept {
+[[nodiscard]] MapView build_map_view(const render::RenderState &render, const core::GameConfig &config) noexcept {
   const auto *world_area = std::get_if<render::WorldArea>(&render.area);
   if (world_area != nullptr && !world_area->chunks.active_empty())
-    return build_world_map_view(*world_area, cfg);
+    return build_world_map_view(*world_area, config);
   if (const auto *single = std::get_if<render::SingleMapArea>(&render.area))
-    return build_single_map_view(*single, cfg);
-  return build_single_map_view(no_area(), cfg);
+    return build_single_map_view(*single, config);
+  return build_single_map_view(no_area(), config);
 }
 
 WorldBounds single_map_bounds(const tilemap::Tilemap &tm, float half_tw, float half_th) noexcept {

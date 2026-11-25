@@ -50,7 +50,7 @@ struct MenuLayout {
 };
 
 /** Compute the pause menu's panel and row geometry for `viewport`. */
-[[nodiscard]] MenuLayout menu_panel_layout(const platform::Renderer &r, const PanelStyle &style,
+[[nodiscard]] MenuLayout menu_panel_layout(const platform::Renderer &renderer, const PanelStyle &style,
                                            core::math::Vec2 viewport, input::InputDevice last_device);
 
 /** Draw the centered pause menu with Resume / Settings / Save / Load / Quit rows.
@@ -58,14 +58,14 @@ struct MenuLayout {
  *  Pure render, like inventory_panel_render. Only invoked while GameMode::Menu is on top of
  *  the UI stack.
  *
- *  @param r           Platform renderer; receives DrawRect, nine-patch DrawSprite and DrawText commands.
+ *  @param renderer    Platform renderer; receives DrawRect, nine-patch DrawSprite and DrawText commands.
  *  @param style       Dialog text style; reused so the menu matches dialogue.
  *  @param border      Pre-loaded nine-patch frame; the same one the dialogue box uses.
  *  @param state       Highlighted row.
  *  @param viewport    Screen size in pixels; the panel is centered within this.
  *  @param last_device Device of the player's most recent press; picks the footer glyphs.
  */
-void menu_panel_render(platform::Renderer &r, const PanelStyle &style, const NinePatchBorder &border,
+void menu_panel_render(platform::Renderer &renderer, const PanelStyle &style, const NinePatchBorder &border,
                        const MenuState &state, core::math::Vec2 viewport,
                        input::InputDevice last_device = input::InputDevice::Keyboard);
 

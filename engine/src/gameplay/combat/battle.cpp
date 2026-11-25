@@ -623,7 +623,7 @@ BattleStep Battle::update(Engine &engine, Clock clock) {
     play_protagonist_death(engine, context);
     follow_fallen_target(context, before);
 
-    const world::MapView map = world::build_map_view(engine.render, engine.cfg);
+    const world::MapView map = world::build_map_view(engine.render, engine.config);
     plan_movement(engine, map, context);
     walk_hostiles(engine, map, context);
   } else {
@@ -811,7 +811,7 @@ void Battle::walk_hostiles(Engine &engine, const world::MapView &map, const rule
     const std::optional<entities::EntityId> &entity = entities_[i];
     if (!entity || !is_hostile(i) || !is_fighting(context, i))
       continue;
-    physics::follow_path(transforms, *entity, paths_[i], engine.cfg.player_speed, iso, engine.timer.target_dt);
+    physics::follow_path(transforms, *entity, paths_[i], engine.config.player_speed, iso, engine.timer.target_dt);
   }
 }
 

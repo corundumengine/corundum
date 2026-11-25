@@ -39,7 +39,7 @@ std::string_view hub_tab_label(world::GameMode mode) noexcept {
   }
 }
 
-HubTabStrip hub_tab_strip(const platform::Renderer &r, const ui::PanelStyle &style, core::math::Vec2 viewport) {
+HubTabStrip hub_tab_strip(const platform::Renderer &renderer, const ui::PanelStyle &style, core::math::Vec2 viewport) {
   HubTabStrip strip{};
   strip.line_height = std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
   strip.y = k_top_margin;
@@ -48,7 +48,7 @@ HubTabStrip hub_tab_strip(const platform::Renderer &r, const ui::PanelStyle &sty
   float total = 0.f;
   const platform::FontId font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
   for (std::size_t i = 0; i < k_hub_tab_modes.size(); ++i) {
-    widths[i] = r.measure_text(font_id, hub_tab_label(k_hub_tab_modes[i]), style.font_size_body);
+    widths[i] = renderer.measure_text(font_id, hub_tab_label(k_hub_tab_modes[i]), style.font_size_body);
     total += widths[i];
   }
   total += k_tab_gap * static_cast<float>(k_hub_tab_modes.size() - 1);
@@ -76,15 +76,15 @@ float hub_panel_top_inset(const ui::PanelStyle &style) noexcept {
   return k_top_margin + std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 4.f);
 }
 
-void hub_tab_strip_render(platform::Renderer &r, const ui::PanelStyle &style, world::GameMode active,
+void hub_tab_strip_render(platform::Renderer &renderer, const ui::PanelStyle &style, world::GameMode active,
                           core::math::Vec2 viewport, input::InputDevice last_device) {
-  const HubTabStrip strip = hub_tab_strip(r, style, viewport);
+  const HubTabStrip strip = hub_tab_strip(renderer, style, viewport);
   const platform::FontId font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
   const std::string_view prev = ui::input_glyph(input::Action::TabPrev, last_device);
   const std::string_view next = ui::input_glyph(input::Action::TabNext, last_device);
 
-  const float prev_w = r.measure_text(font_id, prev, style.font_size_prompt);
-  r.draw(platform::DrawText{
+  const float prev_w = renderer.measure_text(font_id, prev, style.font_size_prompt);
+  renderer.draw(platform::DrawText{
       .font_id = font_id,
       .text = prev,
       .position = {.x = strip.tabs.front().pos.x - k_glyph_gap - prev_w, .y = strip.y},
@@ -93,7 +93,7 @@ void hub_tab_strip_render(platform::Renderer &r, const ui::PanelStyle &style, wo
   });
 
   for (std::size_t i = 0; i < k_hub_tab_modes.size(); ++i) {
-    r.draw(platform::DrawText{
+    renderer.draw(platform::DrawText{
         .font_id = font_id,
         .text = hub_tab_label(k_hub_tab_modes[i]),
         .position = strip.tabs[i].pos,
@@ -103,7 +103,7 @@ void hub_tab_strip_render(platform::Renderer &r, const ui::PanelStyle &style, wo
   }
 
   const HubTabRect &last = strip.tabs.back();
-  r.draw(platform::DrawText{
+  renderer.draw(platform::DrawText{
       .font_id = font_id,
       .text = next,
       .position = {.x = last.pos.x + last.width + k_glyph_gap, .y = strip.y},

@@ -31,11 +31,11 @@ namespace {
 /** Emits one DrawText in the Dialogue family's `font_style`. Empty text is skipped, so
  *  callers never special-case an absent speaker or an empty line.
  */
-void draw_dialogue_text(platform::Renderer &r, const ui::PanelStyle &style, ui::FontStyle font_style,
+void draw_dialogue_text(platform::Renderer &renderer, const ui::PanelStyle &style, ui::FontStyle font_style,
                         std::string_view text, unsigned size, core::math::Colour colour, float x, float y) {
   if (text.empty())
     return;
-  r.draw(platform::DrawText{
+  renderer.draw(platform::DrawText{
       .font_id = style.family(ui::FontRole::Dialogue).get(font_style),
       .text = text,
       .position = {.x = x, .y = y},
@@ -45,18 +45,19 @@ void draw_dialogue_text(platform::Renderer &r, const ui::PanelStyle &style, ui::
 }
 
 /** Draws one wrapped segment, offset by its cumulative x within the line. */
-void draw_dialogue_segment(platform::Renderer &r, const ui::PanelStyle &style, const ui::StyledSegment &segment,
+void draw_dialogue_segment(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::StyledSegment &segment,
                            unsigned size, core::math::Colour colour, float x, float y) {
-  draw_dialogue_text(r, style, segment.style, segment.text, size, colour, x + segment.x, y);
+  draw_dialogue_text(renderer, style, segment.style, segment.text, size, colour, x + segment.x, y);
 }
 
 /** Draws every segment of a wrapped — possibly partially revealed — line, preserving each
  *  run's style.
  */
-void draw_segments(platform::Renderer &r, const ui::PanelStyle &style, const std::vector<ui::StyledSegment> &segments,
-                   unsigned size, core::math::Colour colour, float x, float y) {
+void draw_segments(platform::Renderer &renderer, const ui::PanelStyle &style,
+                   const std::vector<ui::StyledSegment> &segments, unsigned size, core::math::Colour colour, float x,
+                   float y) {
   for (const ui::StyledSegment &segment : segments)
-    draw_dialogue_segment(r, style, segment, size, colour, x, y);
+    draw_dialogue_segment(renderer, style, segment, size, colour, x, y);
 }
 
 /** Device-aware footer for a Talk node: Select continues, Cancel closes. */
@@ -71,10 +72,10 @@ std::string end_footer(input::InputDevice last_device) {
 }
 
 /** Draws the speaker header, the revealed body, and the continue prompt of a Talk node. */
-void render_talk_body(const DialogLayout &layout, const DialogBoxState &ds, platform::Renderer &r,
+void render_talk_body(const DialogLayout &layout, const DialogBoxState &ds, platform::Renderer &renderer,
                       const ui::PanelStyle &style, input::InputDevice last_device) {
   const float x = layout.panel_pos.x + layout.inset;
-  draw_dialogue_text(r, style, ui::FontStyle::Bold, layout.speaker, style.font_size_speaker, style.speaker, x,
+  draw_dialogue_text(renderer, style, ui::FontStyle::Bold, layout.speaker, style.font_size_speaker, style.speaker, x,
                      layout.panel_pos.y + layout.inset);
 
   float y = layout.panel_pos.y + layout.inset + style.line_spacing;
@@ -87,31 +88,31 @@ void render_talk_body(const DialogLayout &layout, const DialogBoxState &ds, plat
     if (ds.reveal_active) {
       const auto [revealed, consumed] = ui::reveal_prefix_styled(line.segments, remaining);
       remaining -= consumed;
-      draw_segments(r, style, revealed, style.font_size_body, style.body, x, y);
+      draw_segments(renderer, style, revealed, style.font_size_body, style.body, x, y);
     } else {
-      draw_segments(r, style, line.segments, style.font_size_body, style.body, x, y);
+      draw_segments(renderer, style, line.segments, style.font_size_body, style.body, x, y);
     }
     y += style.line_spacing;
   }
 
   // The prompt is dialogue chrome, so it uses the Dialogue family like the body.
-  draw_dialogue_text(r, style, ui::FontStyle::Regular, talk_footer(last_device), style.font_size_prompt, style.choice,
-                     x, y + (style.line_spacing / 2.f));
+  draw_dialogue_text(renderer, style, ui::FontStyle::Regular, talk_footer(last_device), style.font_size_prompt,
+                     style.choice, x, y + (style.line_spacing / 2.f));
 }
 
 /** Draws each visible choice, one StyledLine at a time, keeping the selected colour on
  *  continuation lines while only the first shows the cursor.
  */
-void render_choices(const DialogLayout &layout, platform::Renderer &r, const ui::PanelStyle &style) {
+void render_choices(const DialogLayout &layout, platform::Renderer &renderer, const ui::PanelStyle &style) {
   const float x = layout.panel_pos.x + layout.inset;
   const std::string_view header = layout.speaker.empty() ? std::string_view{"Choose:"} : layout.speaker;
-  draw_dialogue_text(r, style, ui::FontStyle::Bold, header, style.font_size_speaker, style.speaker, x,
+  draw_dialogue_text(renderer, style, ui::FontStyle::Bold, header, style.font_size_speaker, style.speaker, x,
                      layout.panel_pos.y + layout.inset);
 
   // The cursor column must match the width build_layout reserved while wrapping, so it is
   // measured from the same Dialogue regular font rather than the UI role.
-  const float advance = r.measure_text(style.family(ui::FontRole::Dialogue).get(ui::FontStyle::Regular),
-                                       ui::k_choice_cursor, style.font_size_body);
+  const float advance = renderer.measure_text(style.family(ui::FontRole::Dialogue).get(ui::FontStyle::Regular),
+                                              ui::k_choice_cursor, style.font_size_body);
 
   float y = layout.panel_pos.y + layout.inset + style.line_spacing;
   for (std::size_t i = 0; i < layout.choices.size(); ++i) {
@@ -120,8 +121,8 @@ void render_choices(const DialogLayout &layout, platform::Renderer &r, const ui:
     const std::vector<ui::StyledLine> &lines = layout.choices[i].lines;
     for (std::size_t line = 0; line < lines.size(); ++line) {
       const std::string_view cursor = (is_selected && line == 0) ? ui::k_choice_cursor : ui::k_cursor_unselected;
-      draw_dialogue_text(r, style, ui::FontStyle::Regular, cursor, style.font_size_body, colour, x, y);
-      draw_segments(r, style, lines[line].segments, style.font_size_body, colour, x + advance, y);
+      draw_dialogue_text(renderer, style, ui::FontStyle::Regular, cursor, style.font_size_body, colour, x, y);
+      draw_segments(renderer, style, lines[line].segments, style.font_size_body, colour, x + advance, y);
       y += style.line_spacing;
     }
   }
@@ -145,8 +146,9 @@ void dialog_box_advance(DialogBoxState &ds, const gameplay::dialogue::Conversati
     ds.reveal_chars += reveal_chars_per_second * dt;
 }
 
-void dialog_box_update(DialogBoxState &ds, const gameplay::dialogue::Conversation &conversation, platform::Renderer &r,
-                       core::math::Vec2 viewport, const ui::PanelSkin &skin, float text_speed) {
+void dialog_box_update(DialogBoxState &ds, const gameplay::dialogue::Conversation &conversation,
+                       platform::Renderer &renderer, core::math::Vec2 viewport, const ui::PanelSkin &skin,
+                       float text_speed) {
   ds.reveal_active = k_base_reveal_chars_per_second * text_speed > 0.f;
   if (!conversation.is_active()) {
     ds.visible = false;
@@ -172,7 +174,7 @@ void dialog_box_update(DialogBoxState &ds, const gameplay::dialogue::Conversatio
   if (stale) {
     const ui::FontFamily &fonts = skin.style.family(ui::FontRole::Dialogue);
     const auto measure = [&](std::string_view text, ui::FontStyle style) -> float {
-      return r.measure_text(fonts.get(style), text, skin.style.font_size_body);
+      return renderer.measure_text(fonts.get(style), text, skin.style.font_size_body);
     };
 
     ds.layout = build_layout(conversation, skin.style, skin.border.tile_w, viewport, measure);
@@ -186,20 +188,21 @@ void dialog_box_update(DialogBoxState &ds, const gameplay::dialogue::Conversatio
   ds.visible = true;
 }
 
-void dialog_box_render(const DialogBoxState &ds, platform::Renderer &r, const ui::PanelSkin &skin,
+void dialog_box_render(const DialogBoxState &ds, platform::Renderer &renderer, const ui::PanelSkin &skin,
                        input::InputDevice last_device) {
   if (!ds.visible || !ds.layout)
     return;
 
   const DialogLayout &layout = *ds.layout;
-  ui::panel_chrome(r, skin.style.bg, skin.border, layout.panel_pos, layout.panel_size);
+  ui::panel_chrome(renderer, skin.style.bg, skin.border, layout.panel_pos, layout.panel_size);
 
   switch (layout.node_type) {
-    case gameplay::dialogue::NodeType::Talk: render_talk_body(layout, ds, r, skin.style, last_device); break;
-    case gameplay::dialogue::NodeType::Choice: render_choices(layout, r, skin.style); break;
+    case gameplay::dialogue::NodeType::Talk: render_talk_body(layout, ds, renderer, skin.style, last_device); break;
+    case gameplay::dialogue::NodeType::Choice: render_choices(layout, renderer, skin.style); break;
     case gameplay::dialogue::NodeType::End:
-      draw_dialogue_text(r, skin.style, ui::FontStyle::Regular, end_footer(last_device), skin.style.font_size_body,
-                         skin.style.choice, layout.panel_pos.x + layout.inset, layout.panel_pos.y + layout.inset);
+      draw_dialogue_text(renderer, skin.style, ui::FontStyle::Regular, end_footer(last_device),
+                         skin.style.font_size_body, skin.style.choice, layout.panel_pos.x + layout.inset,
+                         layout.panel_pos.y + layout.inset);
       break;
     case gameplay::dialogue::NodeType::Event: break;
   }

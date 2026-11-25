@@ -14,15 +14,15 @@
 
 namespace corundum::gameplay::screens {
 
-void loading_panel_render(platform::Renderer &r, const ui::PanelStyle &style, core::math::Vec2 viewport) {
+void loading_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style, core::math::Vec2 viewport) {
   constexpr std::string_view k_loading_text = "Loading...";
   const platform::FontId font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
 
-  ui::screen_backdrop(r, style, viewport);
+  ui::screen_backdrop(renderer, style, viewport);
 
-  const float width = r.measure_text(font_id, k_loading_text, style.font_size_speaker);
+  const float width = renderer.measure_text(font_id, k_loading_text, style.font_size_speaker);
   const float height = static_cast<float>(style.font_size_speaker);
-  r.draw(platform::DrawText{
+  renderer.draw(platform::DrawText{
       .font_id = font_id,
       .text = k_loading_text,
       .position = {.x = (viewport.x - width) * 0.5f, .y = (viewport.y - height) * 0.5f},

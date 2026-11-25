@@ -69,25 +69,25 @@ std::vector<BarterLine> build_barter_stock(const gameplay::shop::Shop &shop, con
   return lines;
 }
 
-BarterLayout barter_panel_layout(const platform::Renderer &r, const ui::PanelStyle &style, std::string_view shop_name,
-                                 int gold, const std::vector<BarterLine> &lines, core::math::Vec2 viewport,
-                                 input::InputDevice last_device) {
+BarterLayout barter_panel_layout(const platform::Renderer &renderer, const ui::PanelStyle &style,
+                                 std::string_view shop_name, int gold, const std::vector<BarterLine> &lines,
+                                 core::math::Vec2 viewport, input::InputDevice last_device) {
   const float line_h = std::max(style.line_spacing, static_cast<float>(style.font_size_body) + 6.f);
   const float title_h = std::max(line_h, static_cast<float>(style.font_size_speaker) + 6.f);
-  const float cursor_w = ui::cursor_advance(r, style);
+  const float cursor_w = ui::cursor_advance(renderer, style);
 
   const std::string gold_line = std::format("Gold: {}", gold);
   const std::string footer = barter_footer(last_device);
   const platform::FontId font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
 
   float widest = std::max({
-      r.measure_text(font_id, shop_name, style.font_size_speaker),
-      r.measure_text(font_id, gold_line, style.font_size_body),
-      r.measure_text(font_id, footer, style.font_size_body),
-      r.measure_text(font_id, k_barter_empty, style.font_size_body),
+      renderer.measure_text(font_id, shop_name, style.font_size_speaker),
+      renderer.measure_text(font_id, gold_line, style.font_size_body),
+      renderer.measure_text(font_id, footer, style.font_size_body),
+      renderer.measure_text(font_id, k_barter_empty, style.font_size_body),
   });
   for (const BarterLine &line : lines)
-    widest = std::max(widest, cursor_w + r.measure_text(font_id, barter_row_label(line), style.font_size_body));
+    widest = std::max(widest, cursor_w + renderer.measure_text(font_id, barter_row_label(line), style.font_size_body));
 
   const float panel_w = std::max(k_barter_min_w, widest + (k_barter_pad_x * 2.f));
   const std::size_t rows = lines.empty() ? 1 : lines.size();
@@ -109,45 +109,45 @@ BarterLayout barter_panel_layout(const platform::Renderer &r, const ui::PanelSty
   return layout;
 }
 
-void barter_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+void barter_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                          std::string_view shop_name, int gold, const std::vector<BarterLine> &lines,
                          const BarterState &state, core::math::Vec2 viewport, input::InputDevice last_device) {
-  const BarterLayout layout = barter_panel_layout(r, style, shop_name, gold, lines, viewport, last_device);
+  const BarterLayout layout = barter_panel_layout(renderer, style, shop_name, gold, lines, viewport, last_device);
   const float line_h = layout.rows.row_height;
 
   const std::string gold_line = std::format("Gold: {}", gold);
   const std::string footer = barter_footer(last_device);
   const platform::FontId font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
 
-  ui::panel_chrome(r, style.bg, border, layout.panel_pos, layout.panel_size);
+  ui::panel_chrome(renderer, style.bg, border, layout.panel_pos, layout.panel_size);
 
-  r.draw(platform::DrawText{
+  renderer.draw(platform::DrawText{
       .font_id = font_id,
       .text = shop_name,
       .position = {.x = layout.panel_pos.x + k_barter_pad_x, .y = layout.panel_pos.y + k_barter_pad_y},
       .char_size = style.font_size_speaker,
       .colour = style.speaker,
   });
-  r.draw(platform::DrawText{
+  renderer.draw(platform::DrawText{
       .font_id = font_id,
       .text = gold_line,
       .position =
           {
               .x = layout.panel_pos.x + layout.panel_size.x - k_barter_pad_x -
-                   r.measure_text(font_id, gold_line, style.font_size_body),
+                   renderer.measure_text(font_id, gold_line, style.font_size_body),
               .y = layout.panel_pos.y + k_barter_pad_y,
           },
       .char_size = style.font_size_body,
       .colour = style.choice,
   });
 
-  r.draw(platform::DrawText{
+  renderer.draw(platform::DrawText{
       .font_id = font_id,
       .text = footer,
       .position =
           {
               .x = layout.panel_pos.x +
-                   ((layout.panel_size.x - r.measure_text(font_id, footer, style.font_size_body)) * 0.5f),
+                   ((layout.panel_size.x - renderer.measure_text(font_id, footer, style.font_size_body)) * 0.5f),
               .y = layout.panel_pos.y + layout.panel_size.y - k_barter_pad_y - line_h,
           },
       .char_size = style.font_size_body,
@@ -156,7 +156,7 @@ void barter_panel_render(platform::Renderer &r, const ui::PanelStyle &style, con
 
   float y = layout.rows.row_pos.y;
   if (lines.empty()) {
-    r.draw(platform::DrawText{
+    renderer.draw(platform::DrawText{
         .font_id = font_id,
         .text = k_barter_empty,
         .position = {.x = layout.rows.row_pos.x, .y = y},
@@ -169,7 +169,7 @@ void barter_panel_render(platform::Renderer &r, const ui::PanelStyle &style, con
   const int clamped_cursor = std::clamp(state.cursor, 0, static_cast<int>(lines.size()) - 1);
   for (std::size_t i = 0; i < lines.size(); ++i) {
     const std::string label = barter_row_label(lines[i]);
-    ui::draw_option(r, style, label, {.x = layout.rows.row_pos.x, .y = y}, std::cmp_equal(i, clamped_cursor));
+    ui::draw_option(renderer, style, label, {.x = layout.rows.row_pos.x, .y = y}, std::cmp_equal(i, clamped_cursor));
     y += line_h;
   }
 }

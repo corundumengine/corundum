@@ -331,7 +331,7 @@ TEST_CASE("settings: the settings entry overrides game.json's window mode") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
-  // Stands in for initialize() applying cfg.window_mode.
+  // Stands in for initialize() applying config.window_mode.
   engine.window().set_window_mode(WindowMode::Fullscreen);
 
   MemoryUserStorage storage;
@@ -356,7 +356,7 @@ TEST_CASE("settings: an absent window_mode keeps game.json's") {
   CHECK(engine.window().window_mode() == WindowMode::Fullscreen);
 }
 
-TEST_CASE("settings: apply syncs cfg.window_mode for the deferred reveal") {
+TEST_CASE("settings: apply syncs config.window_mode for the deferred reveal") {
   corundum::Engine engine{};
   adopt_platform(engine, 320, 240);
 
@@ -364,9 +364,9 @@ TEST_CASE("settings: apply syncs cfg.window_mode for the deferred reveal") {
   settings.window_mode = WindowMode::Fullscreen;
   REQUIRE(corundum::settings::apply(engine, settings).has_value());
 
-  // reveal_window() re-applies cfg.window_mode once the window is visible; apply must update it
+  // reveal_window() re-applies config.window_mode once the window is visible; apply must update it
   // or the loaded mode would be clobbered on the first frame.
-  CHECK(engine.cfg.window_mode == WindowMode::Fullscreen);
+  CHECK(engine.config.window_mode == WindowMode::Fullscreen);
 }
 
 TEST_CASE("settings: save writes format_json output under settings.json") {

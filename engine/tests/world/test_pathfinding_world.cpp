@@ -66,8 +66,8 @@ TEST_CASE("build_map_view - world mode wires up the walkability graph") {
   render_data::RenderState state;
   init_world(state, 8, 1, [](int) { return flat_chunk(8); });
 
-  const corundum::core::GameConfig cfg;
-  const MapView mv = corundum::world::build_map_view(state, cfg);
+  const corundum::core::GameConfig config;
+  const MapView mv = corundum::world::build_map_view(state, config);
   CHECK(mv.walkability == &corundum::test::world_area_of(state).aggregates.walkability);
   CHECK(mv.elevation_map == nullptr);
 }

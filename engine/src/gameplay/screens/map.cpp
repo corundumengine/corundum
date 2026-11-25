@@ -92,21 +92,21 @@ MapLayout map_panel_layout(const platform::Renderer & /*r*/, const ui::PanelStyl
   return layout;
 }
 
-void map_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
+void map_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
                       const std::vector<MapEntry> &entries, int cursor, int scroll, core::math::Vec2 viewport,
                       input::InputDevice last_device) {
-  const MapLayout layout = map_panel_layout(r, style, entries, cursor, scroll, viewport, last_device);
+  const MapLayout layout = map_panel_layout(renderer, style, entries, cursor, scroll, viewport, last_device);
   const float line_h = layout.rows.row_height;
 
   const std::string footer = map_footer(last_device);
   const platform::FontId font_id = style.family(ui::FontRole::Ui).get(ui::FontStyle::Regular);
 
-  ui::screen_backdrop(r, style, viewport);
-  ui::panel_chrome(r, style.bg, border, layout.panel_pos, layout.panel_size);
+  ui::screen_backdrop(renderer, style, viewport);
+  ui::panel_chrome(renderer, style.bg, border, layout.panel_pos, layout.panel_size);
 
-  const float title_w = r.measure_text(font_id, k_map_title, style.font_size_speaker);
+  const float title_w = renderer.measure_text(font_id, k_map_title, style.font_size_speaker);
   const float title_y = layout.panel_pos.y + k_map_pad_y;
-  r.draw(platform::DrawText{
+  renderer.draw(platform::DrawText{
       .font_id = font_id,
       .text = k_map_title,
       .position = {.x = layout.panel_pos.x + ((layout.panel_size.x - title_w) * 0.5f), .y = title_y},
@@ -114,13 +114,13 @@ void map_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const 
       .colour = style.speaker,
   });
 
-  r.draw(platform::DrawText{
+  renderer.draw(platform::DrawText{
       .font_id = font_id,
       .text = footer,
       .position =
           {
               .x = layout.panel_pos.x +
-                   ((layout.panel_size.x - r.measure_text(font_id, footer, style.font_size_body)) * 0.5f),
+                   ((layout.panel_size.x - renderer.measure_text(font_id, footer, style.font_size_body)) * 0.5f),
               .y = layout.panel_pos.y + layout.panel_size.y - k_map_pad_y - line_h,
           },
       .char_size = style.font_size_body,
@@ -128,7 +128,7 @@ void map_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const 
   });
 
   if (entries.empty()) {
-    r.draw(platform::DrawText{
+    renderer.draw(platform::DrawText{
         .font_id = font_id,
         .text = k_map_empty,
         .position = {.x = layout.rows.row_pos.x, .y = layout.rows.row_pos.y},
@@ -142,7 +142,7 @@ void map_panel_render(platform::Renderer &r, const ui::PanelStyle &style, const 
   float y = layout.rows.row_pos.y;
   const int last_row = std::min(layout.rows.first_row + layout.rows.visible_rows, static_cast<int>(entries.size()));
   for (int i = layout.rows.first_row; i < last_row; ++i) {
-    ui::draw_option(r, style, map_entry_label(entries[static_cast<std::size_t>(i)]),
+    ui::draw_option(renderer, style, map_entry_label(entries[static_cast<std::size_t>(i)]),
                     {.x = layout.rows.row_pos.x, .y = y}, i == clamped_cursor);
     y += line_h;
   }

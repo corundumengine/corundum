@@ -52,7 +52,7 @@ enum class CameraAnchor : uint8_t {
  *  @param engine Fully-initialised application state.
  *  @param params Optional overworld spawn tile (defaults to manifest centre).
  *  @return ok on success, or std::unexpected with an error message.
- *  @pre cfg.paths.world_manifest_path identifies the overworld manifest.
+ *  @pre config.paths.world_manifest_path identifies the overworld manifest.
  */
 [[nodiscard]] std::expected<void, std::string> enter_world(corundum::Engine &engine,
                                                            const corundum::render::WorldLoadParams &params);
@@ -127,7 +127,7 @@ void handle_map_transition(corundum::Engine &engine) noexcept;
  *  @param row    Target tile row.
  *  @param bounds World extent in display pixels.
  *  @param anchor Which tile point to centre on.
- *  @pre cfg.min_zoom > 0, so the clamped default zoom is positive.
+ *  @pre config.min_zoom > 0, so the clamped default zoom is positive.
  *  @note Also restarts render interpolation from the framed scene (snapshot_previous_step).
  */
 void frame_camera_on(corundum::Engine &engine, const corundum::core::math::IsometricParams &iso, float col, float row,

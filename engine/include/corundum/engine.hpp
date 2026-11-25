@@ -185,7 +185,7 @@ public:
 
   render::RenderState render;
 
-  core::GameConfig cfg;
+  core::GameConfig config;
 
   sprites::CharacterRegistry characters;
 
@@ -305,7 +305,7 @@ public:
    *  world::apply_spawn() (the gameplay framework does so on New Game / Load, or at
    *  construction when GameConfig::show_title is false).
    *
-   *  @param cfg Fully-loaded game configuration (move-ownership).
+   *  @param config Fully-loaded game configuration (move-ownership).
    *  @return ok on success, or std::unexpected with an error message.
    *  @pre window() and renderer() are non-null (make_engine() satisfies this).
    *       gpu() may be null (the main loop never touches it) for backends
@@ -313,7 +313,7 @@ public:
    *  @post On failure, cleanup() has been run on the partially-initialised
    *        engine; discard it.
    */
-  [[nodiscard]] std::expected<void, std::string> initialize(core::GameConfig &&cfg);
+  [[nodiscard]] std::expected<void, std::string> initialize(core::GameConfig &&config);
 
   /** Advance the engine by exactly one frame: poll input, run pending
    *  fixed steps, render once with interpolation.

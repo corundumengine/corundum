@@ -45,28 +45,28 @@ std::size_t count_drawable_cells(const tilemap::Tilemap &tm) {
   return count;
 }
 
-void render_frame(TileRecordingRenderer &renderer, RenderState &state, const corundum::core::GameConfig &cfg,
+void render_frame(TileRecordingRenderer &renderer, RenderState &state, const corundum::core::GameConfig &config,
                   const corundum::world::Scene &scene, corundum::core::math::IntSize window_logical) {
-  corundum::render::render(renderer, state, cfg, scene, 1.f, window_logical);
+  corundum::render::render(renderer, state, config, scene, 1.f, window_logical);
 }
 
 } // namespace
 
 TEST_CASE("render: a single map draws every non-empty cell once") {
-  const corundum::core::GameConfig cfg = corundum::test::make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
+  const corundum::core::GameConfig config = corundum::test::make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
   TileRecordingRenderer renderer;
   RenderState state;
   REQUIRE(corundum::render::load_map(
               disk(), renderer, state,
               (std::filesystem::path{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR} / "tilemaps/lifecycle_test.json").string(),
-              cfg)
+              config)
               .has_value());
   auto scene = std::make_unique<corundum::world::Scene>();
   scene->camera = {.x = -50000.f, .y = -50000.f, .zoom = 1.f};
   state.previous_step.camera = {.x = -50000.f, .y = -50000.f};
   state.previous_step.zoom = 1.f;
 
-  render_frame(renderer, state, cfg, *scene, {.width = 100000, .height = 100000});
+  render_frame(renderer, state, config, *scene, {.width = 100000, .height = 100000});
 
   const std::size_t expected = count_drawable_cells(*corundum::render::active_tilemap(state));
   REQUIRE(expected > 0);
@@ -74,16 +74,16 @@ TEST_CASE("render: a single map draws every non-empty cell once") {
 }
 
 TEST_CASE("render: a world draws every non-empty cell of every resident chunk once") {
-  const corundum::core::GameConfig cfg = corundum::test::make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
+  const corundum::core::GameConfig config = corundum::test::make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
   TileRecordingRenderer renderer;
   RenderState state;
-  REQUIRE(corundum::render::load_world(disk(), renderer, state, cfg, {}).has_value());
+  REQUIRE(corundum::render::load_world(disk(), renderer, state, config, {}).has_value());
   auto scene = std::make_unique<corundum::world::Scene>();
   scene->camera = {.x = -50000.f, .y = -50000.f, .zoom = 1.f};
   state.previous_step.camera = {.x = -50000.f, .y = -50000.f};
   state.previous_step.zoom = 1.f;
 
-  render_frame(renderer, state, cfg, *scene, {.width = 100000, .height = 100000});
+  render_frame(renderer, state, config, *scene, {.width = 100000, .height = 100000});
 
   const auto &world_area = corundum::test::world_area_of(state);
   std::size_t expected = 0;
@@ -94,33 +94,33 @@ TEST_CASE("render: a world draws every non-empty cell of every resident chunk on
 }
 
 TEST_CASE("render: a camera far from the area draws no tiles") {
-  const corundum::core::GameConfig cfg = corundum::test::make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
+  const corundum::core::GameConfig config = corundum::test::make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
   TileRecordingRenderer renderer;
   RenderState state;
   REQUIRE(corundum::render::load_map(
               disk(), renderer, state,
               (std::filesystem::path{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR} / "tilemaps/lifecycle_test.json").string(),
-              cfg)
+              config)
               .has_value());
   auto scene = std::make_unique<corundum::world::Scene>();
   scene->camera = {.x = 1e6f, .y = 1e6f, .zoom = 1.f};
   state.previous_step.camera = {.x = 1e6f, .y = 1e6f};
   state.previous_step.zoom = 1.f;
 
-  render_frame(renderer, state, cfg, *scene, {.width = 320, .height = 240});
+  render_frame(renderer, state, config, *scene, {.width = 320, .height = 240});
 
   CHECK(renderer.sprites.empty());
 }
 
 TEST_CASE("render: a failed load_map after a single map draws nothing") {
   const std::filesystem::path fixtures{CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR};
-  const corundum::core::GameConfig cfg = corundum::test::make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
+  const corundum::core::GameConfig config = corundum::test::make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
   TileRecordingRenderer renderer;
   RenderState state;
   const std::filesystem::path lifecycle_map_path = fixtures / "tilemaps/lifecycle_test.json";
   const std::filesystem::path missing_map_path = fixtures / "tilemaps/missing.json";
-  REQUIRE(corundum::render::load_map(disk(), renderer, state, lifecycle_map_path.string(), cfg).has_value());
-  const auto failed = corundum::render::load_map(disk(), renderer, state, missing_map_path.string(), cfg);
+  REQUIRE(corundum::render::load_map(disk(), renderer, state, lifecycle_map_path.string(), config).has_value());
+  const auto failed = corundum::render::load_map(disk(), renderer, state, missing_map_path.string(), config);
   REQUIRE_FALSE(failed.has_value());
   CHECK_EQ(failed.error(), std::format("tilemap: cannot open: {}", missing_map_path.string()));
   auto scene = std::make_unique<corundum::world::Scene>();
@@ -128,13 +128,13 @@ TEST_CASE("render: a failed load_map after a single map draws nothing") {
   state.previous_step.camera = {.x = -50000.f, .y = -50000.f};
   state.previous_step.zoom = 1.f;
 
-  render_frame(renderer, state, cfg, *scene, {.width = 100000, .height = 100000});
+  render_frame(renderer, state, config, *scene, {.width = 100000, .height = 100000});
 
   CHECK(renderer.sprites.empty());
 }
 
 TEST_CASE("render: the frame's world view is kept for screens that draw over the world") {
-  const corundum::core::GameConfig cfg = corundum::test::make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
+  const corundum::core::GameConfig config = corundum::test::make_world_config(CORUNDUM_LIFECYCLE_TEST_FIXTURES_DIR);
   TileRecordingRenderer renderer;
   RenderState state;
   state.previous_step.camera = {.x = 10.f, .y = 20.f};
@@ -144,7 +144,7 @@ TEST_CASE("render: the frame's world view is kept for screens that draw over the
   scene->camera.y = 60.f;
   scene->camera.zoom = 3.f;
 
-  corundum::render::render(renderer, state, cfg, *scene, 0.5f, {.width = 640, .height = 480});
+  corundum::render::render(renderer, state, config, *scene, 0.5f, {.width = 640, .height = 480});
 
   CHECK_EQ(state.world_view.camera.x, 20.f);
   CHECK_EQ(state.world_view.camera.y, 40.f);

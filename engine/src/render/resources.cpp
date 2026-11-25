@@ -55,10 +55,10 @@ namespace {
  *  released, so area purges can never destroy them.
  */
 [[nodiscard]] std::unordered_map<corundum::sprites::Id, corundum::platform::TextureId>
-load_sheet_textures(corundum::platform::Renderer &r, const corundum::sprites::CharacterRegistry &registry) {
+load_sheet_textures(corundum::platform::Renderer &renderer, const corundum::sprites::CharacterRegistry &registry) {
   std::unordered_map<corundum::sprites::Id, corundum::platform::TextureId> sheet_textures;
   for (const auto &[sheet_id, sheet] : registry.sheets()) {
-    auto result = r.load_texture(sheet.path);
+    auto result = renderer.load_texture(sheet.path);
     if (result.has_value())
       sheet_textures[sheet_id] = result.value();
     else
@@ -91,7 +91,7 @@ void store_sprite_frames(SpriteFrameIndex &index, const corundum::sprites::Frame
 
 } // namespace
 
-void load_sprite_index(corundum::platform::Renderer &r, render::RenderState &state,
+void load_sprite_index(corundum::platform::Renderer &renderer, render::RenderState &state,
                        const corundum::sprites::CharacterRegistry &registry) {
   const std::size_t num_sprites = static_cast<std::size_t>(max_sprite_id(registry)) + 1;
   state.sprite_index.tex_by_sprite_id.assign(num_sprites, std::nullopt);
@@ -101,7 +101,7 @@ void load_sprite_index(corundum::platform::Renderer &r, render::RenderState &sta
   state.sprite_index.frame_rects.clear();
 
   const std::unordered_map<corundum::sprites::Id, corundum::platform::TextureId> sheet_textures =
-      load_sheet_textures(r, registry);
+      load_sheet_textures(renderer, registry);
   for (const auto &[name, frame] : registry.frames()) {
     if (frame.sprite_id == k_null_sprite_id)
       continue;
@@ -122,12 +122,12 @@ namespace {
  *  face. An absent or unloadable optional face logs a warning and falls back; only a failed
  *  regular face is an error.
  */
-std::expected<void, std::string> load_font_family(corundum::platform::Renderer &r, const std::string &font_dir,
+std::expected<void, std::string> load_font_family(corundum::platform::Renderer &renderer, const std::string &font_dir,
                                                   std::string_view role_name,
                                                   const corundum::ui::FontFamilyPaths &family_paths,
                                                   corundum::ui::FontFamily &family) {
   const auto load_face = [&](const std::string &name) -> std::expected<corundum::platform::FontId, std::string> {
-    return r.load_font(std::format("{}/{}", font_dir, name));
+    return renderer.load_font(std::format("{}/{}", font_dir, name));
   };
 
   auto regular = load_face(family_paths.regular);
@@ -174,7 +174,7 @@ std::expected<void, std::string> load_font_family(corundum::platform::Renderer &
 
 } // namespace
 
-std::expected<void, std::string> load_fonts(corundum::platform::Renderer &r, render::RenderState &state,
+std::expected<void, std::string> load_fonts(corundum::platform::Renderer &renderer, render::RenderState &state,
                                             const corundum::core::ResourcePaths &paths) {
   const auto ui_slot = static_cast<std::size_t>(corundum::ui::FontRole::Ui);
   const auto display_slot = static_cast<std::size_t>(corundum::ui::FontRole::Display);
@@ -187,7 +187,7 @@ std::expected<void, std::string> load_fonts(corundum::platform::Renderer &r, ren
 
   for (const auto &[role, role_name] : k_roles) {
     const auto slot = static_cast<std::size_t>(role);
-    auto res = load_font_family(r, paths.font_dir, role_name, paths.fonts[slot], state.fonts[slot]);
+    auto res = load_font_family(renderer, paths.font_dir, role_name, paths.fonts[slot], state.fonts[slot]);
     if (!res)
       return res;
   }
@@ -197,11 +197,11 @@ std::expected<void, std::string> load_fonts(corundum::platform::Renderer &r, ren
     state.fonts[display_slot] = state.fonts[ui_slot];
     return {};
   }
-  return load_font_family(r, paths.font_dir, "display", paths.fonts[display_slot], state.fonts[display_slot]);
+  return load_font_family(renderer, paths.font_dir, "display", paths.fonts[display_slot], state.fonts[display_slot]);
 }
 
 std::expected<void, std::string> load_ui_assets(const corundum::core::ContentSource &content,
-                                                corundum::platform::Renderer &r, render::RenderState &state,
+                                                corundum::platform::Renderer &renderer, render::RenderState &state,
                                                 const corundum::core::ResourcePaths &paths) {
   const std::string &path = paths.ui_borders_file;
   auto j_result = corundum::core::read_json(content, path);
@@ -233,7 +233,7 @@ std::expected<void, std::string> load_ui_assets(const corundum::core::ContentSou
 
   // Process-lifetime texture: the UI border reference is deliberately never released, so
   // area purges can never destroy it.
-  auto result = r.load_texture(tex_path);
+  auto result = renderer.load_texture(tex_path);
   if (result.has_value()) {
     state.panel_skin.border.texture_id = result.value();
   } else {
@@ -256,8 +256,8 @@ std::expected<void, std::string> load_ui_assets(const corundum::core::ContentSou
   return {};
 }
 
-void configure_panel_style(render::RenderState &state, const corundum::core::GameConfig &cfg) {
-  const auto &dr = cfg.dialogue_render;
+void configure_panel_style(render::RenderState &state, const corundum::core::GameConfig &config) {
+  const auto &dr = config.dialogue_render;
   const float scale = state.ui_scale;
   const auto scaled = [scale](unsigned size) {
     return static_cast<unsigned>(std::lround(static_cast<float>(size) * scale));
@@ -267,8 +267,8 @@ void configure_panel_style(render::RenderState &state, const corundum::core::Gam
       .font_size_speaker = scaled(dr.font_size_speaker),
       .font_size_body = scaled(dr.font_size_body),
       .font_size_prompt = scaled(dr.font_size_prompt),
-      .font_size_heading = scaled(cfg.display.heading_size),
-      .font_size_banner = scaled(cfg.display.banner_size),
+      .font_size_heading = scaled(config.display.heading_size),
+      .font_size_banner = scaled(config.display.banner_size),
       .margin = dr.margin * scale,
       .line_spacing = dr.line_spacing * scale,
       .panel_height_frac = dr.panel_height_frac,
