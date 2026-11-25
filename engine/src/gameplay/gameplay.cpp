@@ -268,32 +268,34 @@ void register_hub_screens(Gameplay &gameplay, Engine &engine) {
                                 const input::InputIntent &intent) { screens::update_character(e, gameplay, intent); },
           .render =
               [&gameplay](Engine &e, platform::Renderer &renderer, core::math::Vec2 viewport) {
-                screens::render_character(e, gameplay, renderer, viewport);
+                screens::render_character(e, gameplay.character_sheet_state, gameplay.character_sheet_info, renderer,
+                                          viewport);
               },
       });
-  engine.screens.add(
-      screens::Journal,
-      ScreenSpec{
-          .owns_step = true,
-          .update = [&gameplay](Engine &e,
-                                const input::InputIntent &intent) { screens::update_journal(e, gameplay, intent); },
-          .render =
-              [&gameplay](Engine &e, platform::Renderer &renderer, core::math::Vec2 viewport) {
-                screens::render_journal(e, gameplay, renderer, viewport);
-              },
-      });
+  engine.screens.add(screens::Journal,
+                     ScreenSpec{
+                         .owns_step = true,
+                         .update =
+                             [&gameplay](Engine &e, const input::InputIntent &intent) {
+                               screens::update_journal(e, gameplay.journal_screen, gameplay.quests, intent);
+                             },
+                         .render =
+                             [&gameplay](Engine &e, platform::Renderer &renderer, core::math::Vec2 viewport) {
+                               screens::render_journal(e, gameplay.journal_screen, gameplay.quests, renderer, viewport);
+                             },
+                     });
   engine.screens.add(screens::Codex, ScreenSpec{
                                          .owns_step = true,
                                          .update =
                                              [&gameplay](Engine &e, const input::InputIntent &intent) {
-                                               screens::update_codex(e, gameplay, intent);
+                                               screens::update_codex(e, gameplay.codex_screen, gameplay.codex, intent);
                                              },
                                      });
   engine.screens.add(screens::Map, ScreenSpec{
                                        .owns_step = true,
                                        .update =
                                            [&gameplay](Engine &e, const input::InputIntent &intent) {
-                                             screens::update_map(e, gameplay, intent);
+                                             screens::update_map(e, gameplay.map_screen, gameplay.locations, intent);
                                            },
                                    });
 }
@@ -322,7 +324,7 @@ void register_modal_screens(Gameplay &gameplay, Engine &engine) {
                                 const input::InputIntent &intent) { screens::update_confirm(e, gameplay, intent); },
           .render =
               [&gameplay](Engine &e, platform::Renderer &renderer, core::math::Vec2 viewport) {
-                screens::render_confirm(e, gameplay, renderer, viewport);
+                screens::render_confirm(e, gameplay.confirm, renderer, viewport);
               },
       });
 }
@@ -335,8 +337,10 @@ void register_framing_screens(Gameplay &gameplay, Engine &engine) {
           .owns_step = true,
           .update = [&gameplay](Engine &e,
                                 const input::InputIntent &intent) { screens::update_splash(e, gameplay, intent); },
-          .render = [&gameplay](Engine &e, platform::Renderer &renderer,
-                                core::math::Vec2 viewport) { screens::render_splash(e, gameplay, renderer, viewport); },
+          .render =
+              [&gameplay](Engine &e, platform::Renderer &renderer, core::math::Vec2 viewport) {
+                screens::render_splash(e, gameplay.splash_screen, renderer, viewport);
+              },
       });
   engine.screens.add(
       screens::Title,
@@ -344,8 +348,10 @@ void register_framing_screens(Gameplay &gameplay, Engine &engine) {
           .owns_step = true,
           .update = [&gameplay](Engine &e,
                                 const input::InputIntent &intent) { screens::update_title(e, gameplay, intent); },
-          .render = [&gameplay](Engine &e, platform::Renderer &renderer,
-                                core::math::Vec2 viewport) { screens::render_title(e, gameplay, renderer, viewport); },
+          .render =
+              [&gameplay](Engine &e, platform::Renderer &renderer, core::math::Vec2 viewport) {
+                screens::render_title(e, gameplay.title_screen, renderer, viewport);
+              },
       });
   engine.screens.add(
       screens::SaveLoad,
@@ -355,7 +361,7 @@ void register_framing_screens(Gameplay &gameplay, Engine &engine) {
                                 const input::InputIntent &intent) { screens::update_save_load(e, gameplay, intent); },
           .render =
               [&gameplay](Engine &e, platform::Renderer &renderer, core::math::Vec2 viewport) {
-                screens::render_save_load(e, gameplay, renderer, viewport);
+                screens::render_save_load(e, gameplay.save_load_screen, renderer, viewport);
               },
       });
   engine.screens.add(
@@ -366,30 +372,30 @@ void register_framing_screens(Gameplay &gameplay, Engine &engine) {
                                 const input::InputIntent &intent) { screens::update_game_over(e, gameplay, intent); },
           .render =
               [&gameplay](Engine &e, platform::Renderer &renderer, core::math::Vec2 viewport) {
-                screens::render_game_over(e, gameplay, renderer, viewport);
+                screens::render_game_over(e, gameplay.game_over_screen, renderer, viewport);
               },
       });
-  engine.screens.add(
-      screens::Loading,
-      ScreenSpec{
-          .owns_step = true,
-          .update = [&gameplay](Engine &, const input::InputIntent &) { screens::update_loading(gameplay); },
-          .render =
-              [&gameplay](Engine &e, platform::Renderer &renderer, core::math::Vec2 viewport) {
-                screens::render_loading(e, gameplay, renderer, viewport);
-              },
-      });
-  engine.screens.add(
-      screens::Credits,
-      ScreenSpec{
-          .owns_step = true,
-          .update = [&gameplay](Engine &e,
-                                const input::InputIntent &intent) { screens::update_credits(e, gameplay, intent); },
-          .render =
-              [&gameplay](Engine &e, platform::Renderer &renderer, core::math::Vec2 viewport) {
-                screens::render_credits(e, gameplay, renderer, viewport);
-              },
-      });
+  engine.screens.add(screens::Loading,
+                     ScreenSpec{
+                         .owns_step = true,
+                         .update = [&gameplay](Engine &, const input::InputIntent &) { gameplay.advance_loading(); },
+                         .render =
+                             [&gameplay](Engine &e, platform::Renderer &renderer, core::math::Vec2 viewport) {
+                               screens::render_loading(e, gameplay, renderer, viewport);
+                             },
+                     });
+  engine.screens.add(screens::Credits,
+                     ScreenSpec{
+                         .owns_step = true,
+                         .update =
+                             [&gameplay](Engine &e, const input::InputIntent &intent) {
+                               screens::update_credits(e, gameplay.credits_screen, intent);
+                             },
+                         .render =
+                             [&gameplay](Engine &e, platform::Renderer &renderer, core::math::Vec2 viewport) {
+                               screens::render_credits(e, gameplay.credits_screen, renderer, viewport);
+                             },
+                     });
 }
 
 /** Install the engine hooks and the fixed-step system that drive the framework. */
@@ -415,17 +421,18 @@ void register_hooks(Gameplay &gameplay, Engine &engine) {
 
 /** Register the gameplay render layers. */
 void register_render_layers(Gameplay &gameplay, Engine &engine) {
-  engine.screens.add_layer(RenderLayer::Hud, [&gameplay](Engine &e, platform::Renderer &renderer, core::math::Vec2 v) {
-    screens::render_hud(e, gameplay, renderer, v);
-  });
+  engine.screens.add_layer(RenderLayer::Hud,
+                           [&gameplay](Engine &e, platform::Renderer &renderer, core::math::Vec2 /*viewport*/) {
+                             screens::render_hud(e, gameplay.dialogue, gameplay.quests, renderer);
+                           });
   engine.screens.add_layer(RenderLayer::Modal,
                            [&gameplay](Engine &e, platform::Renderer &renderer, core::math::Vec2 v) {
-                             screens::render_dialogue(e, gameplay, renderer, v);
+                             screens::render_dialogue(e, gameplay.dialog_box, gameplay.dialogue, renderer, v);
                            });
   engine.screens.add_layer(RenderLayer::HubPanel,
                            [&gameplay](Engine &e, platform::Renderer &renderer, core::math::Vec2 v) {
-                             screens::render_codex(e, gameplay, renderer, v);
-                             screens::render_map(e, gameplay, renderer, v);
+                             screens::render_codex(e, gameplay.codex_screen, renderer, v);
+                             screens::render_map(e, gameplay.map_screen, gameplay.locations, renderer, v);
                              screens::render_loot(e, gameplay, renderer, v);
                              screens::render_barter(e, gameplay, renderer, v);
                            });

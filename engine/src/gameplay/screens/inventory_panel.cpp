@@ -465,9 +465,6 @@ void activate_inventory_row(Engine &engine, Gameplay &gameplay, int rows) {
 
 } // namespace
 
-/** Step the Inventory hub tab: Cancel closes it; a hovered row takes focus on a real mouse
- *  move or click; the wheel moves one row per notch; Up/Down wrap the highlight.
- */
 void update_inventory(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   if (intent.back) {
     engine.scene.ui.pop();

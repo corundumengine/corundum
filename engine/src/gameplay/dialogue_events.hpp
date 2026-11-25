@@ -36,6 +36,7 @@ namespace corundum::gameplay {
 void dispatch_dialogue_event(Gameplay &gameplay, Engine &engine, quest::Runner &quest_runner,
                              const dialogue::EventAction &event) noexcept;
 
+/** Start the fight `start_encounter` asked for, once the dialogue that asked has closed. */
 void start_pending_encounter(Engine &engine, Gameplay &gameplay);
 
 } // namespace corundum::gameplay

@@ -328,10 +328,6 @@ void activate_selected_slot(Engine &engine, Gameplay &gameplay, const SaveLoadSt
 
 } // namespace
 
-/** Step the Save/Load screen: Cancel closes it; Up/Down and the wheel move the highlighted
- *  slot; Activate saves (confirming an overwrite) or loads a valid slot. Empty and corrupt
- *  slots cannot be loaded.
- */
 void update_save_load(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   SaveLoadState &state = gameplay.save_load_screen;
   if (intent.back) {
@@ -360,12 +356,12 @@ void update_save_load(Engine &engine, Gameplay &gameplay, const input::InputInte
   activate_selected_slot(engine, gameplay, state, selected);
 }
 
-void render_save_load(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+void render_save_load(const Engine &engine, const SaveLoadState &state, platform::Renderer &renderer,
                       core::math::Vec2 viewport) {
   if (engine.scene.mode() != SaveLoad)
     return;
-  save_load_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
-                         gameplay.save_load_screen, viewport, engine.input_mapper.last_device());
+  save_load_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border, state, viewport,
+                         engine.input_mapper.last_device());
 }
 
 } // namespace corundum::gameplay::screens

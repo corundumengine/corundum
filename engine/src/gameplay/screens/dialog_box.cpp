@@ -23,6 +23,7 @@
 
 #include <cstddef>
 #include <format>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -210,19 +211,13 @@ void dialog_box_render(const DialogBoxState &ds, platform::Renderer &renderer, c
   }
 }
 
-/** Modal dialogue box: draws only while a conversation is active and Dialogue is the top
- *  mode, so a screen pushed over it (the pause menu) never double-draws. Hiding clears
- *  visibility only — the cached layout and reveal progress are untouched, so popping the
- *  screen above restores the box exactly.
- */
-void render_dialogue(const Engine &engine, Gameplay &gameplay, platform::Renderer &renderer,
-                     core::math::Vec2 viewport) {
-  if (gameplay.dialogue && engine.scene.mode() == Dialogue)
-    dialog_box_update(gameplay.dialog_box, *gameplay.dialogue, renderer, viewport, engine.render.panel_skin,
-                      engine.render.text_speed);
+void render_dialogue(const Engine &engine, DialogBoxState &state, const std::optional<dialogue::Conversation> &dialogue,
+                     platform::Renderer &renderer, core::math::Vec2 viewport) {
+  if (dialogue && engine.scene.mode() == Dialogue)
+    dialog_box_update(state, *dialogue, renderer, viewport, engine.render.panel_skin, engine.render.text_speed);
   else
-    dialog_box_hide(gameplay.dialog_box);
-  dialog_box_render(gameplay.dialog_box, renderer, engine.render.panel_skin, engine.input_mapper.last_device());
+    dialog_box_hide(state);
+  dialog_box_render(state, renderer, engine.render.panel_skin, engine.input_mapper.last_device());
 }
 
 } // namespace corundum::gameplay::screens

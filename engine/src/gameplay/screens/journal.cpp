@@ -444,19 +444,19 @@ void select_journal_tab(JournalState &state, JournalTab tab) noexcept {
 /** Toggle tracking on `entry`: tracking it clears the flag on every other started quest.
  *  Only an Active quest is trackable.
  */
-void toggle_journal_track(Engine &engine, const Gameplay &gameplay, const JournalEntry &entry) {
+void toggle_journal_track(world::FlagStore &flags, const quest::Registry &quests, const JournalEntry &entry) {
   if (entry.lifecycle != quest::Lifecycle::Active)
     return;
   const std::string key = quest::tracked_flag_key(entry.id);
-  if (world::has_flag(engine.flags, key)) {
-    world::clear_flag(engine.flags, key);
+  if (world::has_flag(flags, key)) {
+    world::clear_flag(flags, key);
     return;
   }
-  for (const quest::Quest *started : quest::started_quests(gameplay.quests, engine.flags)) {
+  for (const quest::Quest *started : quest::started_quests(quests, flags)) {
     if (started != nullptr)
-      world::clear_flag(engine.flags, quest::tracked_flag_key(started->quest_id));
+      world::clear_flag(flags, quest::tracked_flag_key(started->quest_id));
   }
-  world::set_flag(engine.flags, key);
+  world::set_flag(flags, key);
 }
 
 /** Apply mouse intent to the journal: a click on the sub-tab strip selects a tab, the wheel
@@ -464,12 +464,11 @@ void toggle_journal_track(Engine &engine, const Gameplay &gameplay, const Journa
  *  wheel moves one row per notch. Returns true when the pointer switched tabs and the step
  *  should be consumed without also activating a row.
  */
-bool apply_journal_pointer(const Engine &engine, Gameplay &gameplay, const input::InputIntent &intent,
+bool apply_journal_pointer(const Engine &engine, JournalState &state, const input::InputIntent &intent,
                            const std::vector<JournalEntry> &entries) {
   if (!pointer_active(intent))
     return false;
 
-  JournalState &state = gameplay.journal_screen;
   const JournalLayout layout = journal_panel_layout(engine.renderer(), engine.render.panel_skin.style, entries, state,
                                                     screen_viewport(engine), engine.input_mapper.last_device());
   const core::math::Vec2 cursor = intent_cursor(intent);
@@ -495,13 +494,8 @@ bool apply_journal_pointer(const Engine &engine, Gameplay &gameplay, const input
 
 } // namespace
 
-/** Step the Journal hub tab: Cancel closes it; SubTabNext/Prev cycle sub-tabs (resetting the
- *  cursor); a click on the sub-tab strip selects a tab and the wheel over it cycles; a hovered
- *  row takes focus on a real mouse move or click; the wheel moves one row per notch; Activate
- *  toggles tracking on the highlighted Active quest; Up/Down wrap the highlight.
- */
-void update_journal(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
-  JournalState &state = gameplay.journal_screen;
+void update_journal(Engine &engine, JournalState &state, const quest::Registry &quests,
+                    const input::InputIntent &intent) {
   if (intent.back) {
     engine.scene.ui.pop();
     return;
@@ -511,14 +505,14 @@ void update_journal(Engine &engine, Gameplay &gameplay, const input::InputIntent
     select_journal_tab(state, cycle_journal_tab(state.tab, intent.next_sub_tab ? 1 : -1));
 
   const std::vector<JournalEntry> entries =
-      build_journal_entries(gameplay.quests, engine.flags, state.tab, engine.scene.zone_id);
-  if (apply_journal_pointer(engine, gameplay, intent, entries))
+      build_journal_entries(quests, engine.flags, state.tab, engine.scene.zone_id);
+  if (apply_journal_pointer(engine, state, intent, entries))
     return;
 
   const int rows = static_cast<int>(entries.size());
   if (intent.activate && rows > 0) {
     const std::size_t index = static_cast<std::size_t>(std::clamp(state.cursor, 0, rows - 1));
-    toggle_journal_track(engine, gameplay, entries[index]);
+    toggle_journal_track(engine.flags, quests, entries[index]);
   }
 
   const int delta = intent.navigate_y;
@@ -531,12 +525,11 @@ void update_journal(Engine &engine, Gameplay &gameplay, const input::InputIntent
   state.cursor = wrap_cursor(state.cursor, delta, rows);
 }
 
-void render_journal(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
-                    core::math::Vec2 viewport) {
-  journal_panel_render(
-      renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
-      build_journal_entries(gameplay.quests, engine.flags, gameplay.journal_screen.tab, engine.scene.zone_id),
-      gameplay.journal_screen, viewport, engine.input_mapper.last_device());
+void render_journal(const Engine &engine, const JournalState &state, const quest::Registry &quests,
+                    platform::Renderer &renderer, core::math::Vec2 viewport) {
+  journal_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
+                       build_journal_entries(quests, engine.flags, state.tab, engine.scene.zone_id), state, viewport,
+                       engine.input_mapper.last_device());
 }
 
 } // namespace corundum::gameplay::screens

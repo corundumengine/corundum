@@ -123,8 +123,7 @@ namespace {
  *  save exists). No-op when every row is disabled, which cannot happen today. The row count
  *  follows the Credits row's visibility, so the cursor never lands on a hidden row.
  */
-void move_title_cursor(Gameplay &gameplay, int delta) noexcept {
-  TitleState &state = gameplay.title_screen;
+void move_title_cursor(TitleState &state, int delta) noexcept {
   const int rows = title_visible_row_count(state.credits_available);
   int row = std::clamp(state.cursor, 0, rows - 1);
   for (int step = 0; step < rows; ++step) {
@@ -137,10 +136,9 @@ void move_title_cursor(Gameplay &gameplay, int delta) noexcept {
 }
 
 /** Apply mouse intent to the title: a hovered enabled row takes focus and the wheel moves the cursor. */
-void apply_title_pointer(const Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+void apply_title_pointer(const Engine &engine, TitleState &state, const input::InputIntent &intent) {
   if (!pointer_active(intent))
     return;
-  TitleState &state = gameplay.title_screen;
   const TitleLayout layout =
       title_panel_layout(engine.renderer(), engine.render.panel_skin.style, state, core::game_title(engine.config),
                          screen_viewport(engine), engine.input_mapper.last_device());
@@ -151,7 +149,7 @@ void apply_title_pointer(const Engine &engine, Gameplay &gameplay, const input::
       state.cursor = hovered;
   }
   if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0)
-    move_title_cursor(gameplay, steps);
+    move_title_cursor(state, steps);
 }
 
 /** Run the title row the player activated. */
@@ -174,16 +172,12 @@ void run_title_row(Engine &engine, Gameplay &gameplay, TitleRow row) {
 
 } // namespace
 
-/** Step the Title screen: a hovered enabled row takes focus on a real mouse move or click,
- *  Up/Down move the highlight (skipping Continue when no save exists), and Activate runs the
- *  highlighted command. Cancel does nothing — Title is the bottom of the framing flow.
- */
 void update_title(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
-  const TitleState &state = gameplay.title_screen;
-  apply_title_pointer(engine, gameplay, intent);
+  TitleState &state = gameplay.title_screen;
+  apply_title_pointer(engine, state, intent);
 
   if (intent.navigate_y != 0)
-    move_title_cursor(gameplay, intent.navigate_y);
+    move_title_cursor(state, intent.navigate_y);
   if (!intent.activate)
     return;
 
@@ -192,11 +186,11 @@ void update_title(Engine &engine, Gameplay &gameplay, const input::InputIntent &
   run_title_row(engine, gameplay, row);
 }
 
-void render_title(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+void render_title(const Engine &engine, const TitleState &state, platform::Renderer &renderer,
                   core::math::Vec2 viewport) {
   if (engine.scene.mode() != Title)
     return;
-  title_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border, gameplay.title_screen,
+  title_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border, state,
                      core::game_title(engine.config), viewport, engine.input_mapper.last_device());
 }
 

@@ -41,13 +41,6 @@ void splash_render(platform::Renderer &renderer, core::math::Vec2 viewport, cons
   });
 }
 
-/** Step the Splash screen. engine.screen_transition carries each image's fade: the image fades
- *  in from black, holds for screens::k_splash_hold_seconds, then fades out, each fade taking
- *  screens::k_splash_fade_seconds. The first image first waits out
- *  screens::k_splash_initial_delay_seconds at black. Once the fade-out reaches black, the next
- *  image (or the first screen) takes over. Activate, Cancel or a click jumps straight to the
- *  fade-out, including from part-way through the fade-in or the initial delay.
- */
 void update_splash(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   ui::ScreenTransition &fade = engine.screen_transition;
   SplashState &state = gameplay.splash_screen;
@@ -77,11 +70,11 @@ void update_splash(Engine &engine, Gameplay &gameplay, const input::InputIntent 
     fade.begin_fade_out(k_splash_fade_seconds);
 }
 
-void render_splash(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+void render_splash(const Engine &engine, const SplashState &state, platform::Renderer &renderer,
                    core::math::Vec2 viewport) {
   if (engine.scene.mode() != Splash)
     return;
-  splash_render(renderer, viewport, gameplay.splash_screen);
+  splash_render(renderer, viewport, state);
 }
 
 } // namespace corundum::gameplay::screens

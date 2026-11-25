@@ -174,13 +174,13 @@ void apply_map_pointer(const Engine &engine, MapState &state, const std::vector<
 }
 
 /** Fast-travel to the selected destination, notifying when it is already the active one. */
-void travel_to(Engine &engine, const Gameplay &gameplay, const MapEntry &selected) {
+void travel_to(Engine &engine, const location::Registry &locations, const MapEntry &selected) {
   if (selected.current) {
     engine.notify("You are already here");
     return;
   }
 
-  const location::Location *location = gameplay.locations.find(selected.id);
+  const location::Location *location = locations.find(selected.id);
   if (location == nullptr)
     return;
   world::MapTransition transition{
@@ -196,19 +196,15 @@ void travel_to(Engine &engine, const Gameplay &gameplay, const MapEntry &selecte
 
 } // namespace
 
-/** Step the Map hub tab: Cancel closes it, a hovered row takes focus on a real mouse move or
- *  click, Up/Down and the wheel move the highlighted destination, and Activate fast-travels.
- *  A destination already in the active zone is a no-op.
- */
-void update_map(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+void update_map(Engine &engine, MapState &state, const location::Registry &locations,
+                const input::InputIntent &intent) {
   if (intent.back) {
     engine.scene.ui.pop();
     return;
   }
 
-  const std::vector<MapEntry> entries = build_map_entries(gameplay.locations, engine.flags, engine.scene.zone_id);
+  const std::vector<MapEntry> entries = build_map_entries(locations, engine.flags, engine.scene.zone_id);
   const int rows = static_cast<int>(entries.size());
-  MapState &state = gameplay.map_screen;
 
   apply_map_pointer(engine, state, entries, intent, rows);
 
@@ -224,16 +220,16 @@ void update_map(Engine &engine, Gameplay &gameplay, const input::InputIntent &in
     return;
 
   const MapEntry &selected = entries[static_cast<std::size_t>(std::clamp(state.cursor, 0, rows - 1))];
-  travel_to(engine, gameplay, selected);
+  travel_to(engine, locations, selected);
 }
 
-void render_map(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
-                core::math::Vec2 viewport) {
+void render_map(const Engine &engine, const MapState &state, const location::Registry &locations,
+                platform::Renderer &renderer, core::math::Vec2 viewport) {
   if (engine.scene.mode() != Map)
     return;
   map_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
-                   build_map_entries(gameplay.locations, engine.flags, engine.scene.zone_id),
-                   gameplay.map_screen.cursor, gameplay.map_screen.scroll, viewport, engine.input_mapper.last_device());
+                   build_map_entries(locations, engine.flags, engine.scene.zone_id), state.cursor, state.scroll,
+                   viewport, engine.input_mapper.last_device());
 }
 
 } // namespace corundum::gameplay::screens

@@ -270,7 +270,6 @@ void draw_target_marker(const Engine &engine, const combat::Battle &battle, plat
 
 } // namespace
 
-/** Draw the target's tile marker, then the combat HUD with `banner` (empty for none). */
 void render_combat(const Engine &engine, const combat::Battle &battle, platform::Renderer &renderer,
                    core::math::Vec2 viewport, std::string_view banner) {
   draw_target_marker(engine, battle, renderer);
@@ -278,7 +277,6 @@ void render_combat(const Engine &engine, const combat::Battle &battle, platform:
                     engine.input_mapper.last_device(), banner);
 }
 
-/** The paused fight's banner: "Paused" and the key that resumes it. */
 std::string paused_banner(input::InputDevice device) {
   return std::format("Paused: {} to resume", ui::input_glyph(input::Action::Pause, device));
 }

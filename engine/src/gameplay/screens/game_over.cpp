@@ -128,9 +128,6 @@ void run_game_over_row(Engine &engine, Gameplay &gameplay, GameOverRow row) {
 
 } // namespace
 
-/** Step the Game over screen: a hovered enabled row takes focus, Up/Down move the highlight,
- *  and Activate reloads the last slot, opens the Load screen, or returns to Title.
- */
 void update_game_over(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   GameOverState &state = gameplay.game_over_screen;
   apply_game_over_pointer(engine, state, intent);
@@ -143,12 +140,12 @@ void update_game_over(Engine &engine, Gameplay &gameplay, const input::InputInte
   run_game_over_row(engine, gameplay, game_over_row_at(std::clamp(state.cursor, 0, k_game_over_row_count - 1)));
 }
 
-void render_game_over(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+void render_game_over(const Engine &engine, const GameOverState &state, platform::Renderer &renderer,
                       core::math::Vec2 viewport) {
   if (engine.scene.mode() != GameOver)
     return;
-  game_over_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
-                         gameplay.game_over_screen, viewport, engine.input_mapper.last_device());
+  game_over_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border, state, viewport,
+                         engine.input_mapper.last_device());
 }
 
 } // namespace corundum::gameplay::screens

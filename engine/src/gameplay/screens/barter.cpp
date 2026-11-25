@@ -186,7 +186,7 @@ namespace {
 /** Apply mouse intent to the barter screen: a hovered row takes focus on a real mouse move or
  *  click, and the wheel moves one row per notch.
  */
-void apply_barter_pointer(const Engine &engine, Gameplay &gameplay, const input::InputIntent &intent,
+void apply_barter_pointer(const Engine &engine, BarterState &state, const input::InputIntent &intent,
                           const shop::Shop &shop, const std::vector<BarterLine> &lines) {
   if (!pointer_active(intent))
     return;
@@ -196,10 +196,10 @@ void apply_barter_pointer(const Engine &engine, Gameplay &gameplay, const input:
                                                   screen_viewport(engine), engine.input_mapper.last_device());
   if (pointer_focus(intent)) {
     if (const int hovered = ui::hovered_row(intent_cursor(intent), layout.rows); hovered >= 0)
-      gameplay.barter_screen.cursor = hovered;
+      state.cursor = hovered;
   }
   if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && !lines.empty())
-    gameplay.barter_screen.cursor = wrap_cursor(gameplay.barter_screen.cursor, steps, static_cast<int>(lines.size()));
+    state.cursor = wrap_cursor(state.cursor, steps, static_cast<int>(lines.size()));
 }
 
 /** Buy one of the highlighted barter row's item with the player's gold. */
@@ -215,9 +215,6 @@ void buy_barter_row(Engine &engine, const BarterLine &selected) {
 
 } // namespace
 
-/** Step the barter screen: Back closes, Up/Down move the row, a hovered row takes focus on a
- *  real mouse move or click, the wheel moves one row per notch, and Activate buys.
- */
 void update_barter(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   if (intent.back) {
     gameplay.active_shop_id.clear();
@@ -233,7 +230,7 @@ void update_barter(Engine &engine, Gameplay &gameplay, const input::InputIntent 
 
   const std::vector<BarterLine> lines = build_barter_stock(*shop, gameplay.items);
   const int rows = static_cast<int>(lines.size());
-  apply_barter_pointer(engine, gameplay, intent, *shop, lines);
+  apply_barter_pointer(engine, gameplay.barter_screen, intent, *shop, lines);
 
   if (intent.navigate_y != 0 && rows > 0)
     gameplay.barter_screen.cursor = wrap_cursor(gameplay.barter_screen.cursor, intent.navigate_y, rows);

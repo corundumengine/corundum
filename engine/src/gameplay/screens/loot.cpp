@@ -209,24 +209,24 @@ void loot_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style
 namespace {
 
 /** Switch to the hovered loot pane and focus its hovered row. */
-void focus_hovered_loot_pane(Gameplay &gameplay, const LootLayout &layout, core::math::Vec2 cursor) {
+void focus_hovered_loot_pane(LootState &state, const LootLayout &layout, core::math::Vec2 cursor) {
   const bool over_player = cursor_in(cursor, layout.player_pane);
   if (over_player || cursor_in(cursor, layout.container_pane)) {
     const LootPane pane = over_player ? LootPane::Player : LootPane::Container;
-    if (gameplay.loot_screen.pane != pane) {
-      gameplay.loot_screen.pane = pane;
-      gameplay.loot_screen.cursor = 0;
+    if (state.pane != pane) {
+      state.pane = pane;
+      state.cursor = 0;
     }
     if (const int hovered = ui::hovered_row(cursor, over_player ? layout.player_rows : layout.container_rows);
         hovered >= 0)
-      gameplay.loot_screen.cursor = hovered;
+      state.cursor = hovered;
   }
 }
 
 /** Apply mouse intent to the loot screen: hovering a pane switches to it, hovering a row (on a
  *  real move or click) focuses it, and the wheel moves one row per notch.
  */
-void apply_loot_pointer(const Engine &engine, Gameplay &gameplay, const input::InputIntent &intent,
+void apply_loot_pointer(const Engine &engine, LootState &state, const input::InputIntent &intent,
                         std::string_view container_name, const std::vector<InventoryLine> &container_lines,
                         const std::vector<InventoryLine> &player_lines) {
   if (!pointer_active(intent))
@@ -238,20 +238,16 @@ void apply_loot_pointer(const Engine &engine, Gameplay &gameplay, const input::I
   const core::math::Vec2 cursor = intent_cursor(intent);
 
   if (pointer_focus(intent))
-    focus_hovered_loot_pane(gameplay, layout, cursor);
+    focus_hovered_loot_pane(state, layout, cursor);
 
-  const int active_rows =
-      static_cast<int>((gameplay.loot_screen.pane == LootPane::Container ? container_lines : player_lines).size());
+  const std::vector<InventoryLine> &active_lines = state.pane == LootPane::Container ? container_lines : player_lines;
+  const int active_rows = static_cast<int>(active_lines.size());
   if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && active_rows > 0)
-    gameplay.loot_screen.cursor = wrap_cursor(gameplay.loot_screen.cursor, steps, active_rows);
+    state.cursor = wrap_cursor(state.cursor, steps, active_rows);
 }
 
 } // namespace
 
-/** Step the loot screen: Back closes, Left/Right or a click switch the active pane, a hovered
- *  row takes focus on a real mouse move or click, the wheel moves one row per notch, and
- *  Activate moves one unit of the highlighted item to the other holder.
- */
 void update_loot(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   if (intent.back) {
     gameplay.active_container_id.clear();
@@ -271,7 +267,7 @@ void update_loot(Engine &engine, Gameplay &gameplay, const input::InputIntent &i
     gameplay.loot_screen.cursor = 0;
   }
 
-  apply_loot_pointer(engine, gameplay, intent, container_name, container_lines, player_lines);
+  apply_loot_pointer(engine, gameplay.loot_screen, intent, container_name, container_lines, player_lines);
 
   const bool container_active = gameplay.loot_screen.pane == LootPane::Container;
   const std::vector<InventoryLine> &lines = container_active ? container_lines : player_lines;

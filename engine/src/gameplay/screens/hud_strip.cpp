@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <format>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -180,15 +181,12 @@ void hud_strip_render(platform::Renderer &renderer, const ui::PanelStyle &style,
   draw_hud_runs(renderer, style, data, layout);
 }
 
-/** Gameplay HUD strip: hidden while any modal is up. The engine gates the Hud layer on an
- *  empty UI stack and no transition prompt; the dialogue check is defensive.
- */
-void render_hud(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
-                core::math::Vec2 /*viewport*/) {
-  if (gameplay.dialogue)
+void render_hud(const Engine &engine, const std::optional<dialogue::Conversation> &dialogue,
+                const quest::Registry &quests, platform::Renderer &renderer) {
+  if (dialogue)
     return;
   hud_strip_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
-                   build_hud_strip(engine.flags, gameplay.quests, engine.scene.zone_id));
+                   build_hud_strip(engine.flags, quests, engine.scene.zone_id));
 }
 
 } // namespace corundum::gameplay::screens

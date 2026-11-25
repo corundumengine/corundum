@@ -345,15 +345,8 @@ void apply_codex_pointer(const Engine &engine, CodexState &state, const input::I
 
 } // namespace
 
-/** Step the Codex hub tab: Cancel closes it, Up/Down move the highlighted entry, the wheel
- *  over the list moves the cursor and over the detail body scrolls it, and a hovered list row
- *  takes focus on a real mouse move or click. Rows are refreshed from the registry + flags on
- *  the first step after an open or unlock (dirty-flagged). The Codex hotkey is handled by the
- *  hub table, which toggles this tab off before this step would run.
- */
-void update_codex(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
-  CodexState &state = gameplay.codex_screen;
-  refresh_codex(state, gameplay.codex, engine.flags);
+void update_codex(Engine &engine, CodexState &state, const codex::Registry &codex, const input::InputIntent &intent) {
+  refresh_codex(state, codex, engine.flags);
 
   if (intent.back) {
     engine.scene.ui.pop();
@@ -370,13 +363,12 @@ void update_codex(Engine &engine, Gameplay &gameplay, const input::InputIntent &
   }
 }
 
-void render_codex(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+void render_codex(const Engine &engine, const CodexState &state, platform::Renderer &renderer,
                   core::math::Vec2 viewport) {
   if (engine.scene.mode() != Codex)
     return;
-  codex_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
-                     gameplay.codex_screen.entries, gameplay.codex_screen.cursor, gameplay.codex_screen.scroll,
-                     viewport, engine.input_mapper.last_device());
+  codex_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border, state.entries,
+                     state.cursor, state.scroll, viewport, engine.input_mapper.last_device());
 }
 
 } // namespace corundum::gameplay::screens

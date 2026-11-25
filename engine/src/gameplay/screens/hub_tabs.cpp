@@ -150,7 +150,7 @@ world::GameMode cycle_hub_tab(world::GameMode mode, int direction) noexcept {
 }
 
 /** Reset a hub tab's open-time state: its cursor, and any cache the tab owns. */
-void open_hub_tab(const Engine &engine, Gameplay &gameplay, world::GameMode mode) {
+void open_hub_tab(const world::FlagStore &flags, Gameplay &gameplay, world::GameMode mode) {
   gameplay.last_hub_mode = mode;
   switch (mode) {
     case Inventory:
@@ -158,8 +158,8 @@ void open_hub_tab(const Engine &engine, Gameplay &gameplay, world::GameMode mode
       gameplay.inventory_scroll = 0;
       // Built once here rather than every render frame: the inventory is read-only and the
       // simulation is paused while it is open, so there is no mutation to invalidate it.
-      gameplay.inventory_lines = build_inventory_lines(engine.flags, gameplay.items);
-      gameplay.inventory_equipment = build_equipment_lines(engine.flags, gameplay.items);
+      gameplay.inventory_lines = build_inventory_lines(flags, gameplay.items);
+      gameplay.inventory_equipment = build_equipment_lines(flags, gameplay.items);
       break;
     case Journal:
       gameplay.journal_screen.cursor = 0;
@@ -169,7 +169,7 @@ void open_hub_tab(const Engine &engine, Gameplay &gameplay, world::GameMode mode
       gameplay.codex_screen.cursor = 0;
       gameplay.codex_screen.scroll = 0.f;
       codex_mark_dirty(gameplay.codex_screen);
-      refresh_codex(gameplay.codex_screen, gameplay.codex, engine.flags);
+      refresh_codex(gameplay.codex_screen, gameplay.codex, flags);
       break;
     case Map:
       gameplay.map_screen.cursor = 0;
@@ -183,7 +183,7 @@ void open_hub_tab(const Engine &engine, Gameplay &gameplay, world::GameMode mode
 void switch_hub_tab(Engine &engine, Gameplay &gameplay, world::GameMode mode) {
   engine.scene.ui.pop();
   engine.scene.ui.push(mode);
-  open_hub_tab(engine, gameplay, mode);
+  open_hub_tab(engine.flags, gameplay, mode);
 }
 
 /** Handle a click or wheel over the hub tab strip. Returns true when the step was consumed. */
@@ -220,7 +220,7 @@ bool handle_hub_button(Engine &engine, Gameplay &gameplay, bool on_hub_tab) {
   }
   if (engine.scene.mode() != world::GameMode::Exploring)
     return false;
-  open_hub_tab(engine, gameplay, gameplay.last_hub_mode);
+  open_hub_tab(engine.flags, gameplay, gameplay.last_hub_mode);
   engine.scene.ui.push(gameplay.last_hub_mode);
   return true;
 }
@@ -240,7 +240,7 @@ bool handle_hub_hotkeys(Engine &engine, Gameplay &gameplay, bool on_hub_tab) {
     }
     if (engine.scene.mode() != world::GameMode::Exploring)
       continue; // Another screen (dialogue, prompt, menu, loot, barter) is on top.
-    open_hub_tab(engine, gameplay, row.mode);
+    open_hub_tab(engine.flags, gameplay, row.mode);
     engine.scene.ui.push(row.mode);
     return true;
   }
@@ -249,10 +249,6 @@ bool handle_hub_hotkeys(Engine &engine, Gameplay &gameplay, bool on_hub_tab) {
 
 } // namespace
 
-/** The gameplay framework's pre-dispatch input hook: handles the menu hub's open/close/switch
- *  and tab cycling. Returns true when it consumed the step; safe to register as the only
- *  entry in Engine::screen_input_hooks.
- */
 bool handle_hub_input(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
   // The menu hub: one gamepad button (Hub) toggles the last-used tab, and the I/J/C/M hotkeys
   // select a tab directly. The hub is not a GameMode of its own — it is the convention that the
@@ -274,7 +270,6 @@ bool handle_hub_input(Engine &engine, Gameplay &gameplay, const input::InputInte
   return false;
 }
 
-/** The hub tab strip draws over every hub panel, in the top margin so it never overlaps one. */
 void render_hub_strip(const Engine &engine, platform::Renderer &renderer, core::math::Vec2 viewport) {
   if (!is_hub_mode(engine.scene.mode()))
     return;
