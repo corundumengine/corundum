@@ -44,7 +44,7 @@ namespace corundum::render {
 
 namespace {
 
-[[nodiscard]] SpriteId max_sprite_id(const corundum::sprites::CharacterRegistry &registry) noexcept {
+[[nodiscard]] SpriteId max_sprite_id(const sprites::CharacterRegistry &registry) noexcept {
   SpriteId max_id = 0;
   for (const auto &[name, frame] : registry.frames())
     max_id = std::max(max_id, frame.sprite_id);
@@ -54,21 +54,21 @@ namespace {
 /** Process-lifetime textures: references stored in sprite_index are deliberately never
  *  released, so area purges can never destroy them.
  */
-[[nodiscard]] std::unordered_map<corundum::sprites::Id, corundum::platform::TextureId>
-load_sheet_textures(corundum::platform::Renderer &renderer, const corundum::sprites::CharacterRegistry &registry) {
-  std::unordered_map<corundum::sprites::Id, corundum::platform::TextureId> sheet_textures;
+[[nodiscard]] std::unordered_map<sprites::Id, platform::TextureId>
+load_sheet_textures(platform::Renderer &renderer, const sprites::CharacterRegistry &registry) {
+  std::unordered_map<sprites::Id, platform::TextureId> sheet_textures;
   for (const auto &[sheet_id, sheet] : registry.sheets()) {
     auto result = renderer.load_texture(sheet.path);
     if (result.has_value())
       sheet_textures[sheet_id] = result.value();
     else
-      corundum::detail::warn_log("[renderer] WARNING: could not load texture '{}'", sheet.path);
+      detail::warn_log("[renderer] WARNING: could not load texture '{}'", sheet.path);
   }
   return sheet_textures;
 }
 
-void store_sprite_frames(SpriteFrameIndex &index, const corundum::sprites::Frames &frame,
-                         const corundum::sprites::SpriteSheet &sheet, corundum::platform::TextureId texture_id) {
+void store_sprite_frames(SpriteFrameIndex &index, const sprites::Frames &frame, const sprites::SpriteSheet &sheet,
+                         platform::TextureId texture_id) {
   index.tex_by_sprite_id[frame.sprite_id] = texture_id;
   const auto sprite_id = static_cast<std::size_t>(frame.sprite_id);
   if (sprite_id >= index.walk_offsets.size())
@@ -91,8 +91,7 @@ void store_sprite_frames(SpriteFrameIndex &index, const corundum::sprites::Frame
 
 } // namespace
 
-void load_sprite_index(corundum::platform::Renderer &renderer, render::RenderState &state,
-                       const corundum::sprites::CharacterRegistry &registry) {
+void load_sprite_index(platform::Renderer &renderer, RenderState &state, const sprites::CharacterRegistry &registry) {
   const std::size_t num_sprites = static_cast<std::size_t>(max_sprite_id(registry)) + 1;
   state.sprite_index.tex_by_sprite_id.assign(num_sprites, std::nullopt);
   const std::size_t num_slots = num_sprites * k_num_anim_ids;
@@ -100,12 +99,11 @@ void load_sprite_index(corundum::platform::Renderer &renderer, render::RenderSta
   state.sprite_index.anim_frame_counts.assign(num_slots, 0);
   state.sprite_index.frame_rects.clear();
 
-  const std::unordered_map<corundum::sprites::Id, corundum::platform::TextureId> sheet_textures =
-      load_sheet_textures(renderer, registry);
+  const std::unordered_map<sprites::Id, platform::TextureId> sheet_textures = load_sheet_textures(renderer, registry);
   for (const auto &[name, frame] : registry.frames()) {
     if (frame.sprite_id == k_null_sprite_id)
       continue;
-    const corundum::sprites::SpriteSheet *sheet = registry.get_sheet(frame.sheet_id);
+    const sprites::SpriteSheet *sheet = registry.get_sheet(frame.sheet_id);
     if (sheet == nullptr)
       continue;
     const auto texture = sheet_textures.find(frame.sheet_id);
@@ -122,11 +120,10 @@ namespace {
  *  face. An absent or unloadable optional face logs a warning and falls back; only a failed
  *  regular face is an error.
  */
-std::expected<void, std::string> load_font_family(corundum::platform::Renderer &renderer, const std::string &font_dir,
-                                                  std::string_view role_name,
-                                                  const corundum::ui::FontFamilyPaths &family_paths,
-                                                  corundum::ui::FontFamily &family) {
-  const auto load_face = [&](const std::string &name) -> std::expected<corundum::platform::FontId, std::string> {
+std::expected<void, std::string> load_font_family(platform::Renderer &renderer, const std::string &font_dir,
+                                                  std::string_view role_name, const ui::FontFamilyPaths &family_paths,
+                                                  ui::FontFamily &family) {
+  const auto load_face = [&](const std::string &name) -> std::expected<platform::FontId, std::string> {
     return renderer.load_font(std::format("{}/{}", font_dir, name));
   };
 
@@ -135,54 +132,54 @@ std::expected<void, std::string> load_font_family(corundum::platform::Renderer &
     return std::unexpected(
         std::format("[renderer] could not load {} font '{}': {}", role_name, family_paths.regular, regular.error()));
 
-  const auto set_style = [&](corundum::ui::FontStyle style, corundum::platform::FontId id) {
+  const auto set_style = [&](ui::FontStyle style, platform::FontId id) {
     family.ids[static_cast<std::size_t>(style)] = id;
   };
-  const corundum::platform::FontId regular_id = *regular;
-  set_style(corundum::ui::FontStyle::Regular, regular_id);
+  const platform::FontId regular_id = *regular;
+  set_style(ui::FontStyle::Regular, regular_id);
 
   // An optional face returns its id, or FontId::Invalid when the config omits it or its file
   // fails to load; the caller then substitutes the closest present style.
   const auto load_optional = [&](const std::string &name) -> corundum::platform::FontId {
     if (name.empty())
-      return corundum::platform::FontId::Invalid;
+      return platform::FontId::Invalid;
     auto loaded = load_face(name);
     if (loaded)
       return *loaded;
-    corundum::detail::warn_log("[renderer] WARNING: could not load {} font '{}': {}; using fallback", role_name, name,
-                               loaded.error());
-    return corundum::platform::FontId::Invalid;
+    detail::warn_log("[renderer] WARNING: could not load {} font '{}': {}; using fallback", role_name, name,
+                     loaded.error());
+    return platform::FontId::Invalid;
   };
   // The first of `ids` this family holds; the regular face is always held, so it terminates
   // every fallback chain.
-  const auto first_held = [](std::initializer_list<corundum::platform::FontId> ids) {
-    for (const corundum::platform::FontId id : ids)
-      if (id != corundum::platform::FontId::Invalid)
+  const auto first_held = [](std::initializer_list<platform::FontId> ids) {
+    for (const platform::FontId id : ids)
+      if (id != platform::FontId::Invalid)
         return id;
-    return corundum::platform::FontId::Invalid;
+    return platform::FontId::Invalid;
   };
 
-  const corundum::platform::FontId bold_id = load_optional(family_paths.bold);
-  const corundum::platform::FontId italic_id = load_optional(family_paths.italic);
-  const corundum::platform::FontId bold_italic_id = load_optional(family_paths.bold_italic);
+  const platform::FontId bold_id = load_optional(family_paths.bold);
+  const platform::FontId italic_id = load_optional(family_paths.italic);
+  const platform::FontId bold_italic_id = load_optional(family_paths.bold_italic);
 
-  set_style(corundum::ui::FontStyle::Bold, first_held({bold_id, regular_id}));
-  set_style(corundum::ui::FontStyle::Italic, first_held({italic_id, regular_id}));
-  set_style(corundum::ui::FontStyle::BoldItalic, first_held({bold_italic_id, bold_id, italic_id, regular_id}));
+  set_style(ui::FontStyle::Bold, first_held({bold_id, regular_id}));
+  set_style(ui::FontStyle::Italic, first_held({italic_id, regular_id}));
+  set_style(ui::FontStyle::BoldItalic, first_held({bold_italic_id, bold_id, italic_id, regular_id}));
   return {};
 }
 
 } // namespace
 
-std::expected<void, std::string> load_fonts(corundum::platform::Renderer &renderer, render::RenderState &state,
-                                            const corundum::core::ResourcePaths &paths) {
-  const auto ui_slot = static_cast<std::size_t>(corundum::ui::FontRole::Ui);
-  const auto display_slot = static_cast<std::size_t>(corundum::ui::FontRole::Display);
+std::expected<void, std::string> load_fonts(platform::Renderer &renderer, RenderState &state,
+                                            const core::ResourcePaths &paths) {
+  const auto ui_slot = static_cast<std::size_t>(ui::FontRole::Ui);
+  const auto display_slot = static_cast<std::size_t>(ui::FontRole::Display);
 
   constexpr std::array k_roles{
-      std::pair{corundum::ui::FontRole::Dialogue, std::string_view{"dialogue"}},
-      std::pair{corundum::ui::FontRole::Quest, std::string_view{"quest"}},
-      std::pair{corundum::ui::FontRole::Ui, std::string_view{"ui"}},
+      std::pair{ui::FontRole::Dialogue, std::string_view{"dialogue"}},
+      std::pair{ui::FontRole::Quest, std::string_view{"quest"}},
+      std::pair{ui::FontRole::Ui, std::string_view{"ui"}},
   };
 
   for (const auto &[role, role_name] : k_roles) {
@@ -200,13 +197,12 @@ std::expected<void, std::string> load_fonts(corundum::platform::Renderer &render
   return load_font_family(renderer, paths.font_dir, "display", paths.fonts[display_slot], state.fonts[display_slot]);
 }
 
-std::expected<void, std::string> load_ui_assets(const corundum::core::ContentSource &content,
-                                                corundum::platform::Renderer &renderer, render::RenderState &state,
-                                                const corundum::core::ResourcePaths &paths) {
+std::expected<void, std::string> load_ui_assets(const core::ContentSource &content, platform::Renderer &renderer,
+                                                RenderState &state, const core::ResourcePaths &paths) {
   const std::string &path = paths.ui_borders_file;
-  auto j_result = corundum::core::read_json(content, path);
+  auto j_result = core::read_json(content, path);
   if (!j_result) {
-    corundum::detail::warn_log("[renderer] WARNING: could not load '{}': {}", path, j_result.error());
+    detail::warn_log("[renderer] WARNING: could not load '{}': {}", path, j_result.error());
     return {};
   }
   const nlohmann::json &j = *j_result;
@@ -237,8 +233,8 @@ std::expected<void, std::string> load_ui_assets(const corundum::core::ContentSou
   if (result.has_value()) {
     state.panel_skin.border.texture_id = result.value();
   } else {
-    corundum::detail::warn_log("[renderer] WARNING: could not load texture '{}'", tex_path);
-    state.panel_skin.border.texture_id = corundum::platform::TextureId::Invalid;
+    detail::warn_log("[renderer] WARNING: could not load texture '{}'", tex_path);
+    state.panel_skin.border.texture_id = platform::TextureId::Invalid;
   }
 
   // NinePatchBorder lays the frame out as a uniform 3×3 grid. A cell is the size of the
@@ -256,13 +252,13 @@ std::expected<void, std::string> load_ui_assets(const corundum::core::ContentSou
   return {};
 }
 
-void configure_panel_style(render::RenderState &state, const corundum::core::GameConfig &config) {
+void configure_panel_style(RenderState &state, const core::GameConfig &config) {
   const auto &dr = config.dialogue_render;
   const float scale = state.ui_scale;
   const auto scaled = [scale](unsigned size) {
     return static_cast<unsigned>(std::lround(static_cast<float>(size) * scale));
   };
-  state.panel_skin.style = corundum::ui::PanelStyle{
+  state.panel_skin.style = ui::PanelStyle{
       .fonts = state.fonts,
       .font_size_speaker = scaled(dr.font_size_speaker),
       .font_size_body = scaled(dr.font_size_body),

@@ -60,7 +60,7 @@ namespace corundum {
 
 namespace {
 
-using corundum::detail::warn_log;
+using detail::warn_log;
 
 /** Owns the initialize() sequence as private, ordered phases. The only
  *  public entry point is run() — phase order is therefore structural
@@ -81,16 +81,16 @@ public:
       return (static_cast<std::uint64_t>(rd()) << 32U) | static_cast<std::uint64_t>(rd());
     }());
     engine_->rng = core::Rng{rng_seed};
-    corundum::detail::info_log("[engine] RNG seed {}", rng_seed);
+    detail::info_log("[engine] RNG seed {}", rng_seed);
 
     const auto assets_start = std::chrono::steady_clock::now();
     if (auto result = load_render_assets(); !result)
       return result;
-    corundum::detail::info_log("[boot] render assets: {:.1f} ms", corundum::detail::elapsed_ms(assets_start));
+    detail::info_log("[boot] render assets: {:.1f} ms", detail::elapsed_ms(assets_start));
 
     const auto audio_start = std::chrono::steady_clock::now();
     init_audio();
-    corundum::detail::info_log("[boot] audio: {:.1f} ms", corundum::detail::elapsed_ms(audio_start));
+    detail::info_log("[boot] audio: {:.1f} ms", detail::elapsed_ms(audio_start));
 
     render::configure_panel_style(engine_->render, engine_->config);
     return {};
@@ -119,7 +119,7 @@ private:
     std::expected<void, std::string> audio_result;
     audio_result = engine_->audio.initialize(engine_->config.paths.sounds_dir);
     if (!audio_result) {
-      corundum::detail::warn_log("[engine] WARN: Audio init failed — {}", audio_result.error());
+      detail::warn_log("[engine] WARN: Audio init failed — {}", audio_result.error());
       return;
     }
     engine_->audio.load_catalog(engine_->content_source(), engine_->config.paths.sounds_catalog);
@@ -666,7 +666,7 @@ void render_frame(Engine &engine, const float alpha, const bool budget_exhausted
   };
   render::render(renderer, engine.render, engine.config, engine.scene, alpha, window_logical);
 
-  const corundum::core::math::Vec2 viewport{
+  const core::math::Vec2 viewport{
       .x = static_cast<float>(window_logical.width),
       .y = static_cast<float>(window_logical.height),
   };

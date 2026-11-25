@@ -27,7 +27,7 @@ int wrap(int current, int delta, int count) {
 
 } // namespace
 
-Conversation::Conversation(const Graph &graph, corundum::world::FlagStore &flags, const quest::Registry *quests,
+Conversation::Conversation(const Graph &graph, world::FlagStore &flags, const quest::Registry *quests,
                            const Registry *graphs, std::string zone_id)
     : flags_(&flags), graphs_(graphs), quests_(quests), zone_id_(std::move(zone_id)) {
   start_graph(graph);
@@ -121,7 +121,7 @@ void Conversation::go_to(const Node *next) {
   }
   current_id_ = next->id;
   selected_choice_ = 0;
-  corundum::world::set_flag(*flags_, visit_flag_key(graph_->graph_id, next->id));
+  world::set_flag(*flags_, visit_flag_key(graph_->graph_id, next->id));
 }
 
 void Conversation::reset() noexcept {
@@ -151,18 +151,17 @@ bool Conversation::divert(const Node *current_node, int choice_index, std::vecto
 
 void Conversation::goto_graph(const EventAction &event, const Node *current_node, int choice_index) {
   if (graphs_ == nullptr || event.args.size() < 2) {
-    corundum::detail::warn_log("[dialogue] goto_graph needs 'graph_id' and 'node_id'");
+    detail::warn_log("[dialogue] goto_graph needs 'graph_id' and 'node_id'");
     return;
   }
   const Graph *target_graph = graphs_->find(event.args[0]);
   if (target_graph == nullptr) {
-    corundum::detail::warn_log("[dialogue] goto_graph references unknown graph '{}'", event.args[0]);
+    detail::warn_log("[dialogue] goto_graph references unknown graph '{}'", event.args[0]);
     return;
   }
   const Node *target_node = target_graph->find(event.args[1]);
   if (target_node == nullptr || target_node->type == NodeType::End) {
-    corundum::detail::warn_log("[dialogue] goto_graph references unknown node '{}' in '{}'", event.args[1],
-                               event.args[0]);
+    detail::warn_log("[dialogue] goto_graph references unknown node '{}' in '{}'", event.args[1], event.args[0]);
     return;
   }
 
@@ -188,8 +187,8 @@ void Conversation::flush_events(std::vector<EventAction> &pending) {
   int hops = 0;
   while (active_ && (graph_ != nullptr)) {
     if (++hops > k_max_event_hops) {
-      corundum::detail::warn_log("[dialogue] event chain exceeds {} hops in '{}' — cycle detected, aborting",
-                                 k_max_event_hops, graph_->graph_id);
+      detail::warn_log("[dialogue] event chain exceeds {} hops in '{}' — cycle detected, aborting", k_max_event_hops,
+                       graph_->graph_id);
       reset();
       return;
     }
@@ -218,14 +217,14 @@ void Conversation::handle_talk(const Node &node, const input::InputIntent &inten
   }
 
   const std::string once_key = node_once_flag_key(graph_->graph_id, node.id);
-  if (corundum::world::has_flag(*flags_, once_key)) {
+  if (world::has_flag(*flags_, once_key)) {
     // Already shown — skip straight to next_id without waiting for input.
     go_to(advance(*graph_, node));
     return;
   }
 
   if (intent.select) {
-    corundum::world::set_flag(*flags_, once_key);
+    world::set_flag(*flags_, once_key);
     go_to(advance(*graph_, node));
   }
 }
@@ -255,7 +254,7 @@ void Conversation::handle_choice(const Node &node, const input::InputIntent &int
     // Record the once-flag before advancing so visible_choices sees it
     // immediately on any same-frame re-check of this node.
     if (edge.sequence == SequenceMode::Once)
-      corundum::world::set_flag(*flags_, once_flag_key(graph_->graph_id, node.id, full_index));
+      world::set_flag(*flags_, once_flag_key(graph_->graph_id, node.id, full_index));
 
     auto events = execute_actions(edge.actions, *flags_, zone_id_);
     const bool diverted = divert(&node, static_cast<int>(full_index), events);

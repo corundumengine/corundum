@@ -7,8 +7,8 @@
 
 namespace corundum::toolkit::widgets {
 
-FontHandles load_tool_fonts(const corundum::toolkit::host::ToolConfig &config, float ui_size, float icons_size) {
-  ImGuiIO &io = ImGui::GetIO();
+FontHandles load_tool_fonts(const host::ToolConfig &config, float ui_size, float icons_size) {
+  const ImGuiIO &io = ImGui::GetIO();
   io.Fonts->Clear();
 
   FontHandles handles;

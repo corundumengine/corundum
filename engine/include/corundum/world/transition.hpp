@@ -54,8 +54,7 @@ enum class CameraAnchor : uint8_t {
  *  @return ok on success, or std::unexpected with an error message.
  *  @pre config.paths.world_manifest_path identifies the overworld manifest.
  */
-[[nodiscard]] std::expected<void, std::string> enter_world(corundum::Engine &engine,
-                                                           const corundum::render::WorldLoadParams &params);
+[[nodiscard]] std::expected<void, std::string> enter_world(Engine &engine, const render::WorldLoadParams &params);
 
 /** Build the game's configured initial scene.
  *
@@ -68,7 +67,7 @@ enum class CameraAnchor : uint8_t {
  *  @param engine Fully-initialised application state; its scene is replaced.
  *  @return ok on success, or std::unexpected with an error message.
  */
-[[nodiscard]] std::expected<void, std::string> load_initial_scene(corundum::Engine &engine);
+[[nodiscard]] std::expected<void, std::string> load_initial_scene(Engine &engine);
 
 /** Unload the area: release its render world and textures and replace the scene with an
  *  empty one (no player, empty UI stack). Flags are untouched; they belong to the playthrough.
@@ -78,7 +77,7 @@ enum class CameraAnchor : uint8_t {
  *  @post render::mode(engine.render) is RenderMode::None, world::player_present(engine.scene) is false,
  *        engine.entered_from_world is false.
  */
-void unload_world(corundum::Engine &engine);
+void unload_world(Engine &engine);
 
 /** Spawn the scene for a saved or transitioned location.
  *
@@ -96,8 +95,8 @@ void unload_world(corundum::Engine &engine);
  *  @param row    Player spawn tile row.
  *  @return ok on success, or std::unexpected with an error message.
  */
-[[nodiscard]] std::expected<void, std::string>
-apply_spawn(corundum::Engine &engine, SpawnMode mode, std::string_view id, std::string_view zone, float col, float row);
+[[nodiscard]] std::expected<void, std::string> apply_spawn(Engine &engine, SpawnMode mode, std::string_view id,
+                                                           std::string_view zone, float col, float row);
 
 /** Handle a pending map transition triggered by portal traversal.
  *
@@ -113,7 +112,7 @@ apply_spawn(corundum::Engine &engine, SpawnMode mode, std::string_view id, std::
  *  @param engine Fully-initialised application state.
  *  @note Called once per frame by the main loop in both single-map and world render modes.
  */
-void handle_map_transition(corundum::Engine &engine) noexcept;
+void handle_map_transition(Engine &engine) noexcept;
 
 /** Clamp the configured default zoom and centre the camera on (`col`, `row`).
  *
@@ -130,7 +129,7 @@ void handle_map_transition(corundum::Engine &engine) noexcept;
  *  @pre config.min_zoom > 0, so the clamped default zoom is positive.
  *  @note Also restarts render interpolation from the framed scene (snapshot_previous_step).
  */
-void frame_camera_on(corundum::Engine &engine, const corundum::core::math::IsometricParams &iso, float col, float row,
-                     WorldBounds bounds, CameraAnchor anchor) noexcept;
+void frame_camera_on(Engine &engine, const core::math::IsometricParams &iso, float col, float row, WorldBounds bounds,
+                     CameraAnchor anchor) noexcept;
 
 } // namespace corundum::world

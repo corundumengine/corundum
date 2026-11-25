@@ -284,7 +284,7 @@ struct GameConfig {
  *  @return std::expected<GameConfig, std::string> containing the validated config on success, or an error message on
  *  failure.
  */
-[[nodiscard]] std::expected<GameConfig, std::string> load_game_config(const core::ContentSource &content,
+[[nodiscard]] std::expected<GameConfig, std::string> load_game_config(const ContentSource &content,
                                                                       const std::filesystem::path &path);
 
 /** The game's display name for framing screens.

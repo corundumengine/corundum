@@ -24,7 +24,7 @@ struct FontHandles {
  *  @param icons_size Font size for the icons font.
  *  @return FontHandles struct (may have icon+UI, or just UI, or both null).
  */
-[[nodiscard]] FontHandles load_tool_fonts(const corundum::toolkit::host::ToolConfig &config, float ui_size = 18.f,
+[[nodiscard]] FontHandles load_tool_fonts(const host::ToolConfig &config, float ui_size = 18.f,
                                           float icons_size = 26.f);
 
 } // namespace corundum::toolkit::widgets

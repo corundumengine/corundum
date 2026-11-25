@@ -53,12 +53,12 @@ std::size_t random_slot(std::string_view graph_id, std::string_view node_id, int
 /** Applies `edge`'s sequencing mode, advancing the Cycle/Random counters, and
  *  reports whether it survives for this visit.
  */
-bool passes_sequence(const ChoiceEdge &edge, const corundum::world::FlagStore &flags, std::string_view graph_id,
+bool passes_sequence(const ChoiceEdge &edge, const world::FlagStore &flags, std::string_view graph_id,
                      std::string_view node_id, std::size_t edge_index, std::size_t cycle_slot,
                      std::size_t random_slot_index, std::size_t &cycle_index, std::size_t &random_index) {
   switch (edge.sequence) {
     case SequenceMode::None: return true;
-    case SequenceMode::Once: return !corundum::world::has_flag(flags, once_flag_key(graph_id, node_id, edge_index));
+    case SequenceMode::Once: return !world::has_flag(flags, once_flag_key(graph_id, node_id, edge_index));
     case SequenceMode::Cycle: return cycle_index++ == cycle_slot;
     case SequenceMode::Random: return random_index++ == random_slot_index;
   }
@@ -93,14 +93,13 @@ SequenceSlots pick_sequence_slots(const Node &node, std::string_view graph_id, i
 
 } // namespace
 
-std::vector<std::size_t> visible_choices(const Node &node, const corundum::world::FlagStore &flags,
-                                         std::string_view graph_id, const quest::Registry *quests,
-                                         std::string_view zone_id) {
+std::vector<std::size_t> visible_choices(const Node &node, const world::FlagStore &flags, std::string_view graph_id,
+                                         const quest::Registry *quests, std::string_view zone_id) {
   std::vector<std::size_t> result;
   if (node.type != NodeType::Choice)
     return result;
 
-  const int visit_cnt = corundum::world::visit_count(flags, visit_flag_key(graph_id, node.id));
+  const int visit_cnt = world::visit_count(flags, visit_flag_key(graph_id, node.id));
   const SequenceSlots slots = pick_sequence_slots(node, graph_id, visit_cnt);
 
   std::size_t cycle_index = 0;

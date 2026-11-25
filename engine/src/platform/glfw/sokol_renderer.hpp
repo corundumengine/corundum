@@ -32,7 +32,6 @@ namespace corundum::platform::glfw {
  *  @note Shader sources and descriptor bindings are per-backend, provided by the translation
  *        unit selected for the build.
  */
-[[nodiscard]] std::unique_ptr<corundum::platform::Renderer>
-make_sokol_renderer(corundum::platform::GpuContext &gpu_ctx, const corundum::core::ContentSource &content);
+[[nodiscard]] std::unique_ptr<Renderer> make_sokol_renderer(GpuContext &gpu_ctx, const core::ContentSource &content);
 
 } // namespace corundum::platform::glfw

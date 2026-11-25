@@ -190,9 +190,9 @@ sg_pipeline_desc make_sprite_pipeline_desc(sg_shader shader) {
 } // namespace
 
 namespace {
-class SokolRenderer final : public corundum::platform::Renderer {
+class SokolRenderer final : public Renderer {
 public:
-  explicit SokolRenderer(corundum::platform::GpuContext &gpu_ctx, const corundum::core::ContentSource &content);
+  explicit SokolRenderer(GpuContext &gpu_ctx, const core::ContentSource &content);
   ~SokolRenderer() override;
 
   SokolRenderer(const SokolRenderer &) = delete;
@@ -200,10 +200,10 @@ public:
   SokolRenderer(SokolRenderer &&) = delete;
   SokolRenderer &operator=(SokolRenderer &&) = delete;
 
-  std::expected<corundum::platform::TextureId, std::string> load_texture(std::string_view path) override;
-  std::expected<corundum::platform::FontId, std::string> load_font(std::string_view path) override;
-  [[nodiscard]] core::math::Vec2 texture_size(corundum::platform::TextureId texture_id) const override;
-  void release_texture(corundum::platform::TextureId texture_id) override;
+  std::expected<TextureId, std::string> load_texture(std::string_view path) override;
+  std::expected<FontId, std::string> load_font(std::string_view path) override;
+  [[nodiscard]] core::math::Vec2 texture_size(TextureId texture_id) const override;
+  void release_texture(TextureId texture_id) override;
   void purge_unused_textures() override;
   void set_world_view(core::math::Vec2 top_left, core::math::Vec2 viewport_size, float zoom) override;
   void reset_screen_view() override;
@@ -213,9 +213,9 @@ public:
   void draw(const DrawText &cmd) override;
   void draw(const DrawRect &cmd) override;
   void draw(const DrawLine &cmd) override;
-  float measure_text(corundum::platform::FontId font_id, std::string_view text, uint32_t char_size) const override;
+  float measure_text(FontId font_id, std::string_view text, uint32_t char_size) const override;
 
-  corundum::platform::RendererStats stats() const override { return last_stats_; }
+  RendererStats stats() const override { return last_stats_; }
 
 private:
   struct LoadedTexture {
@@ -251,8 +251,8 @@ private:
   void flush_batch();
   void upload_and_draw_pending_batches();
 
-  corundum::platform::GpuContext &gpu_ctx_;
-  const corundum::core::ContentSource &content_;
+  GpuContext &gpu_ctx_;
+  const core::ContentSource &content_;
 
   std::array<float, 16> proj_{};
   ScreenScale screen_scale_{};
@@ -290,7 +290,7 @@ private:
 
   std::vector<LoadedTexture> textures_;
   std::unordered_map<std::string, uint32_t> path_to_id_;
-  corundum::platform::TextureRefCounts texture_refs_;
+  TextureRefCounts texture_refs_;
 
   std::unordered_map<std::string, std::uint32_t> font_path_to_id_;
   std::vector<std::unique_ptr<FontAtlas>> font_atlases_;
@@ -306,7 +306,7 @@ private:
 
   FT_Library ft_lib_{nullptr};
 
-  corundum::platform::RendererStats last_stats_{};
+  RendererStats last_stats_{};
   uint32_t draw_calls_this_frame_{0};
   uint32_t dropped_quads_this_frame_{0};
 };
@@ -316,7 +316,7 @@ private:
 // .id sentinel at 0 until sg_make_image populates it, which the `image.id == 0`
 // upload guard in ensure_uploaded() relies on.
 
-SokolRenderer::SokolRenderer(corundum::platform::GpuContext &gpu_ctx, const corundum::core::ContentSource &content)
+SokolRenderer::SokolRenderer(GpuContext &gpu_ctx, const core::ContentSource &content)
     : gpu_ctx_(gpu_ctx), content_(content) {
   // The render-target scale is chosen per backend in update_screen_scale(); tools drive
   // GpuContext directly and keep its native default.
@@ -340,7 +340,7 @@ SokolRenderer::SokolRenderer(corundum::platform::GpuContext &gpu_ctx, const coru
 
   if (FT_Init_FreeType(&ft_lib_) != 0) {
     ft_lib_ = nullptr;
-    corundum::detail::warn_log("[sokol] FT_Init_FreeType failed");
+    detail::warn_log("[sokol] FT_Init_FreeType failed");
   }
 
   update_screen_scale();
@@ -384,10 +384,10 @@ void SokolRenderer::ensure_gpu_resources() {
                   sg_query_image_state(white_tex_) == SG_RESOURCESTATE_VALID &&
                   sg_query_sampler_state(sampler_) == SG_RESOURCESTATE_VALID;
   if (!ok) {
-    corundum::detail::warn_log("[sokol] renderer GPU init failed (shader={} pipeline={} vbuf={} tex={} sampler={})",
-                               int(sg_query_shader_state(pipeline_shader_)), int(sg_query_pipeline_state(pipeline_)),
-                               int(sg_query_buffer_state(vertex_buf_)), int(sg_query_image_state(white_tex_)),
-                               int(sg_query_sampler_state(sampler_)));
+    detail::warn_log("[sokol] renderer GPU init failed (shader={} pipeline={} vbuf={} tex={} sampler={})",
+                     int(sg_query_shader_state(pipeline_shader_)), int(sg_query_pipeline_state(pipeline_)),
+                     int(sg_query_buffer_state(vertex_buf_)), int(sg_query_image_state(white_tex_)),
+                     int(sg_query_sampler_state(sampler_)));
     gpu_init_failed_ = true;
     return;
   }
@@ -413,7 +413,7 @@ SokolRenderer::BakedAtlas *SokolRenderer::ensure_metrics(uint32_t font_id, uint3
     const uint32_t physical_size = physical_font_size(char_size, screen_scale_.y);
     std::expected<BakedSize, std::string> baked = font_atlases_[font_id]->bake(physical_size);
     if (!baked) {
-      corundum::detail::warn_log("[sokol] {}", baked.error());
+      detail::warn_log("[sokol] {}", baked.error());
       failed_keys_.insert(key);
       return nullptr;
     }
@@ -444,7 +444,7 @@ SokolRenderer::BakedAtlas *SokolRenderer::ensure_uploaded(uint32_t font_id, uint
   if (atlas->image.id == 0) {
     // Keep the CPU pixels so a later frame can retry the upload, but stop retrying on
     // every draw call so a permanently failing device doesn't flood stderr.
-    corundum::detail::warn_log("[sokol] font atlas upload failed (font={} size={})", font_id, char_size);
+    detail::warn_log("[sokol] font atlas upload failed (font={} size={})", font_id, char_size);
     failed_keys_.insert(key);
     return nullptr;
   }
@@ -540,11 +540,11 @@ void SokolRenderer::add_to_batch(sg_view view) {
   ++quad_count_;
 }
 
-std::expected<corundum::platform::TextureId, std::string> SokolRenderer::load_texture(std::string_view path) {
+std::expected<TextureId, std::string> SokolRenderer::load_texture(std::string_view path) {
   const std::string key{path};
   if (const auto it = path_to_id_.find(key); it != path_to_id_.end()) {
     texture_refs_.acquire(it->second);
-    return corundum::platform::TextureId{it->second};
+    return TextureId{it->second};
   }
 
   const std::expected<std::vector<std::uint8_t>, std::string> file = content_.read(key);
@@ -579,10 +579,10 @@ std::expected<corundum::platform::TextureId, std::string> SokolRenderer::load_te
   textures_.push_back({.path = key, .image = image, .view = view, .width = width, .height = height});
   path_to_id_[key] = id;
   texture_refs_.acquire(id);
-  return corundum::platform::TextureId{id};
+  return TextureId{id};
 }
 
-core::math::Vec2 SokolRenderer::texture_size(corundum::platform::TextureId texture_id) const {
+core::math::Vec2 SokolRenderer::texture_size(TextureId texture_id) const {
   const std::size_t slot = std::to_underlying(texture_id);
   core::verify(slot < textures_.size(), "SokolRenderer::texture_size: id was never issued");
   const LoadedTexture &texture = textures_[slot];
@@ -590,7 +590,7 @@ core::math::Vec2 SokolRenderer::texture_size(corundum::platform::TextureId textu
   return {.x = static_cast<float>(texture.width), .y = static_cast<float>(texture.height)};
 }
 
-void SokolRenderer::release_texture(corundum::platform::TextureId texture_id) {
+void SokolRenderer::release_texture(TextureId texture_id) {
   texture_refs_.release(std::to_underlying(texture_id));
 }
 
@@ -609,10 +609,10 @@ void SokolRenderer::purge_unused_textures() {
   }
 }
 
-std::expected<corundum::platform::FontId, std::string> SokolRenderer::load_font(std::string_view path) {
+std::expected<FontId, std::string> SokolRenderer::load_font(std::string_view path) {
   const std::string key{path};
   if (const auto it = font_path_to_id_.find(key); it != font_path_to_id_.end())
-    return corundum::platform::FontId{it->second};
+    return FontId{it->second};
 
   if (ft_lib_ == nullptr)
     return std::unexpected(std::string{"FreeType: library unavailable for '"} + key + "'");
@@ -628,7 +628,7 @@ std::expected<corundum::platform::FontId, std::string> SokolRenderer::load_font(
   const auto id = static_cast<uint32_t>(font_atlases_.size());
   font_path_to_id_[key] = id;
   font_atlases_.push_back(std::move(atlas));
-  return corundum::platform::FontId{id};
+  return FontId{id};
 }
 
 void SokolRenderer::set_world_view(core::math::Vec2 top_left, core::math::Vec2 viewport_size, float zoom) {
@@ -688,7 +688,7 @@ void SokolRenderer::end_frame() {
   gpu_ctx_.end_frame();
 
   if (dropped_quads_this_frame_ > 0)
-    corundum::detail::warn_log("[sokol] dropped {} quads this frame (cap {})", dropped_quads_this_frame_, k_max_quads);
+    detail::warn_log("[sokol] dropped {} quads this frame (cap {})", dropped_quads_this_frame_, k_max_quads);
   last_stats_ = {
       .draw_calls = draw_calls_this_frame_,
       .quads = static_cast<uint32_t>(quad_count_),
@@ -807,7 +807,7 @@ void SokolRenderer::draw(const DrawText &cmd) {
       continue;
     }
 
-    const uint32_t codepoint = corundum::core::decode_utf8(cmd.text, i);
+    const uint32_t codepoint = core::decode_utf8(cmd.text, i);
     const GlyphInfo *g = find_glyph(baked_data, codepoint);
     if (g == nullptr)
       continue;
@@ -864,7 +864,7 @@ void SokolRenderer::draw(const DrawLine &cmd) {
   add_to_batch(white_view_);
 }
 
-float SokolRenderer::measure_text(corundum::platform::FontId font_id, std::string_view text, uint32_t char_size) const {
+float SokolRenderer::measure_text(FontId font_id, std::string_view text, uint32_t char_size) const {
   const BakedAtlas *baked = ensure_metrics(std::to_underlying(font_id), char_size);
   if (baked == nullptr)
     return 0.f;
@@ -882,7 +882,7 @@ float SokolRenderer::measure_text(corundum::platform::FontId font_id, std::strin
       ++i;
       continue;
     }
-    const uint32_t codepoint = corundum::core::decode_utf8(text, i);
+    const uint32_t codepoint = core::decode_utf8(text, i);
     const GlyphInfo *g = find_glyph(baked_data, codepoint);
     if (g != nullptr)
       line_width += to_logical(static_cast<float>(g->advance_x), screen_scale_.x);
@@ -925,8 +925,7 @@ SokolRenderer::~SokolRenderer() {
 
 } // namespace
 
-std::unique_ptr<corundum::platform::Renderer> make_sokol_renderer(corundum::platform::GpuContext &gpu_ctx,
-                                                                  const corundum::core::ContentSource &content) {
+std::unique_ptr<Renderer> make_sokol_renderer(GpuContext &gpu_ctx, const core::ContentSource &content) {
   return std::make_unique<SokolRenderer>(gpu_ctx, content);
 }
 

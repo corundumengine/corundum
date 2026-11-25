@@ -41,7 +41,7 @@ enum class MiniaudioOutput : std::uint8_t {
  */
 class MiniaudioBackend final : public audio::AudioBackend {
 public:
-  explicit MiniaudioBackend(MiniaudioOutput output, const corundum::core::ContentSource &content);
+  explicit MiniaudioBackend(MiniaudioOutput output, const core::ContentSource &content);
 
   ~MiniaudioBackend() override;
 
@@ -89,6 +89,6 @@ private:
 };
 
 /** The production backend: a MiniaudioBackend on the default output device. */
-[[nodiscard]] std::unique_ptr<audio::AudioBackend> make_miniaudio_backend(const corundum::core::ContentSource &content);
+[[nodiscard]] std::unique_ptr<audio::AudioBackend> make_miniaudio_backend(const core::ContentSource &content);
 
 } // namespace corundum::platform::miniaudio

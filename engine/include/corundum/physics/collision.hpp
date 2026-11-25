@@ -47,8 +47,8 @@ struct ElevationGate {
  *  @pre y_offset < entity_h, so the collision box keeps a positive height.
  *  @pre elevation.tolerance >= 0.
  */
-void resolve_collisions(corundum::entities::Position &pos, corundum::entities::Position prev_pos, float entity_w,
-                        float entity_h, corundum::world::tilemap::CollisionRectsView rects, float y_offset = 0.f,
+void resolve_collisions(entities::Position &pos, entities::Position prev_pos, float entity_w, float entity_h,
+                        world::tilemap::CollisionRectsView rects, float y_offset = 0.f,
                         ElevationGate elevation = {}) noexcept;
 
 /** Axis-separated diagonal collision resolution for half-tile triangle shapes.
@@ -71,9 +71,8 @@ void resolve_collisions(corundum::entities::Position &pos, corundum::entities::P
  *  @pre y_offset < entity_h, so the collision box keeps a positive height.
  *  @pre elevation.tolerance >= 0.
  */
-void resolve_triangle_collisions(corundum::entities::Position &pos, corundum::entities::Position prev_pos,
-                                 float entity_w, float entity_h,
-                                 corundum::world::tilemap::CollisionTrianglesView triangles, float y_offset = 0.f,
+void resolve_triangle_collisions(entities::Position &pos, entities::Position prev_pos, float entity_w, float entity_h,
+                                 world::tilemap::CollisionTrianglesView triangles, float y_offset = 0.f,
                                  ElevationGate elevation = {}) noexcept;
 
 } // namespace corundum::physics

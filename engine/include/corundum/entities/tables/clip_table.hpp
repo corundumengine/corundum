@@ -29,12 +29,12 @@ enum class ClipEnd : std::uint8_t {
 struct Clip {
   ClipEnd end{ClipEnd::Resume};
 
-  std::array<std::uint8_t, corundum::sprites::k_num_anim_ids> frame_counts{};
+  std::array<std::uint8_t, sprites::k_num_anim_ids> frame_counts{};
 
   /** Seconds per frame; must be positive. */
   float frame_duration{};
 
-  corundum::sprites::SpriteId sprite{corundum::sprites::k_null_sprite_id};
+  sprites::SpriteId sprite{sprites::k_null_sprite_id};
 };
 
 /** SoA table of the entities playing a clip. A row exists from animation::play_clip until
@@ -54,9 +54,9 @@ struct ClipTable {
   std::array<bool, k_max> is_finished{};
 
   /** The sheet and frame counts to return to. */
-  std::array<corundum::sprites::SpriteId, k_max> resume_sprite{};
+  std::array<sprites::SpriteId, k_max> resume_sprite{};
 
-  std::array<std::array<std::uint8_t, corundum::sprites::k_num_anim_ids>, k_max> resume_counts{};
+  std::array<std::array<std::uint8_t, sprites::k_num_anim_ids>, k_max> resume_counts{};
 
   std::uint32_t count = 0;
 
@@ -81,21 +81,20 @@ struct ClipTable {
   }
 
   /** The sheet `e` returns to. @pre has(e). */
-  [[nodiscard]] corundum::sprites::SpriteId resume_sprite_of(EntityId e) const noexcept {
+  [[nodiscard]] sprites::SpriteId resume_sprite_of(EntityId e) const noexcept {
     assert(has(e));
     return resume_sprite[index.dense_index(e)];
   }
 
   /** The frame counts of the sheet `e` returns to. @pre has(e). */
-  [[nodiscard]] const std::array<std::uint8_t, corundum::sprites::k_num_anim_ids> &
-  resume_counts_of(EntityId e) const noexcept {
+  [[nodiscard]] const std::array<std::uint8_t, sprites::k_num_anim_ids> &resume_counts_of(EntityId e) const noexcept {
     assert(has(e));
     return resume_counts[index.dense_index(e)];
   }
 
   /** Add a row for `e`. @pre has(e) must be false. */
-  void insert(EntityId e, const Clip &clip, corundum::sprites::SpriteId sprite_to_resume,
-              const std::array<std::uint8_t, corundum::sprites::k_num_anim_ids> &counts_to_resume) noexcept {
+  void insert(EntityId e, const Clip &clip, sprites::SpriteId sprite_to_resume,
+              const std::array<std::uint8_t, sprites::k_num_anim_ids> &counts_to_resume) noexcept {
     index.insert(e, count, [&](auto slot) {
       end[slot] = clip.end;
       frame_duration[slot] = clip.frame_duration;

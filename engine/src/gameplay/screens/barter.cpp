@@ -46,20 +46,20 @@ std::string barter_footer(input::InputDevice last_device) {
                      ui::input_glyph(input::Action::Cancel, last_device));
 }
 
-int base_price_of(const gameplay::shop::StockEntry &entry, const gameplay::item::Registry &items) {
+int base_price_of(const shop::StockEntry &entry, const item::Registry &items) {
   if (entry.price > 0)
     return entry.price;
-  const gameplay::item::Item *definition = items.find(entry.item);
+  const item::Item *definition = items.find(entry.item);
   return definition != nullptr ? definition->price : 0;
 }
 
 } // namespace
 
-std::vector<BarterLine> build_barter_stock(const gameplay::shop::Shop &shop, const gameplay::item::Registry &items) {
+std::vector<BarterLine> build_barter_stock(const shop::Shop &shop, const item::Registry &items) {
   std::vector<BarterLine> lines;
   lines.reserve(shop.stock.size());
-  for (const gameplay::shop::StockEntry &entry : shop.stock) {
-    const gameplay::item::Item *definition = items.find(entry.item);
+  for (const shop::StockEntry &entry : shop.stock) {
+    const item::Item *definition = items.find(entry.item);
     lines.push_back(BarterLine{
         .id = entry.item,
         .name = definition != nullptr ? definition->name : entry.item,

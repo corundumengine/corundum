@@ -25,8 +25,8 @@ namespace corundum::world {
  *  so the update loop can work for both single-tilemap and multi-chunk modes.
  */
 struct MapView {
-  corundum::world::tilemap::CollisionRectsView collisions;
-  corundum::world::tilemap::CollisionTrianglesView collision_triangles;
+  tilemap::CollisionRectsView collisions;
+  tilemap::CollisionTrianglesView collision_triangles;
 
   /** Total isometric world size in display pixels. */
   WorldBounds world_bounds{};
@@ -47,24 +47,24 @@ struct MapView {
    *  render::WorldArea::aggregates.portals, rebuilt by rebuild_world_aggregates(); the span is
    *  invalidated when that buffer is rebuilt.
    */
-  std::span<const corundum::world::Portal> portals;
+  std::span<const Portal> portals;
 
   /** Single-map tilemap, used to look up an entity's own elevation for elevation-aware
    *  collision. Null in chunked/streamed World mode (use world_area + elevation_at_tile instead).
    */
-  const corundum::world::tilemap::Tilemap *elevation_map{nullptr};
+  const tilemap::Tilemap *elevation_map{nullptr};
 
   /** Walkability graph for movement gating across too-steep elevation edges. In single-map
    *  mode this is render::SingleMapArea::walkability; in world mode it is
    *  render::WorldAggregates::walkability, a graph spanning the active chunk window
    *  (origin-offset into global tile coords).
    */
-  const corundum::world::tilemap::WalkabilityGraph *walkability{nullptr};
+  const tilemap::WalkabilityGraph *walkability{nullptr};
 
   /** Active-chunk window for world-mode elevation lookups via elevation_under().
    *  Set by build_map_view() only in World render mode; nullptr in single-map mode.
    */
-  const corundum::render::WorldArea *world_area{nullptr};
+  const render::WorldArea *world_area{nullptr};
 };
 
 /** Elevation of the tile under (col_f, row_f) for any render mode.

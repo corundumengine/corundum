@@ -56,8 +56,7 @@ struct DialogBoxState {
  *  @param text_speed RenderState::text_speed multiplier on k_base_reveal_chars_per_second;
  *                    zero or less reveals instantly.
  */
-void dialog_box_advance(DialogBoxState &ds, const gameplay::dialogue::Conversation &conversation, float dt,
-                        float text_speed);
+void dialog_box_advance(DialogBoxState &ds, const dialogue::Conversation &conversation, float dt, float text_speed);
 
 /** Recompute layout if the current node, graph, viewport, or visible-choice set changed, then mark visible.
  *  Hides the box (leaving the cache intact) when the conversation is inactive.
@@ -65,9 +64,8 @@ void dialog_box_advance(DialogBoxState &ds, const gameplay::dialogue::Conversati
  *  @param skin       Panel style and border the layout measures against.
  *  @param text_speed RenderState::text_speed multiplier; zero or less reveals instantly.
  */
-void dialog_box_update(DialogBoxState &ds, const gameplay::dialogue::Conversation &conversation,
-                       platform::Renderer &renderer, core::math::Vec2 viewport, const ui::PanelSkin &skin,
-                       float text_speed);
+void dialog_box_update(DialogBoxState &ds, const dialogue::Conversation &conversation, platform::Renderer &renderer,
+                       core::math::Vec2 viewport, const ui::PanelSkin &skin, float text_speed);
 
 /** Emit platform::DrawRect, nine-patch border, and platform::DrawText commands for the current frame.
  *  No-op when ds.visible is false or layout is absent.

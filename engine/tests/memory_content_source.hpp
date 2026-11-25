@@ -23,7 +23,7 @@ namespace corundum::test {
  *  A directory only exists here when at least one file lives under it, so an empty directory
  *  reads as missing (unlike DirectoryContentSource, which enumerates the real tree).
  */
-class MemoryContentSource final : public corundum::core::ContentSource {
+class MemoryContentSource final : public core::ContentSource {
 public:
   /** Add a text fixture.
    *  @note Not thread-safe. Call before handing the source to anything that reads it.
@@ -54,8 +54,8 @@ public:
     return files_.contains(path.generic_string());
   }
 
-  [[nodiscard]] std::expected<std::vector<corundum::core::DirEntry>, std::string>
-  list(const std::filesystem::path &dir, corundum::core::ListOptions options) const override {
+  [[nodiscard]] std::expected<std::vector<core::DirEntry>, std::string> list(const std::filesystem::path &dir,
+                                                                             core::ListOptions options) const override {
     std::string base = dir.generic_string();
     while (!base.empty() && base.back() == '/')
       base.pop_back();
@@ -68,7 +68,7 @@ public:
     if (!any_under_prefix)
       return std::unexpected("Directory does not exist: " + dir.string());
 
-    std::map<std::string, corundum::core::DirEntry> by_path;
+    std::map<std::string, core::DirEntry> by_path;
     for (const auto &[key, _] : files_) {
       if (key.starts_with(prefix))
         insert_entries(by_path, dir, key.substr(prefix.size()), options.recursive);
@@ -79,7 +79,7 @@ public:
 
 private:
   /** Insert the file at `remainder` and, depending on `recursive`, its directory entries. */
-  static void insert_entries(std::map<std::string, corundum::core::DirEntry> &by_path, const std::filesystem::path &dir,
+  static void insert_entries(std::map<std::string, core::DirEntry> &by_path, const std::filesystem::path &dir,
                              std::string_view remainder, bool recursive) {
     if (!recursive) {
       const std::size_t slash = remainder.find('/');
@@ -99,20 +99,20 @@ private:
   }
 
   /** Apply the extension filter to files, then sort directories first and by name. */
-  static std::vector<corundum::core::DirEntry> collect(const std::map<std::string, corundum::core::DirEntry> &by_path,
-                                                       const std::vector<std::string_view> &extensions) {
-    std::vector<corundum::core::DirEntry> entries;
+  static std::vector<core::DirEntry> collect(const std::map<std::string, core::DirEntry> &by_path,
+                                             const std::vector<std::string_view> &extensions) {
+    std::vector<core::DirEntry> entries;
     for (const auto &[_, entry] : by_path) {
       if (!entry.is_dir && !extensions.empty()) {
-        const bool any_match = std::ranges::any_of(
-            extensions, [&](std::string_view ext) { return corundum::core::has_extension(entry.path, ext); });
+        const bool any_match =
+            std::ranges::any_of(extensions, [&](std::string_view ext) { return core::has_extension(entry.path, ext); });
         if (!any_match)
           continue;
       }
       entries.push_back(entry);
     }
 
-    std::ranges::sort(entries, [](const corundum::core::DirEntry &a, const corundum::core::DirEntry &b) {
+    std::ranges::sort(entries, [](const core::DirEntry &a, const core::DirEntry &b) {
       if (a.is_dir != b.is_dir)
         return a.is_dir;
       return a.name < b.name;
@@ -120,19 +120,18 @@ private:
     return entries;
   }
 
-  static void add_file(std::map<std::string, corundum::core::DirEntry> &by_path, const std::filesystem::path &dir,
+  static void add_file(std::map<std::string, core::DirEntry> &by_path, const std::filesystem::path &dir,
                        std::string_view remainder) {
     const std::filesystem::path file_path = dir / std::filesystem::path(remainder);
     const std::string name = file_path.filename().string();
-    by_path.emplace(file_path.generic_string(),
-                    corundum::core::DirEntry{.is_dir = false, .name = name, .path = file_path});
+    by_path.emplace(file_path.generic_string(), core::DirEntry{.is_dir = false, .name = name, .path = file_path});
   }
 
-  static void add_dir(std::map<std::string, corundum::core::DirEntry> &by_path, const std::filesystem::path &dir,
+  static void add_dir(std::map<std::string, core::DirEntry> &by_path, const std::filesystem::path &dir,
                       std::string_view component) {
     const std::filesystem::path dir_path = dir / std::filesystem::path(component);
     by_path.emplace(dir_path.generic_string(),
-                    corundum::core::DirEntry{.is_dir = true, .name = std::string{component}, .path = dir_path});
+                    core::DirEntry{.is_dir = true, .name = std::string{component}, .path = dir_path});
   }
 
   std::flat_map<std::string, std::vector<std::uint8_t>, std::less<>> files_;
@@ -140,7 +139,7 @@ private:
 
 /** The real filesystem with paths as given — what every pre-existing test passes to a loader. */
 [[nodiscard]] inline const core::ContentSource &disk() {
-  static const corundum::core::DirectoryContentSource source;
+  static const core::DirectoryContentSource source;
   return source;
 }
 

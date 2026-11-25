@@ -22,8 +22,7 @@
 
 namespace corundum::gameplay::screens {
 
-HudStripData build_hud_strip(const world::FlagStore &flags, const gameplay::quest::Registry &quests,
-                             std::string_view zone_id) {
+HudStripData build_hud_strip(const world::FlagStore &flags, const quest::Registry &quests, std::string_view zone_id) {
   HudStripData data{};
   data.gold = world::visit_count(flags, k_gold_flag);
 

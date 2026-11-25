@@ -22,14 +22,14 @@ namespace corundum::render {
 
 /** A single loaded world chunk (world mode only). */
 struct ChunkEntry {
-  corundum::world::tilemap::ChunkCoord coord{};
-  corundum::world::tilemap::Tilemap tilemap{};
+  world::tilemap::ChunkCoord coord{};
+  world::tilemap::Tilemap tilemap{};
   std::vector<platform::TextureId> tileset_texture_ids;
   std::vector<int> above_z;
 
   /** Parallel to tilemap.layers. */
   std::vector<LayerRenderCache> layer_caches{};
-  std::vector<corundum::world::Portal> portals;
+  std::vector<world::Portal> portals;
 };
 
 /** Owns the World-mode streamed chunk window: the active/pending chunk

@@ -17,7 +17,7 @@ namespace corundum::gameplay::location {
 int Registry::load_all(const core::ContentSource &content, const std::filesystem::path &dir) {
   const auto entries = content.list(dir, {.extensions = {"json"}});
   if (!entries) {
-    corundum::detail::warn_log("[location] cannot read location directory '{}': {}", dir.string(), entries.error());
+    detail::warn_log("[location] cannot read location directory '{}': {}", dir.string(), entries.error());
     return 0;
   }
 
@@ -29,14 +29,14 @@ int Registry::load_all(const core::ContentSource &content, const std::filesystem
 
     auto result = loader.load(content, entry.path);
     if (!result) {
-      corundum::detail::warn_log("[location] skipping '{}': {}", entry.name, result.error());
+      detail::warn_log("[location] skipping '{}': {}", entry.name, result.error());
       continue;
     }
 
     for (auto &location : *result) {
       const std::string id = location.id;
       if (locations_.contains(id)) {
-        corundum::detail::warn_log("[location] duplicate location id '{}' — '{}' is shadowed", id, entry.name);
+        detail::warn_log("[location] duplicate location id '{}' — '{}' is shadowed", id, entry.name);
       } else {
         locations_.emplace(id, std::move(location));
         ++loaded;

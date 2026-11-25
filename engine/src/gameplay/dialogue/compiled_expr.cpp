@@ -379,14 +379,14 @@ private:
 
 class Evaluator {
 public:
-  Evaluator(const std::vector<ExprNode> &nodes, int32_t root, const corundum::world::FlagStore &vars,
+  Evaluator(const std::vector<ExprNode> &nodes, int32_t root, const world::FlagStore &vars,
             const quest::Registry *quests, std::string_view graph_id, std::string_view zone_id)
       : nodes_(&nodes), root_(root), vars_(&vars), quests_(quests), graph_id_(graph_id), zone_id_(zone_id) {}
 
   [[nodiscard]] bool run() const { return eval_index(root_) != 0; }
 
 private:
-  [[nodiscard]] int flag_count(const std::string &key) const { return corundum::world::visit_count(*vars_, key); }
+  [[nodiscard]] int flag_count(const std::string &key) const { return world::visit_count(*vars_, key); }
 
   [[nodiscard]] const ExprNode &node(int index) const { return (*nodes_)[static_cast<std::size_t>(index)]; }
 
@@ -394,8 +394,7 @@ private:
     const ExprNode &n = node(index);
     switch (n.kind) {
       case ExprNode::Kind::Int: return n.value;
-      case ExprNode::Kind::Ident:
-        return corundum::world::visit_count(*vars_, corundum::world::scoped_flag_key(n.name, zone_id_));
+      case ExprNode::Kind::Ident: return world::visit_count(*vars_, world::scoped_flag_key(n.name, zone_id_));
       case ExprNode::Kind::Bool: return eval_index(n.lhs) != 0 ? 1 : 0;
       case ExprNode::Kind::Not: return eval_index(n.lhs) == 0 ? 1 : 0;
       case ExprNode::Kind::And: return (eval_index(n.lhs) != 0 && eval_index(n.rhs) != 0) ? 1 : 0;
@@ -468,15 +467,15 @@ private:
   /** quest_is_resolved / quest_is_failed, or nullopt for another helper. */
   [[nodiscard]] std::optional<int> eval_quest_state_helper(const ExprNode &n, const quest::Quest *quest) const {
     if (n.name == "quest_is_resolved")
-      return (quest != nullptr && corundum::gameplay::quest::is_resolved(*quest, *vars_)) ? 1 : 0;
+      return (quest != nullptr && quest::is_resolved(*quest, *vars_)) ? 1 : 0;
     if (n.name == "quest_is_failed")
-      return (quest != nullptr && corundum::gameplay::quest::is_failed(*quest, *vars_)) ? 1 : 0;
+      return (quest != nullptr && quest::is_failed(*quest, *vars_)) ? 1 : 0;
     return std::nullopt;
   }
 
   [[nodiscard]] std::optional<int> eval_quest_helper(const ExprNode &n) const {
     if (n.name == "quest_is_started")
-      return flag_count(corundum::gameplay::quest::quest_flag_key(n.arg)) > 0 ? 1 : 0;
+      return flag_count(quest::quest_flag_key(n.arg)) > 0 ? 1 : 0;
 
     const auto *quest = quests_ != nullptr ? quests_->find(n.arg) : nullptr;
     if (const auto state = eval_quest_state_helper(n, quest))
@@ -489,12 +488,12 @@ private:
     const auto *stage = quest->find_stage(n.stage_name);
     if (stage == nullptr)
       return 0;
-    return flag_count(corundum::gameplay::quest::quest_flag_key(n.arg)) == stage->sequence ? 1 : 0;
+    return flag_count(quest::quest_flag_key(n.arg)) == stage->sequence ? 1 : 0;
   }
 
   const std::vector<ExprNode> *nodes_;
   int32_t root_;
-  const corundum::world::FlagStore *vars_;
+  const world::FlagStore *vars_;
   const quest::Registry *quests_;
   std::string_view graph_id_;
   std::string_view zone_id_;
@@ -545,7 +544,7 @@ std::expected<CompiledExpr, ExprError> compile(std::string_view src) {
   }
 }
 
-bool evaluate(const CompiledExpr &expr, const corundum::world::FlagStore &vars, const quest::Registry *quests,
+bool evaluate(const CompiledExpr &expr, const world::FlagStore &vars, const quest::Registry *quests,
               std::string_view graph_id, std::string_view zone_id) {
   if (expr.root_ < 0)
     return false;

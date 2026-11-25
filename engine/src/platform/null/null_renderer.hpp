@@ -14,12 +14,12 @@
 namespace corundum::platform::null {
 
 /** The texture id every load_texture() returns. */
-constexpr corundum::platform::TextureId k_dummy_texture{1};
+constexpr TextureId k_dummy_texture{1};
 
 /** The font id every load_font() returns; the null backend performs no real asset loading, so
  *  every request aliases this.
  */
-constexpr corundum::platform::FontId k_dummy_font{1};
+constexpr FontId k_dummy_font{1};
 
 /** Assumed per-glyph advance width reported by measure_text(). */
 constexpr float k_glyph_advance_px = 8.f;
@@ -30,22 +30,19 @@ constexpr float k_glyph_advance_px = 8.f;
  *  load returns a fixed dummy id, drawing is discarded, and measure_text()
  *  reports a rough per-character width.
  */
-class NullRenderer final : public corundum::platform::Renderer {
+class NullRenderer final : public Renderer {
 public:
-  [[nodiscard]] std::expected<corundum::platform::TextureId, std::string>
-  load_texture(std::string_view /*path*/) override {
+  [[nodiscard]] std::expected<TextureId, std::string> load_texture(std::string_view /*path*/) override {
     return k_dummy_texture;
   }
 
-  [[nodiscard]] std::expected<corundum::platform::FontId, std::string> load_font(std::string_view /*path*/) override {
+  [[nodiscard]] std::expected<FontId, std::string> load_font(std::string_view /*path*/) override {
     return k_dummy_font;
   }
 
-  [[nodiscard]] core::math::Vec2 texture_size(corundum::platform::TextureId /*texture_id*/) const override {
-    return {};
-  }
+  [[nodiscard]] core::math::Vec2 texture_size(TextureId /*texture_id*/) const override { return {}; }
 
-  void release_texture(corundum::platform::TextureId /*texture_id*/) override {}
+  void release_texture(TextureId /*texture_id*/) override {}
 
   void purge_unused_textures() override {}
 
@@ -68,8 +65,7 @@ public:
 
   void draw(const DrawLine & /*cmd*/) override {}
 
-  [[nodiscard]] float measure_text(corundum::platform::FontId /*font_id*/, std::string_view text,
-                                   uint32_t /*char_size*/) const override {
+  [[nodiscard]] float measure_text(FontId /*font_id*/, std::string_view text, uint32_t /*char_size*/) const override {
     return static_cast<float>(text.size()) * k_glyph_advance_px;
   }
 

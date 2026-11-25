@@ -57,8 +57,8 @@ void log_sokol_message(const char *tag, uint32_t level, uint32_t item_id, const 
                        const char *file, void * /*user_data*/) {
   if (level > k_max_reported_log_level)
     return;
-  corundum::detail::warn_log("[{}] item={} ({}:{}) {}", tag != nullptr ? tag : "sg", item_id,
-                             file != nullptr ? file : "?", line, msg != nullptr ? msg : "");
+  detail::warn_log("[{}] item={} ({}:{}) {}", tag != nullptr ? tag : "sg", item_id, file != nullptr ? file : "?", line,
+                   msg != nullptr ? msg : "");
 }
 
 /** Configure and start the process-wide sokol device over `backend`. */

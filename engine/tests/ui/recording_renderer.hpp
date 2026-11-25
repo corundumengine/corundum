@@ -22,7 +22,7 @@ namespace corundum::test {
  *  ordering. measure_text mirrors the null backend's per-glyph width so tests don't
  *  depend on real font metrics.
  */
-class RecordingRenderer final : public corundum::platform::Renderer {
+class RecordingRenderer final : public platform::Renderer {
 public:
   using DrawCall = std::variant<platform::DrawRect, platform::DrawSprite, platform::DrawText>;
 
@@ -94,8 +94,8 @@ public:
   [[nodiscard]] platform::RendererStats stats() const override { return {}; }
 };
 
-inline corundum::ui::NinePatchBorder make_border() {
-  corundum::ui::NinePatchBorder border{};
+inline ui::NinePatchBorder make_border() {
+  ui::NinePatchBorder border{};
   border.texture_id = platform::TextureId{1};
   border.tile_w = 4;
   border.tile_h = 4;
@@ -105,9 +105,9 @@ inline corundum::ui::NinePatchBorder make_border() {
 /** A family whose four style ids run from `first` upward, so a case can say which face a run
  *  drew in by number: bold is `first` + 1, italic `first` + 2, bold-italic `first` + 3.
  */
-[[nodiscard]] inline corundum::ui::FontFamily make_font_family(std::uint32_t first) {
-  corundum::ui::FontFamily family{};
-  for (std::uint32_t style = 0; style < corundum::ui::k_font_style_count; ++style)
+[[nodiscard]] inline ui::FontFamily make_font_family(std::uint32_t first) {
+  ui::FontFamily family{};
+  for (std::uint32_t style = 0; style < ui::k_font_style_count; ++style)
     family.ids[style] = platform::FontId{first + style};
   return family;
 }

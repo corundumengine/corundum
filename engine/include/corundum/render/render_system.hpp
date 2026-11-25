@@ -23,7 +23,7 @@ namespace corundum::render {
  *  immediately before each fixed step, and after a scene replacement (frame_camera_on does
  *  this) so the next frame blends within the new scene rather than from the old one.
  */
-void snapshot_previous_step(render::RenderState &state, const corundum::world::Scene &scene) noexcept;
+void snapshot_previous_step(RenderState &state, const world::Scene &scene) noexcept;
 
 /** Tile position of `e` to draw this frame.
  *
@@ -32,8 +32,7 @@ void snapshot_previous_step(render::RenderState &state, const corundum::world::S
  *  index was recycled).
  *  @param alpha Fraction of a fixed step elapsed since the last step, in [0, 1].
  */
-[[nodiscard]] core::math::TilePos interpolated_tile_position(const render::RenderState &state,
-                                                             corundum::entities::EntityId e,
+[[nodiscard]] core::math::TilePos interpolated_tile_position(const RenderState &state, entities::EntityId e,
                                                              core::math::TilePos current, float alpha) noexcept;
 
 /** Render the world for one frame; the caller owns screen-space overlays.
@@ -47,8 +46,7 @@ void snapshot_previous_step(render::RenderState &state, const corundum::world::S
  *  @post The renderer's view is reset to screen space, ready for overlay drawing.
  *  @post state.world_view holds the view the world was drawn with.
  */
-void render(corundum::platform::Renderer &renderer, render::RenderState &state,
-            const corundum::core::GameConfig &config, const corundum::world::Scene &scene, float alpha,
-            core::math::IntSize window_logical);
+void render(platform::Renderer &renderer, RenderState &state, const core::GameConfig &config, const world::Scene &scene,
+            float alpha, core::math::IntSize window_logical);
 
 } // namespace corundum::render

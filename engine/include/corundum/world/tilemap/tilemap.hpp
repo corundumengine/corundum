@@ -64,7 +64,7 @@ struct TilesetInfo {
   // Per-tile data, parallel arrays indexed by local_id (size == tile_count).
 
   /** Sampled (already-trimmed) rect in the atlas texture — ready to use directly as a texture source rect. */
-  std::vector<corundum::core::math::IntRect> tile_rects;
+  std::vector<core::math::IntRect> tile_rects;
 
   /** Original (untrimmed) sprite canvas width, from spritepacker's source_width. Used to scale pivot into pixels, since
    *  the trimmed rect alone can't recover it.
@@ -249,8 +249,7 @@ struct TileFrameOffset {
  *  @return Source rectangle, in pixels, within the tileset texture for this tile; all-zero if gid
  *          resolves to a local_id outside the tileset's range.
  */
-[[nodiscard]] inline corundum::core::math::IntRect tile_source_rect(const TilemapTileset &tileset,
-                                                                    TileId gid) noexcept {
+[[nodiscard]] inline core::math::IntRect tile_source_rect(const TilemapTileset &tileset, TileId gid) noexcept {
   const int local_id = static_cast<int>(gid) - static_cast<int>(tileset.first_gid);
   if (local_id < 0 || static_cast<std::size_t>(local_id) >= tileset.info.tile_rects.size())
     return {};

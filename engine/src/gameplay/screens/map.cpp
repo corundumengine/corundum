@@ -27,11 +27,11 @@
 
 namespace corundum::gameplay::screens {
 
-std::vector<MapEntry> build_map_entries(const gameplay::location::Registry &registry, const world::FlagStore &flags,
+std::vector<MapEntry> build_map_entries(const location::Registry &registry, const world::FlagStore &flags,
                                         std::string_view zone_id) {
   std::vector<MapEntry> entries;
   for (const auto &[id, location] : registry) {
-    if (!world::has_flag(flags, gameplay::location::discovery_flag_key(id)))
+    if (!world::has_flag(flags, location::discovery_flag_key(id)))
       continue;
     entries.push_back(MapEntry{
         .id = location.id,

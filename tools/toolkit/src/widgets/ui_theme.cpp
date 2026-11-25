@@ -8,27 +8,35 @@
 #include <expected>
 #include <imgui.h>
 #include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
 
 #include <string>
 
 namespace corundum::toolkit::widgets {
 
-static ImVec4 HexToImVec4(const std::string &hex) {
-  std::string h = hex[0] == '#' ? hex.substr(1) : hex;
-  uint32_t value = std::stoul(h, nullptr, 16);
-  float r{}, g{}, b{}, a{1.0f};
+namespace {
+
+ImVec4 hex_to_imvec4(const std::string &hex) {
+  const std::string h = hex[0] == '#' ? hex.substr(1) : hex;
+  const uint32_t value = std::stoul(h, nullptr, 16);
+  float r{};
+  float g{};
+  float b{};
+  float a{1.0f};
   if (h.length() == 6) {
-    r = static_cast<float>((value >> 16) & 0xFF) / 255.0f;
-    g = static_cast<float>((value >> 8) & 0xFF) / 255.0f;
-    b = static_cast<float>((value >> 0) & 0xFF) / 255.0f;
+    r = static_cast<float>((value >> 16U) & 0xFFU) / 255.0f;
+    g = static_cast<float>((value >> 8U) & 0xFFU) / 255.0f;
+    b = static_cast<float>((value >> 0U) & 0xFFU) / 255.0f;
   } else {
-    r = static_cast<float>((value >> 24) & 0xFF) / 255.0f;
-    g = static_cast<float>((value >> 16) & 0xFF) / 255.0f;
-    b = static_cast<float>((value >> 8) & 0xFF) / 255.0f;
-    a = static_cast<float>((value >> 0) & 0xFF) / 255.0f;
+    r = static_cast<float>((value >> 24U) & 0xFFU) / 255.0f;
+    g = static_cast<float>((value >> 16U) & 0xFFU) / 255.0f;
+    b = static_cast<float>((value >> 8U) & 0xFFU) / 255.0f;
+    a = static_cast<float>((value >> 0U) & 0xFFU) / 255.0f;
   }
   return ImVec4{r, g, b, a};
 }
+
+} // namespace
 
 ThemeColors ApplyEditorThemeRefined() {
   ImGui::StyleColorsDark();
@@ -57,7 +65,7 @@ ThemeColors ApplyEditorThemeRefined() {
 ThemeColors ApplyThemeFromJson(const nlohmann::json &j) {
   ImGuiStyle &style = ImGui::GetStyle();
   ImVec4 *c = style.Colors;
-  auto get = [&](const char *key) { return HexToImVec4(j["colors"].at(key)); };
+  const auto get = [&](const char *key) { return hex_to_imvec4(j["colors"].at(key)); };
   c[ImGuiCol_Text] = get("text");
   c[ImGuiCol_WindowBg] = get("window_bg");
   c[ImGuiCol_PopupBg] = get("popup_bg");
@@ -73,19 +81,19 @@ ThemeColors ApplyThemeFromJson(const nlohmann::json &j) {
   c[ImGuiCol_HeaderActive] = get("header_active");
   const auto &t = j["text"];
   ThemeColors theme;
-  theme.text_active = HexToImVec4(t.at("active"));
-  theme.text_disabled = HexToImVec4(t.at("disabled"));
-  theme.text_normal = HexToImVec4(t.at("normal"));
-  theme.text_muted = HexToImVec4(t.at("muted"));
-  theme.text_accent = HexToImVec4(t.at("accent"));
-  theme.text_success = HexToImVec4(t.at("success"));
-  theme.text_warning = HexToImVec4(t.at("warning"));
-  theme.text_error = HexToImVec4(t.at("error"));
+  theme.text_active = hex_to_imvec4(t.at("active"));
+  theme.text_disabled = hex_to_imvec4(t.at("disabled"));
+  theme.text_normal = hex_to_imvec4(t.at("normal"));
+  theme.text_muted = hex_to_imvec4(t.at("muted"));
+  theme.text_accent = hex_to_imvec4(t.at("accent"));
+  theme.text_success = hex_to_imvec4(t.at("success"));
+  theme.text_warning = hex_to_imvec4(t.at("warning"));
+  theme.text_error = hex_to_imvec4(t.at("error"));
   return theme;
 }
 
 std::expected<ThemeColors, std::string> load_theme(const std::string &path) {
-  auto j = corundum::core::read_json(corundum::core::DirectoryContentSource{}, path);
+  auto j = core::read_json(core::DirectoryContentSource{}, path);
   if (!j)
     return std::unexpected(std::string("Cannot open theme: ") + j.error());
   ImGui::StyleColorsDark();

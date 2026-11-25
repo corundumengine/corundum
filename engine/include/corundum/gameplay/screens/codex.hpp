@@ -25,8 +25,8 @@ namespace corundum::gameplay::screens {
  *  @param flags    Active FlagStore.
  *  @return One entry per unlocked codex entry, empty when none are unlocked.
  */
-[[nodiscard]] std::vector<gameplay::codex::CodexEntry> build_codex_entries(const gameplay::codex::Registry &registry,
-                                                                           const world::FlagStore &flags);
+[[nodiscard]] std::vector<codex::CodexEntry> build_codex_entries(const codex::Registry &registry,
+                                                                 const world::FlagStore &flags);
 
 /** Codex-screen state: the highlighted row and the cached unlocked-entry list.
  *
@@ -43,11 +43,11 @@ struct CodexState {
   bool dirty{true};
 
   /** Cached unlocked entries, ordered by (category, title). */
-  std::vector<gameplay::codex::CodexEntry> entries{};
+  std::vector<codex::CodexEntry> entries{};
 };
 
 /** Rebuild `state`'s cached rows when they are stale. No-cost when not dirty. */
-void refresh_codex(CodexState &state, const gameplay::codex::Registry &registry, const world::FlagStore &flags);
+void refresh_codex(CodexState &state, const codex::Registry &registry, const world::FlagStore &flags);
 
 /** Mark `state`'s cached rows stale (call on open and on every codex unlock). */
 inline void codex_mark_dirty(CodexState &state) noexcept {
@@ -77,7 +77,7 @@ struct CodexLayout {
 
 /** Compute the codex panel's visible geometry for `viewport`. */
 [[nodiscard]] CodexLayout codex_panel_layout(const platform::Renderer &renderer, const ui::PanelStyle &style,
-                                             const std::vector<gameplay::codex::CodexEntry> &entries, int cursor,
+                                             const std::vector<codex::CodexEntry> &entries, int cursor,
                                              core::math::Vec2 viewport, input::InputDevice last_device);
 
 /** Draw the codex as a centered two-pane panel: unlocked entries left, body right.
@@ -95,7 +95,7 @@ struct CodexLayout {
  *  @param last_device Device of the player's most recent press; picks the footer glyphs.
  */
 void codex_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
-                        const std::vector<gameplay::codex::CodexEntry> &entries, int cursor, float scroll,
+                        const std::vector<codex::CodexEntry> &entries, int cursor, float scroll,
                         core::math::Vec2 viewport, input::InputDevice last_device = input::InputDevice::Keyboard);
 
 } // namespace corundum::gameplay::screens

@@ -28,7 +28,7 @@ struct OpenFile {
 };
 
 /** The ContentSource behind a callback's opaque ma_vfs pointer. */
-[[nodiscard]] const corundum::core::ContentSource &source_of(void *p_vfs) {
+[[nodiscard]] const core::ContentSource &source_of(void *p_vfs) {
   return *static_cast<ContentVfs *>(p_vfs)->content;
 }
 
@@ -38,7 +38,7 @@ ma_result on_open(void *p_vfs, const char *file_path, ma_uint32 open_mode, void 
   if ((open_mode & MA_OPEN_MODE_WRITE) != 0)
     return MA_ACCESS_DENIED;
 
-  const corundum::core::ContentSource &content = source_of(p_vfs);
+  const core::ContentSource &content = source_of(p_vfs);
   try {
     std::expected<std::vector<std::uint8_t>, std::string> bytes = content.read(file_path);
     if (!bytes) {
@@ -126,7 +126,7 @@ ma_result on_info(void *p_vfs, void *file_handle, ma_file_info *p_info) {
 
 } // namespace
 
-ContentVfs make_content_vfs(const corundum::core::ContentSource &content) {
+ContentVfs make_content_vfs(const core::ContentSource &content) {
   ContentVfs vfs;
   vfs.content = &content;
   vfs.callbacks.onOpen = on_open;

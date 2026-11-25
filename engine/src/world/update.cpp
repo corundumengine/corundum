@@ -179,9 +179,8 @@ pick_interaction_target(const corundum::world::Scene &scene, const corundum::cor
 
 namespace corundum::world {
 
-void update(Scene &scene, const corundum::core::GameConfig &config, const corundum::input::InputState &input,
-            const MapView &map, float dt, float win_w, float win_h, input::InputDevice last_device,
-            WorldStep world_step) {
+void update(Scene &scene, const core::GameConfig &config, const input::InputState &input, const MapView &map, float dt,
+            float win_w, float win_h, input::InputDevice last_device, WorldStep world_step) {
   const input::InputIntent intent = input::make_input_intent(input, last_device);
 
   // The interact target is a one-frame pulse, so a step that doesn't resolve one reports no
@@ -198,12 +197,12 @@ void update(Scene &scene, const corundum::core::GameConfig &config, const corund
   // camera tracking (cell-center anchor), and tile picking share the same params.
   // elev_step is pre-multiplied by tile_scale to match the renderer's already-scaled
   // iso.elev_step (see compute_isometric_params()).
-  const corundum::core::math::IsometricParams &iso = map.projection;
-  scene.hovered_tile = corundum::world::pick_tile(input.mouse_x, input.mouse_y, scene.camera, map, iso);
+  const core::math::IsometricParams &iso = map.projection;
+  scene.hovered_tile = world::pick_tile(input.mouse_x, input.mouse_y, scene.camera, map, iso);
 
   switch (scene.mode()) {
-    case corundum::world::GameMode::Prompt: update_transition_prompt(scene, intent); break;
-    case corundum::world::GameMode::Exploring:
+    case GameMode::Prompt: update_transition_prompt(scene, intent); break;
+    case GameMode::Exploring:
       update_exploring(scene, input, map, config, dt, win_w, win_h, iso);
       // The engine's exploring input handler records the generic interact target; the gameplay
       // fixed-step system consumes the one-frame pulse (see Scene::pending_interaction).

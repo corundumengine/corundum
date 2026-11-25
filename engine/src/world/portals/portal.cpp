@@ -154,12 +154,12 @@ std::expected<std::vector<Portal>, std::string> load_portals(const core::Content
 
   const std::string path_str = path.string();
 
-  auto parsed = corundum::core::read_json(content, path);
+  auto parsed = core::read_json(content, path);
   if (!parsed)
     return std::unexpected(std::move(parsed).error());
   json j = std::move(*parsed);
 
-  auto prepared = corundum::core::prepare_schema_version(j, k_portals_schema_version, "Portals", path_str, {});
+  auto prepared = core::prepare_schema_version(j, k_portals_schema_version, "Portals", path_str, {});
   if (!prepared)
     return std::unexpected(std::move(prepared).error());
 

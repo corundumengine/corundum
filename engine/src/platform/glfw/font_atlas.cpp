@@ -188,7 +188,7 @@ bool FontAtlas::load(FT_Library lib, std::vector<uint8_t> font_bytes, std::strin
   path = std::string{font_path};
   // NOLINTNEXTLINE(misc-include-cleaner): FT_Long comes from the FreeType headers included above.
   if (FT_New_Memory_Face(lib, file_bytes.data(), static_cast<FT_Long>(file_bytes.size()), 0, &face) != 0) {
-    corundum::detail::warn_log("[font_atlas] FT_New_Memory_Face failed for '{}'", path);
+    detail::warn_log("[font_atlas] FT_New_Memory_Face failed for '{}'", path);
     return false;
   }
   return true;

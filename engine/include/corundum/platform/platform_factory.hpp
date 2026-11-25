@@ -36,7 +36,7 @@ struct PlatformContext {
 
   Handle<Renderer> renderer;
 
-  std::unique_ptr<corundum::audio::AudioBackend> audio_backend;
+  std::unique_ptr<audio::AudioBackend> audio_backend;
 };
 
 /** Create a platform-specific Window only (no renderer or audio).
@@ -66,6 +66,6 @@ struct PlatformContext {
  *  @post Window, gpu, renderer, and audio_backend are all valid (non-null) on success.
  */
 [[nodiscard]] std::expected<PlatformContext, std::string>
-create_platform(const corundum::core::ContentSource &content, unsigned width, unsigned height, std::string_view title);
+create_platform(const core::ContentSource &content, unsigned width, unsigned height, std::string_view title);
 
 } // namespace corundum::platform

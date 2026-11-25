@@ -599,7 +599,7 @@ std::expected<void, std::string> parse_optional_configs(const json &j, GameConfi
 
 } // namespace
 
-std::expected<GameConfig, std::string> load_game_config(const core::ContentSource &content, const fs::path &path) {
+std::expected<GameConfig, std::string> load_game_config(const ContentSource &content, const fs::path &path) {
   auto j_result = read_json(content, path, "game.json");
   if (!j_result)
     return std::unexpected(std::move(j_result).error());

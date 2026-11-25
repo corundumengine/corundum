@@ -49,7 +49,7 @@ public:
    *
    *  @pre This window must be open, and the caller has called mapper.begin_poll().
    */
-  virtual void poll_game_input(corundum::input::InputMapper &mapper, PlatformEvents &events) = 0;
+  virtual void poll_game_input(input::InputMapper &mapper, PlatformEvents &events) = 0;
 
   /** Query the current window dimensions in logical screen coordinates.
    *
@@ -79,7 +79,7 @@ public:
    *  Printable keys follow the active keyboard layout (the key at US "W" reads "Z" on AZERTY);
    *  everything else falls back to input::name_of().
    */
-  [[nodiscard]] virtual std::string input_label(corundum::input::PhysicalInput input) const = 0;
+  [[nodiscard]] virtual std::string input_label(input::PhysicalInput input) const = 0;
 
   /** Opaque handle to the window in the API of the backend that created it.
    *

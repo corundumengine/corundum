@@ -48,7 +48,7 @@ public:
    *  @pre Call before initialize(); a backend adopted afterwards is never sent the retained bus
    *       volumes or paused flag.
    */
-  void adopt_backend(std::unique_ptr<audio::AudioBackend> backend) noexcept { backend_ = std::move(backend); }
+  void adopt_backend(std::unique_ptr<AudioBackend> backend) noexcept { backend_ = std::move(backend); }
 
   /** Initialise the audio system.
    *  @param sounds_dir Base directory sound file paths are resolved against.
@@ -138,12 +138,12 @@ private:
    */
   [[nodiscard]] std::string resolve_path(std::string_view name) const;
 
-  std::unique_ptr<audio::AudioBackend> backend_;
+  std::unique_ptr<AudioBackend> backend_;
 
   /** SoundHandle cache keyed by logical name. std::less<> gives
    *  heterogeneous lookup, so string_view probes avoid a std::string alloc.
    */
-  std::flat_map<std::string, audio::SoundHandle, std::less<>> cache_;
+  std::flat_map<std::string, SoundHandle, std::less<>> cache_;
 
   /** Logical-name → relative-path catalog loaded from JSON. */
   std::flat_map<std::string, std::string, std::less<>> catalog_;

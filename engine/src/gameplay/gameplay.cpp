@@ -97,7 +97,7 @@ namespace corundum::gameplay {
 
 namespace {
 
-using corundum::detail::warn_log;
+using detail::warn_log;
 
 /** Drop the fight and let the player walk again. Every path that ends or abandons a fight goes
  *  through here, so a protagonist the fight held never stays held.
@@ -1592,35 +1592,32 @@ void load_content(Gameplay &gameplay, Engine &engine) {
   int dialogue_loaded{0};
   if (!engine.config.paths.dialogue_dir.empty())
     dialogue_loaded = gameplay.graphs.load_all(engine.content_source(), engine.config.paths.dialogue_dir);
-  corundum::detail::info_log("[gameplay] Loaded {} dialogue graphs from '{}'", dialogue_loaded,
-                             engine.config.paths.dialogue_dir);
+  detail::info_log("[gameplay] Loaded {} dialogue graphs from '{}'", dialogue_loaded, engine.config.paths.dialogue_dir);
 
   int quest_loaded{0};
   if (!engine.config.paths.quests_dir.empty())
     quest_loaded = gameplay.quests.load_all(engine.content_source(), engine.config.paths.quests_dir);
-  corundum::detail::info_log("[gameplay] Loaded {} quests from '{}'", quest_loaded, engine.config.paths.quests_dir);
+  detail::info_log("[gameplay] Loaded {} quests from '{}'", quest_loaded, engine.config.paths.quests_dir);
 
   int item_loaded{0};
   if (!engine.config.paths.items_dir.empty())
     item_loaded = gameplay.items.load_all(engine.content_source(), engine.config.paths.items_dir);
-  corundum::detail::info_log("[gameplay] Loaded {} items from '{}'", item_loaded, engine.config.paths.items_dir);
+  detail::info_log("[gameplay] Loaded {} items from '{}'", item_loaded, engine.config.paths.items_dir);
 
   int codex_loaded{0};
   if (!engine.config.paths.codex_dir.empty())
     codex_loaded = gameplay.codex.load_all(engine.content_source(), engine.config.paths.codex_dir);
-  corundum::detail::info_log("[gameplay] Loaded {} codex entries from '{}'", codex_loaded,
-                             engine.config.paths.codex_dir);
+  detail::info_log("[gameplay] Loaded {} codex entries from '{}'", codex_loaded, engine.config.paths.codex_dir);
 
   int location_loaded{0};
   if (!engine.config.paths.locations_dir.empty())
     location_loaded = gameplay.locations.load_all(engine.content_source(), engine.config.paths.locations_dir);
-  corundum::detail::info_log("[gameplay] Loaded {} locations from '{}'", location_loaded,
-                             engine.config.paths.locations_dir);
+  detail::info_log("[gameplay] Loaded {} locations from '{}'", location_loaded, engine.config.paths.locations_dir);
 
   int shop_loaded{0};
   if (!engine.config.paths.shops_dir.empty())
     shop_loaded = gameplay.shops.load_all(engine.content_source(), engine.config.paths.shops_dir);
-  corundum::detail::info_log("[gameplay] Loaded {} shops from '{}'", shop_loaded, engine.config.paths.shops_dir);
+  detail::info_log("[gameplay] Loaded {} shops from '{}'", shop_loaded, engine.config.paths.shops_dir);
 
   validate_quest_references(gameplay.graphs, gameplay.quests, gameplay.items);
   for (const auto &[shop_id, shop] : gameplay.shops) {
@@ -2008,7 +2005,7 @@ void Gameplay::fixed_step(float dt) {
 
   // Interaction is a one-frame pulse: read and clear it unconditionally so an unconsumed value
   // (no target in range, wrong mode) never persists into the next step.
-  const std::optional<corundum::entities::EntityId> interaction = engine.scene.pending_interaction;
+  const std::optional<entities::EntityId> interaction = engine.scene.pending_interaction;
   engine.scene.pending_interaction.reset();
 
   if (engine.scene.mode() == screens::Dialogue) {
@@ -2388,7 +2385,7 @@ void Gameplay::update_dialogue(const input::InputIntent &intent) {
     return;
 
   if (dialogue_npc) {
-    corundum::entities::World &world = engine_->scene.world;
+    entities::World &world = engine_->scene.world;
     const dialogue::DialogueNpc &npc = *dialogue_npc;
     if (npc.saved_facing && world.facings.has(npc.entity))
       world.facings.dir_ref(npc.entity) = *npc.saved_facing;
@@ -2402,14 +2399,14 @@ void Gameplay::update_dialogue(const input::InputIntent &intent) {
   engine_->scene.ui.pop();
 }
 
-void Gameplay::try_interact(corundum::entities::EntityId target) {
-  using corundum::core::Direction;
-  using corundum::sprites::AnimId;
-  using corundum::sprites::to_anim;
+void Gameplay::try_interact(entities::EntityId target) {
+  using core::Direction;
+  using sprites::AnimId;
+  using sprites::to_anim;
 
-  corundum::world::Scene &scene = engine_->scene;
-  corundum::entities::World &world = scene.world;
-  if (!corundum::world::player_present(scene))
+  world::Scene &scene = engine_->scene;
+  entities::World &world = scene.world;
+  if (!world::player_present(scene))
     return;
   if (!world.dialogue_refs.has(target) || !world.transforms.has(target))
     return;
@@ -2425,12 +2422,12 @@ void Gameplay::try_interact(corundum::entities::EntityId target) {
   const float npc_col = world.transforms.col[npc_slot];
   const float npc_row = world.transforms.row[npc_slot];
 
-  const Direction toward_npc = corundum::core::direction_from_tile_delta(npc_col - player_col, npc_row - player_row);
+  const Direction toward_npc = core::direction_from_tile_delta(npc_col - player_col, npc_row - player_row);
 
   dialogue::DialogueNpc npc{.entity = target};
   if (world.facings.has(target)) {
     npc.saved_facing = world.facings.dir_of(target);
-    const Direction face_player = corundum::core::opposite(toward_npc);
+    const Direction face_player = core::opposite(toward_npc);
     world.facings.dir_ref(target) = face_player;
     if (world.sprites.has(target) && world.animations.has(target)) {
       npc.saved_anim = world.sprites.anim_id_ref(target);

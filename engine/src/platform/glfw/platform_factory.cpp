@@ -38,8 +38,8 @@ std::expected<Handle<Window>, std::string> create_window(unsigned width, unsigne
   return Handle<Window>{result->release(), BackendDeleter<Window>{&destroy<Window>}};
 }
 
-std::expected<PlatformContext, std::string> create_platform(const corundum::core::ContentSource &content,
-                                                            unsigned width, unsigned height, std::string_view title) {
+std::expected<PlatformContext, std::string> create_platform(const core::ContentSource &content, unsigned width,
+                                                            unsigned height, std::string_view title) {
   auto window = create_window(width, height, title);
   if (!window)
     return std::unexpected(window.error());

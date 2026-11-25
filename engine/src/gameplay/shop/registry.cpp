@@ -17,7 +17,7 @@ namespace corundum::gameplay::shop {
 int Registry::load_all(const core::ContentSource &content, const std::filesystem::path &dir) {
   const auto entries = content.list(dir, {.extensions = {"json"}});
   if (!entries) {
-    corundum::detail::warn_log("[shop] cannot read shop directory '{}': {}", dir.string(), entries.error());
+    detail::warn_log("[shop] cannot read shop directory '{}': {}", dir.string(), entries.error());
     return 0;
   }
 
@@ -29,14 +29,14 @@ int Registry::load_all(const core::ContentSource &content, const std::filesystem
 
     auto result = loader.load(content, entry.path);
     if (!result) {
-      corundum::detail::warn_log("[shop] skipping '{}': {}", entry.name, result.error());
+      detail::warn_log("[shop] skipping '{}': {}", entry.name, result.error());
       continue;
     }
 
     for (auto &shop : *result) {
       const std::string id = shop.id;
       if (shops_.contains(id)) {
-        corundum::detail::warn_log("[shop] duplicate shop id '{}' — '{}' is shadowed", id, entry.name);
+        detail::warn_log("[shop] duplicate shop id '{}' — '{}' is shadowed", id, entry.name);
       } else {
         shops_.emplace(id, std::move(shop));
         ++loaded;

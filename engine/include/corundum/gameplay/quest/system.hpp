@@ -45,7 +45,7 @@ namespace corundum::gameplay::quest {
  *  @param flags    Active FlagStore.
  *  @return The stage sequence (0 if not started / inactive).
  */
-[[nodiscard]] int get_stage(std::string_view quest_id, const corundum::world::FlagStore &flags);
+[[nodiscard]] int get_stage(std::string_view quest_id, const world::FlagStore &flags);
 
 /** Check whether the current stage is a resolved ending.
  *
@@ -56,7 +56,7 @@ namespace corundum::gameplay::quest {
  *  @param flags Active FlagStore.
  *  @return True when the stage named by the quest's flag is resolved.
  */
-[[nodiscard]] bool is_resolved(const Quest &quest, const corundum::world::FlagStore &flags);
+[[nodiscard]] bool is_resolved(const Quest &quest, const world::FlagStore &flags);
 
 /** Check whether the current stage is a failure ending.
  *
@@ -64,7 +64,7 @@ namespace corundum::gameplay::quest {
  *  @param flags Active FlagStore.
  *  @return True when the stage named by the quest's flag is failed.
  */
-[[nodiscard]] bool is_failed(const Quest &quest, const corundum::world::FlagStore &flags);
+[[nodiscard]] bool is_failed(const Quest &quest, const world::FlagStore &flags);
 
 /** Start a quest by setting its flag to the first stage's sequence.
  *
@@ -76,7 +76,7 @@ namespace corundum::gameplay::quest {
  *  @param quest The quest to start.
  *  @param flags Active FlagStore to mutate.
  */
-void start(const Quest &quest, corundum::world::FlagStore &flags);
+void start(const Quest &quest, world::FlagStore &flags);
 
 /** Advance a quest to a named stage.
  *
@@ -89,7 +89,7 @@ void start(const Quest &quest, corundum::world::FlagStore &flags);
  *  @param stage_name The name of the target stage.
  *  @param flags      Active FlagStore to mutate.
  */
-void advance(const Quest &quest, std::string_view stage_name, corundum::world::FlagStore &flags);
+void advance(const Quest &quest, std::string_view stage_name, world::FlagStore &flags);
 
 /** Collect pointers to every quest that has been started (stage > 0).
  *
@@ -100,8 +100,7 @@ void advance(const Quest &quest, std::string_view stage_name, corundum::world::F
  *  @param flags    Active FlagStore.
  *  @return Non-owning pointers to all started quests; borrows `registry`.
  */
-[[nodiscard]] std::vector<const Quest *> started_quests(const Registry &registry,
-                                                        const corundum::world::FlagStore &flags);
+[[nodiscard]] std::vector<const Quest *> started_quests(const Registry &registry, const world::FlagStore &flags);
 
 /** Advance quests whose current stage's objectives are all satisfied.
  *
@@ -116,6 +115,6 @@ void advance(const Quest &quest, std::string_view stage_name, corundum::world::F
  *  @param flags    Active FlagStore to mutate.
  *  @param zone_id  Current zone; `local.<key>` done_conditions resolve against it.
  */
-void tick_quests(const Registry &registry, corundum::world::FlagStore &flags, std::string_view zone_id = {});
+void tick_quests(const Registry &registry, world::FlagStore &flags, std::string_view zone_id = {});
 
 } // namespace corundum::gameplay::quest

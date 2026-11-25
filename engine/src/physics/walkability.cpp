@@ -17,7 +17,7 @@ namespace {
  *  it untouched otherwise — the axis-separated slide resolve_collisions uses.
  */
 [[nodiscard]] float resolve_axis(float axis_pos, float axis_prev, int from_col, int from_row, int to_col, int to_row,
-                                 const corundum::world::tilemap::WalkabilityGraph &graph) noexcept {
+                                 const world::tilemap::WalkabilityGraph &graph) noexcept {
   if (from_col == to_col && from_row == to_row)
     return axis_pos;
   return graph.can_move(from_col, from_row, to_col, to_row) ? axis_pos : axis_prev;
@@ -25,12 +25,11 @@ namespace {
 
 } // namespace
 
-void resolve_walkability(
-    corundum::entities::Position &pos, corundum::entities::Position prev_pos,
-    std::optional<std::reference_wrapper<const corundum::world::tilemap::WalkabilityGraph>> graph) noexcept {
+void resolve_walkability(entities::Position &pos, entities::Position prev_pos,
+                         std::optional<std::reference_wrapper<const world::tilemap::WalkabilityGraph>> graph) noexcept {
   if (!graph)
     return;
-  const corundum::world::tilemap::WalkabilityGraph &walkability = graph->get();
+  const world::tilemap::WalkabilityGraph &walkability = graph->get();
 
   const int prev_col = static_cast<int>(std::floor(prev_pos.col));
   const int prev_row = static_cast<int>(std::floor(prev_pos.row));

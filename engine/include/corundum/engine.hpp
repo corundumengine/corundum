@@ -189,7 +189,7 @@ public:
 
   sprites::CharacterRegistry characters;
 
-  corundum::world::FlagStore flags;
+  world::FlagStore flags;
 
   core::math::Colour clear_colour{.r = 30, .g = 30, .b = 35, .a = 255};
 
@@ -438,7 +438,7 @@ public:
    *  @return Pointer to the active tilemap, or nullptr in World mode or before load.
    */
   [[nodiscard]] const world::tilemap::Tilemap *active_tilemap() const noexcept {
-    return corundum::render::active_tilemap(render);
+    return render::active_tilemap(render);
   }
 
   /** True once request_quit() or cleanup() has been called. */

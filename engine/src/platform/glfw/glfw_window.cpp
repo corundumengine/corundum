@@ -41,7 +41,7 @@ int s_glfw_refcount = 0;
 void load_gamepad_mappings() {
   const std::string joined = join_gamepad_mappings(gamepad_mappings());
   if (glfwUpdateGamepadMappings(joined.c_str()) == GLFW_FALSE)
-    corundum::detail::warn_log("[platform] WARN: GLFW rejected the bundled gamepad mappings");
+    detail::warn_log("[platform] WARN: GLFW rejected the bundled gamepad mappings");
 }
 
 [[nodiscard]] bool glfw_init_if_needed() {
@@ -74,7 +74,7 @@ struct WindowData {
   /** Engine input sink, set only for the duration of poll_game_input. Callbacks fired by another
    *  event pump (a tool's own glfwPollEvents) find it null and drop the event.
    */
-  corundum::input::InputMapper *mapper{nullptr};
+  input::InputMapper *mapper{nullptr};
 
   /** Joystick id whose state drives input, or -1 while no gamepad is connected. */
   int active_gamepad{-1};
@@ -90,7 +90,7 @@ struct WindowData {
   /** Windowed placement saved on entering fullscreen, restored on leaving it. */
   WindowRect windowed_rect{};
 
-  corundum::platform::PlatformEvents events{};
+  platform::PlatformEvents events{};
 
   /** Backend graphics seam for this window; empty when the backend needs no separate object. */
   window_graphics::ContextHandle context{};
@@ -187,9 +187,8 @@ void report_unmapped_joysticks(WindowData &data) noexcept {
     if ((data.unmapped_joysticks & bit) != 0)
       continue;
     // A pad unplugged between the presence check and here yields null; log it as unnamed.
-    corundum::detail::warn_log(
-        "[platform] WARN: controller '{}' (GUID {}) has no gamepad mapping; its input is ignored",
-        text_or_empty(glfwGetJoystickName(joystick)), text_or_empty(glfwGetJoystickGUID(joystick)));
+    detail::warn_log("[platform] WARN: controller '{}' (GUID {}) has no gamepad mapping; its input is ignored",
+                     text_or_empty(glfwGetJoystickName(joystick)), text_or_empty(glfwGetJoystickGUID(joystick)));
   }
   data.unmapped_joysticks = unmapped;
 }
@@ -198,7 +197,7 @@ void report_unmapped_joysticks(WindowData &data) noexcept {
  *  active while connected; when it goes, the lowest-numbered remaining pad takes over. Only
  *  mapped gamepads count: an unmapped joystick has no portable button layout to bind.
  */
-void poll_gamepads(WindowData &data, corundum::input::InputMapper &mapper) noexcept {
+void poll_gamepads(WindowData &data, input::InputMapper &mapper) noexcept {
   report_unmapped_joysticks(data);
   std::uint32_t present{connected_gamepads()};
   GLFWgamepadstate state{};
@@ -380,7 +379,7 @@ void GLFWWindow::show() {
   }
 }
 
-void GLFWWindow::poll_game_input(corundum::input::InputMapper &mapper, corundum::platform::PlatformEvents &events) {
+void GLFWWindow::poll_game_input(input::InputMapper &mapper, platform::PlatformEvents &events) {
   if (!impl_ || impl_->win == nullptr)
     return;
 
@@ -395,7 +394,7 @@ void GLFWWindow::poll_game_input(corundum::input::InputMapper &mapper, corundum:
   glfwGetCursorPos(impl_->win, &cursor_x, &cursor_y);
   mapper.cursor(static_cast<float>(cursor_x), static_cast<float>(cursor_y));
 
-  corundum::platform::merge_events(events, impl_->data.events);
+  platform::merge_events(events, impl_->data.events);
   impl_->data.events = {};
 }
 
@@ -414,8 +413,8 @@ void GLFWWindow::set_vsync(bool enabled) {
   window_graphics::set_vsync(impl_->data.context.get(), impl_->win, enabled);
 }
 
-std::string GLFWWindow::input_label(corundum::input::PhysicalInput input) const {
-  if (const auto *key = std::get_if<corundum::input::Key>(&input.value)) {
+std::string GLFWWindow::input_label(input::PhysicalInput input) const {
+  if (const auto *key = std::get_if<input::Key>(&input.value)) {
     // Layout-aware for printable keys only; GLFW returns null for the rest.
     if (const char *name = glfwGetKeyName(static_cast<int>(*key), 0); name != nullptr) {
       std::string label{name};
@@ -424,10 +423,10 @@ std::string GLFWWindow::input_label(corundum::input::PhysicalInput input) const 
       return label;
     }
   }
-  return std::string{corundum::input::name_of(input)};
+  return std::string{input::name_of(input)};
 }
 
-void GLFWWindow::set_window_mode(corundum::core::WindowMode mode) {
+void GLFWWindow::set_window_mode(core::WindowMode mode) {
   if (!impl_ || impl_->win == nullptr || mode == window_mode())
     return;
   // glfwSetWindowMonitor on a hidden window leaves it permanently hidden on macOS. Before the
@@ -438,7 +437,7 @@ void GLFWWindow::set_window_mode(corundum::core::WindowMode mode) {
 
   GLFWwindow *win = impl_->win;
   WindowRect &rect = impl_->data.windowed_rect;
-  if (mode == corundum::core::WindowMode::Fullscreen) {
+  if (mode == core::WindowMode::Fullscreen) {
     GLFWmonitor *monitor = monitor_for_window(win);
     const GLFWvidmode *video = monitor != nullptr ? glfwGetVideoMode(monitor) : nullptr;
     if (video == nullptr)
@@ -455,11 +454,10 @@ void GLFWWindow::set_window_mode(corundum::core::WindowMode mode) {
   impl_->data.events.display_changed = true;
 }
 
-corundum::core::WindowMode GLFWWindow::window_mode() const {
+core::WindowMode GLFWWindow::window_mode() const {
   if (!impl_ || impl_->win == nullptr)
-    return corundum::core::WindowMode::Windowed;
-  return glfwGetWindowMonitor(impl_->win) != nullptr ? corundum::core::WindowMode::Fullscreen
-                                                     : corundum::core::WindowMode::Windowed;
+    return core::WindowMode::Windowed;
+  return glfwGetWindowMonitor(impl_->win) != nullptr ? core::WindowMode::Fullscreen : core::WindowMode::Windowed;
 }
 
 void *GLFWWindow::native_handle() const noexcept {

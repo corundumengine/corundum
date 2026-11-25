@@ -24,9 +24,9 @@ struct SpriteTable {
 
   SparseIndex<k_max> index;
 
-  std::array<corundum::sprites::SpriteId, k_max> sprite_id{};
+  std::array<sprites::SpriteId, k_max> sprite_id{};
 
-  std::array<corundum::sprites::AnimId, k_max> anim_id{};
+  std::array<sprites::AnimId, k_max> anim_id{};
 
   std::array<uint8_t, k_max> frame_index{};
 
@@ -61,8 +61,7 @@ struct SpriteTable {
    *  @param frame   Initial frame index within the clip.
    *  @pre has(e) must be false.
    */
-  void insert(EntityId e, corundum::sprites::SpriteId sprite, corundum::sprites::AnimId animation,
-              uint8_t frame) noexcept {
+  void insert(EntityId e, sprites::SpriteId sprite, sprites::AnimId animation, uint8_t frame) noexcept {
     index.insert(e, count, [&](auto slot) {
       sprite_id[slot] = sprite;
       anim_id[slot] = animation;
@@ -93,13 +92,13 @@ struct SpriteTable {
   }
 
   /** Mutable reference to the sprite ID for `e`. @pre has(e). */
-  [[nodiscard]] corundum::sprites::SpriteId &sprite_id_ref(EntityId e) noexcept {
+  [[nodiscard]] sprites::SpriteId &sprite_id_ref(EntityId e) noexcept {
     assert(has(e));
     return sprite_id[index.dense_index(e)];
   }
 
   /** Mutable reference to the animation ID for `e`. @pre has(e). */
-  [[nodiscard]] corundum::sprites::AnimId &anim_id_ref(EntityId e) noexcept {
+  [[nodiscard]] sprites::AnimId &anim_id_ref(EntityId e) noexcept {
     assert(has(e));
     return anim_id[index.dense_index(e)];
   }

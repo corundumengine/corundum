@@ -28,7 +28,7 @@ inline void process_shortcuts(const ShortcutMap &map) {
 /** Add common editor shortcuts (quit on Esc/Ctrl+Q) to `map`.
  *  Tools extend this with their own tool-specific bindings.
  */
-inline void add_default_shortcuts(ShortcutMap &map, corundum::toolkit::host::ToolHost &host, bool &running) {
+inline void add_default_shortcuts(ShortcutMap &map, host::ToolHost &host, bool &running) {
   map[ImGuiMod_Ctrl | ImGuiKey_Q] = [&running]() { running = false; };
   map[ImGuiKey_Escape] = [&host]() { host.request_close(); };
 }

@@ -36,8 +36,8 @@ namespace corundum::world {
  *        interact target in Scene::pending_interaction, and the gameplay fixed-step system
  *        consumes it, so the engine runtime never names a gameplay registry.
  */
-void update(Scene &scene, const corundum::core::GameConfig &config, const corundum::input::InputState &input,
-            const MapView &map, float dt, float win_w, float win_h,
-            input::InputDevice last_device = input::InputDevice::Keyboard, WorldStep world_step = WorldStep::Frozen);
+void update(Scene &scene, const core::GameConfig &config, const input::InputState &input, const MapView &map, float dt,
+            float win_w, float win_h, input::InputDevice last_device = input::InputDevice::Keyboard,
+            WorldStep world_step = WorldStep::Frozen);
 
 } // namespace corundum::world

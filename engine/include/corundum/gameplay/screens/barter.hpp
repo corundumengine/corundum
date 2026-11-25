@@ -29,8 +29,7 @@ struct BarterLine {
 /** Build the barter rows: every item the shop offers, at its base price (the stock entry's
  *  price, or else the item's). Rows keep the shop's authored order.
  */
-[[nodiscard]] std::vector<BarterLine> build_barter_stock(const gameplay::shop::Shop &shop,
-                                                         const gameplay::item::Registry &items);
+[[nodiscard]] std::vector<BarterLine> build_barter_stock(const shop::Shop &shop, const item::Registry &items);
 
 /** Barter-screen state: the highlighted row. */
 struct BarterState {

@@ -46,20 +46,20 @@ constexpr std::string_view k_objective_done = "[x] ";
 constexpr std::string_view k_objective_pending = "[ ] ";
 
 /** True when `lifecycle` belongs to the section `tab` names. */
-bool tab_matches(JournalTab tab, gameplay::quest::Lifecycle lifecycle) noexcept {
+bool tab_matches(JournalTab tab, quest::Lifecycle lifecycle) noexcept {
   switch (tab) {
-    case JournalTab::Active: return lifecycle == gameplay::quest::Lifecycle::Active;
-    case JournalTab::Completed: return lifecycle == gameplay::quest::Lifecycle::Completed;
-    case JournalTab::Failed: return lifecycle == gameplay::quest::Lifecycle::Failed;
+    case JournalTab::Active: return lifecycle == quest::Lifecycle::Active;
+    case JournalTab::Completed: return lifecycle == quest::Lifecycle::Completed;
+    case JournalTab::Failed: return lifecycle == quest::Lifecycle::Failed;
   }
   return false;
 }
 
 /** Current objective label: first not-yet-done entry, falling back to the first, or empty. */
-std::string current_objective(std::span<const gameplay::quest::ObjectiveView> views) {
+std::string current_objective(std::span<const quest::ObjectiveView> views) {
   if (views.empty())
     return {};
-  for (const gameplay::quest::ObjectiveView &view : views) {
+  for (const quest::ObjectiveView &view : views) {
     if (!view.done)
       return std::string(view.text);
   }
@@ -365,27 +365,26 @@ JournalTab cycle_journal_tab(JournalTab tab, int direction) noexcept {
   return k_journal_tabs[static_cast<std::size_t>(next)];
 }
 
-std::vector<JournalEntry> build_journal_entries(const gameplay::quest::Registry &quests, const world::FlagStore &flags,
+std::vector<JournalEntry> build_journal_entries(const quest::Registry &quests, const world::FlagStore &flags,
                                                 JournalTab tab, std::string_view zone_id) {
   std::vector<JournalEntry> entries;
-  for (const gameplay::quest::Quest *quest : gameplay::quest::started_quests(quests, flags)) {
+  for (const quest::Quest *quest : quest::started_quests(quests, flags)) {
     if (quest == nullptr)
       continue;
-    const gameplay::quest::Lifecycle lifecycle = gameplay::quest::lifecycle(*quest, flags);
+    const quest::Lifecycle lifecycle = quest::lifecycle(*quest, flags);
     if (!tab_matches(tab, lifecycle))
       continue;
 
-    const std::vector<gameplay::quest::ObjectiveView> views =
-        gameplay::quest::objectives(*quest, flags, &quests, zone_id);
+    const std::vector<quest::ObjectiveView> views = quest::objectives(*quest, flags, &quests, zone_id);
 
     JournalEntry entry{};
     entry.id = quest->quest_id;
     entry.name = quest->name;
     entry.objective = current_objective(views);
     entry.lifecycle = lifecycle;
-    entry.tracked = world::has_flag(flags, gameplay::quest::tracked_flag_key(quest->quest_id));
+    entry.tracked = world::has_flag(flags, quest::tracked_flag_key(quest->quest_id));
     entry.objectives.reserve(views.size());
-    for (const gameplay::quest::ObjectiveView &view : views)
+    for (const quest::ObjectiveView &view : views)
       entry.objectives.push_back(JournalObjective{.text = std::string(view.text), .done = view.done});
     entries.push_back(std::move(entry));
   }

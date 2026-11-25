@@ -20,7 +20,7 @@ namespace corundum::gameplay::screens {
  *  (falls back to the raw id).
  */
 struct InventoryLine {
-  corundum::gameplay::item::ItemCategory category = corundum::gameplay::item::ItemCategory::Misc;
+  item::ItemCategory category = item::ItemCategory::Misc;
 
   int count = 0;
 
@@ -45,8 +45,8 @@ struct InventoryLine {
  *  their definition file was added). Sorted by (category, name) so same-category
  *  items cluster in a stable display order.
  */
-[[nodiscard]] std::vector<InventoryLine> build_inventory_lines(const corundum::world::FlagStore &flags,
-                                                               const corundum::gameplay::item::Registry &items);
+[[nodiscard]] std::vector<InventoryLine> build_inventory_lines(const world::FlagStore &flags,
+                                                               const item::Registry &items);
 
 /** Collect items held under `flag_prefix` from the FlagStore.
  *
@@ -59,8 +59,7 @@ struct InventoryLine {
  *  @param items       Loaded item registry; unknown ids fall back to the raw id.
  *  @param flag_prefix Key prefix to treat as held items.
  */
-[[nodiscard]] std::vector<InventoryLine> build_item_lines(const corundum::world::FlagStore &flags,
-                                                          const corundum::gameplay::item::Registry &items,
+[[nodiscard]] std::vector<InventoryLine> build_item_lines(const world::FlagStore &flags, const item::Registry &items,
                                                           std::string_view flag_prefix);
 
 /** One equipped-slot row of the inventory's left column. */
@@ -82,8 +81,8 @@ struct EquipmentLine {
  *  are sorted by name; a slot with no equipped item keeps an empty item_name. The game owns the
  *  equip flags; the framework only displays them.
  */
-[[nodiscard]] std::vector<EquipmentLine> build_equipment_lines(const corundum::world::FlagStore &flags,
-                                                               const corundum::gameplay::item::Registry &items);
+[[nodiscard]] std::vector<EquipmentLine> build_equipment_lines(const world::FlagStore &flags,
+                                                               const item::Registry &items);
 
 /** Screen-space geometry of the inventory panel, shared by render and mouse hit-testing. */
 struct InventoryLayout {

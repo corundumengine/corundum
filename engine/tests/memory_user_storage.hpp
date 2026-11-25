@@ -19,7 +19,7 @@ namespace corundum::test {
  *  `entries` is public so tests can seed and inspect it. `injected_write_error` lets a test
  *  force every write to fail without touching the filesystem.
  */
-class MemoryUserStorage final : public corundum::core::UserStorage {
+class MemoryUserStorage final : public core::UserStorage {
 public:
   std::flat_map<std::string, std::string, std::less<>> entries;
 

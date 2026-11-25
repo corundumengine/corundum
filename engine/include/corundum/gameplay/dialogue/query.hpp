@@ -78,8 +78,7 @@ const Node *advance(const Graph &graph, const Node &node, int choice_index = 0) 
  *  @param zone_id  Current zone; `local.<key>` conditions resolve against it.
  */
 [[nodiscard]]
-std::vector<std::size_t> visible_choices(const Node &node, const corundum::world::FlagStore &flags,
-                                         std::string_view graph_id, const quest::Registry *quests = nullptr,
-                                         std::string_view zone_id = {});
+std::vector<std::size_t> visible_choices(const Node &node, const world::FlagStore &flags, std::string_view graph_id,
+                                         const quest::Registry *quests = nullptr, std::string_view zone_id = {});
 
 } // namespace corundum::gameplay::dialogue

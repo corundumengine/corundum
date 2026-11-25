@@ -40,7 +40,7 @@ namespace {
  */
 std::optional<json> read_sidecar(const core::ContentSource &content, const fs::path &atlas_path) {
   const fs::path sidecar = atlas_path.parent_path() / (atlas_path.stem().string() + ".tiledata.json");
-  auto sc = corundum::core::read_json(content, sidecar);
+  auto sc = core::read_json(content, sidecar);
   if (!sc || !sc->is_object())
     return std::nullopt;
   return *sc;
@@ -55,7 +55,7 @@ struct TilesetTiles {
 };
 
 /** Build `atlas`'s per-tile arrays (rects, trim, pivot, names) into a fresh TilesetInfo. */
-TilesetTiles build_tileset_tiles(const corundum::sprites::SpriteAtlas &atlas, const fs::path &tileset_path) {
+TilesetTiles build_tileset_tiles(const sprites::SpriteAtlas &atlas, const fs::path &tileset_path) {
   TilesetTiles tiles;
   TilesetInfo &info = tiles.info;
   info.source = tileset_path.string();
@@ -84,7 +84,7 @@ TilesetTiles build_tileset_tiles(const corundum::sprites::SpriteAtlas &atlas, co
     // Pivots stay full-frame relative so untrimmed source padding (where tilemap alignment
     // lives) survives repacking; resolve_pivot collapses spritepacker's pivot basis into the
     // engine's full-frame, bottom-origin convention.
-    const corundum::sprites::PivotPoint pivot = corundum::sprites::resolve_pivot(sprite, atlas.pivot_basis);
+    const sprites::PivotPoint pivot = sprites::resolve_pivot(sprite, atlas.pivot_basis);
     info.tile_pivot_x.push_back(pivot.x);
     info.tile_pivot_y.push_back(pivot.y);
 
@@ -269,11 +269,11 @@ parse_tileset_animations(const json &atlas_json, const json *sidecar, const fs::
  *  (spritepacker `--pivot full-canvas`), so re-packing never loses alignment.
  */
 std::expected<TilesetInfo, std::string> load_tileset(const core::ContentSource &content, const fs::path &tileset_path) {
-  auto atlas = corundum::sprites::load_sprite_atlas(content, tileset_path);
+  auto atlas = sprites::load_sprite_atlas(content, tileset_path);
   if (!atlas)
     return std::unexpected(atlas.error());
 
-  auto atlas_json = corundum::core::read_json(content, tileset_path, "tileset");
+  auto atlas_json = core::read_json(content, tileset_path, "tileset");
   if (!atlas_json)
     return std::unexpected(std::move(atlas_json.error()));
 
@@ -1099,7 +1099,7 @@ std::expected<TilesetInfo, std::string> TilemapLoader::load_tileset(const fs::pa
 }
 
 std::expected<Tilemap, std::string> TilemapLoader::load_tilemap(const fs::path &path) {
-  auto parsed = corundum::core::read_json(*content_, path, "tilemap");
+  auto parsed = core::read_json(*content_, path, "tilemap");
   if (!parsed)
     return std::unexpected(std::move(parsed.error()));
   json &j = *parsed;

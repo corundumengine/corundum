@@ -178,7 +178,7 @@ void HudOverlay::draw_player_marker(platform::Renderer &renderer, core::math::Ve
   // entity sprite anchor so the marker sits on the character's feet, not above them.
   // Elevation must match render_system.cpp's entity anchor calc (elevation_under), or the
   // marker desyncs from the drawn sprite on any non-flat tile.
-  const float marker_elev = corundum::render::elevation_under(render, col, row);
+  const float marker_elev = render::elevation_under(render, col, row);
   const auto [mx, my] = core::math::tile_to_world_center(col, row, marker_elev, iso);
   renderer.draw(platform::DrawLine{
       .start = {.x = mx, .y = my - k_marker_hh},
@@ -230,7 +230,7 @@ void HudOverlay::draw_entity_footprints(platform::Renderer &renderer, core::math
     const core::math::Colour colour = eid == player ? k_player_col : k_footprint_col;
 
     if (iso_ok)
-      draw_iso_box(renderer, box, corundum::render::elevation_under(render, col, row), iso, colour);
+      draw_iso_box(renderer, box, render::elevation_under(render, col, row), iso, colour);
     else
       renderer.draw(platform::DrawRect{
           .position = {.x = box.col, .y = box.row},

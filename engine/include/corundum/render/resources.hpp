@@ -31,8 +31,7 @@ namespace corundum::render {
  *  @param registry  Loaded character registry.
  *  @post state.sprite_index is populated and ready for render_entities().
  */
-void load_sprite_index(corundum::platform::Renderer &renderer, render::RenderState &state,
-                       const corundum::sprites::CharacterRegistry &registry);
+void load_sprite_index(platform::Renderer &renderer, RenderState &state, const sprites::CharacterRegistry &registry);
 
 /** Load every role's font family into the renderer and store the resolved ids.
  *  @param renderer Renderer for font atlas creation.
@@ -42,9 +41,8 @@ void load_sprite_index(corundum::platform::Renderer &renderer, render::RenderSta
  *  @post Each FontFamily's optional styles fall back to the closest present face; the
  *        first font id the renderer hands out (1) is reserved, so 0 always means unloaded.
  */
-[[nodiscard]] std::expected<void, std::string> load_fonts(corundum::platform::Renderer &renderer,
-                                                          render::RenderState &state,
-                                                          const corundum::core::ResourcePaths &paths);
+[[nodiscard]] std::expected<void, std::string> load_fonts(platform::Renderer &renderer, RenderState &state,
+                                                          const core::ResourcePaths &paths);
 
 /** Load shared UI textures (dialog box border, etc.).
  *  @param renderer Renderer for texture creation.
@@ -53,15 +51,14 @@ void load_sprite_index(corundum::platform::Renderer &renderer, render::RenderSta
  *                  its upper_left frame, so multi-frame cells are supported.
  *  @return ok on success, or an error string on failure.
  */
-[[nodiscard]] std::expected<void, std::string> load_ui_assets(const corundum::core::ContentSource &content,
-                                                              corundum::platform::Renderer &renderer,
-                                                              render::RenderState &state,
-                                                              const corundum::core::ResourcePaths &paths);
+[[nodiscard]] std::expected<void, std::string> load_ui_assets(const core::ContentSource &content,
+                                                              platform::Renderer &renderer, RenderState &state,
+                                                              const core::ResourcePaths &paths);
 
 /** Apply panel style (colours, fonts, spacing) from game config.
  *  @param state  Render state; panel_skin style is configured.
  *  @param config Game config with dialogue_render settings.
  */
-void configure_panel_style(render::RenderState &state, const corundum::core::GameConfig &config);
+void configure_panel_style(RenderState &state, const core::GameConfig &config);
 
 } // namespace corundum::render

@@ -47,7 +47,7 @@ struct DialogLayout {
 
   int selected_choice{0};
 
-  gameplay::dialogue::NodeType node_type{gameplay::dialogue::NodeType::End};
+  dialogue::NodeType node_type{dialogue::NodeType::End};
 };
 
 /** True when `layout`'s choices carry `indices` in order. Labels are a pure function of
@@ -80,9 +80,8 @@ struct DialogLayout {
  *  @param measure       Callable (std::string_view, ui::FontStyle) -> float returning rendered width.
  */
 template <typename MeasureFn>
-[[nodiscard]] DialogLayout build_layout(const gameplay::dialogue::Conversation &conversation,
-                                        const ui::PanelStyle &style, int border_tile_w, core::math::Vec2 viewport,
-                                        const MeasureFn &measure) {
+[[nodiscard]] DialogLayout build_layout(const dialogue::Conversation &conversation, const ui::PanelStyle &style,
+                                        int border_tile_w, core::math::Vec2 viewport, const MeasureFn &measure) {
   const float margin = style.margin;
   const float panel_h = viewport.y * style.panel_height_frac;
   const float panel_y = viewport.y - panel_h - margin;
@@ -90,7 +89,7 @@ template <typename MeasureFn>
   const float panel_w = viewport.x - (margin * 2.f);
   const float inset = std::max(margin, static_cast<float>(border_tile_w));
 
-  const gameplay::dialogue::NodeType type = conversation.node_type();
+  const dialogue::NodeType type = conversation.node_type();
 
   DialogLayout layout{
       .panel_pos = {.x = panel_x, .y = panel_y},
@@ -103,9 +102,9 @@ template <typename MeasureFn>
   layout.speaker = conversation.speaker();
 
   const float text_w = std::max(0.f, panel_w - (inset * 2.f));
-  if (type == gameplay::dialogue::NodeType::Talk) {
+  if (type == dialogue::NodeType::Talk) {
     layout.body_lines = ui::wrap_styled(ui::parse_styled(conversation.current_text()), text_w, measure);
-  } else if (type == gameplay::dialogue::NodeType::Choice) {
+  } else if (type == dialogue::NodeType::Choice) {
     // The cursor column lives inside the text width; measuring it keeps the wrap budget
     // equal to the label's actual drawable width.
     const float choice_w = std::max(0.f, text_w - measure(ui::k_choice_cursor, ui::FontStyle::Regular));

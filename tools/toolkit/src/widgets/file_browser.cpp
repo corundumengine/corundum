@@ -25,7 +25,7 @@ namespace {
 void render_entries(FileBrowserState &fb, std::optional<std::filesystem::path> &double_clicked) {
   ImGui::BeginChild("##entries", ImVec2{0.f, -ImGui::GetFrameHeightWithSpacing() * 2.f}, ImGuiChildFlags_Borders);
   for (std::size_t index = 0; index < fb.entries.size(); ++index) {
-    const corundum::core::DirEntry &entry = fb.entries[index];
+    const core::DirEntry &entry = fb.entries[index];
     const std::string label = entry.is_dir ? ("[dir] " + entry.name) : entry.name;
     if (!ImGui::Selectable(label.c_str(), fb.selected_entry == index, ImGuiSelectableFlags_AllowDoubleClick))
       continue;

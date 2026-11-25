@@ -103,14 +103,14 @@ ChunkCoord chunk_at_cart(float wx, float wy, const WorldManifest &m, int tile_px
 }
 
 ChunkCoord chunk_at_iso(float iso_x, float iso_y, const WorldManifest &m,
-                        const corundum::core::math::IsometricParams &iso) noexcept {
+                        const core::math::IsometricParams &iso) noexcept {
   if (m.chunk_size <= 0 || m.chunks_wide <= 0 || m.chunks_tall <= 0)
     return {};
   // Invert the isometric projection (delegating to world_to_tile so x_origin and
   // elev_step are handled the same way as every other consumer of the projection),
   // then std::floor the fractional tile onto its containing chunk. floor — not
   // truncate — to match the rest of the codebase (picking, tilesmith).
-  const auto tile = corundum::core::math::world_to_tile({.x = iso_x, .y = iso_y}, /*elevation=*/0, iso);
+  const auto tile = core::math::world_to_tile({.x = iso_x, .y = iso_y}, /*elevation=*/0, iso);
   const float chunk_f = static_cast<float>(m.chunk_size);
   const int cx = static_cast<int>(std::floor(tile.col / chunk_f));
   const int cy = static_cast<int>(std::floor(tile.row / chunk_f));

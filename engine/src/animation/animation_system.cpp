@@ -24,20 +24,20 @@
 namespace corundum::animation {
 
 namespace {
-using corundum::core::Direction;
-using corundum::entities::AnimationTable;
-using corundum::entities::Clip;
-using corundum::entities::ClipEnd;
-using corundum::entities::ClipTable;
-using corundum::entities::EntityId;
-using corundum::entities::FacingTable;
-using corundum::entities::MotionSpriteTable;
-using corundum::entities::SpriteTable;
-using corundum::entities::TransformTable;
-using corundum::sprites::AnimId;
-using corundum::sprites::k_null_sprite_id;
-using corundum::sprites::SpriteId;
-using corundum::sprites::to_anim;
+using core::Direction;
+using entities::AnimationTable;
+using entities::Clip;
+using entities::ClipEnd;
+using entities::ClipTable;
+using entities::EntityId;
+using entities::FacingTable;
+using entities::MotionSpriteTable;
+using entities::SpriteTable;
+using entities::TransformTable;
+using sprites::AnimId;
+using sprites::k_null_sprite_id;
+using sprites::SpriteId;
+using sprites::to_anim;
 
 /** Below this tile-space speed an entity counts as still. Physics writes an exact zero
  *  when idle, but a fractionally retained velocity must not read as motion.

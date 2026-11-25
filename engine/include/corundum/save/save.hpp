@@ -110,7 +110,7 @@ struct SaveState {
   SaveMeta meta{};
 
   /** Global flags, verbatim. */
-  corundum::world::FlagStore flags;
+  world::FlagStore flags;
 };
 
 /** The file name for manual slot `index` (0-based), e.g. `slot_01`.

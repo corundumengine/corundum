@@ -34,7 +34,7 @@ enum class Lifecycle : uint8_t { NotStarted, Active, Completed, Failed };
  *  @param flags Active FlagStore.
  *  @return The matching Lifecycle value.
  */
-[[nodiscard]] Lifecycle lifecycle(const Quest &quest, const corundum::world::FlagStore &flags);
+[[nodiscard]] Lifecycle lifecycle(const Quest &quest, const world::FlagStore &flags);
 
 /** The stage matching the current flag value, or nullptr when inactive.
  *
@@ -43,7 +43,7 @@ enum class Lifecycle : uint8_t { NotStarted, Active, Completed, Failed };
  *  @return Pointer to the stage whose sequence equals the flag, or nullptr when
  *          the quest is not started or the sequence matches no stage.
  */
-[[nodiscard]] const Stage *current_stage(const Quest &quest, const corundum::world::FlagStore &flags);
+[[nodiscard]] const Stage *current_stage(const Quest &quest, const world::FlagStore &flags);
 
 /** True when `objective`'s done_condition evaluates true.
  *
@@ -59,7 +59,7 @@ enum class Lifecycle : uint8_t { NotStarted, Active, Completed, Failed };
  *  @param zone_id   Current zone; `local.<key>` conditions resolve against it.
  *  @return True when the objective's done_condition holds.
  */
-[[nodiscard]] bool objective_done(const Objective &objective, const corundum::world::FlagStore &flags,
+[[nodiscard]] bool objective_done(const Objective &objective, const world::FlagStore &flags,
                                   const Registry *quests = nullptr, std::string_view zone_id = {});
 
 /** Journal view of one objective of the current stage.
@@ -94,7 +94,7 @@ struct ObjectiveView {
  *  @note The returned views borrow `quest`'s strings — the quest must outlive
  *        the returned vector.
  */
-[[nodiscard]] std::vector<ObjectiveView> objectives(const Quest &quest, const corundum::world::FlagStore &flags,
+[[nodiscard]] std::vector<ObjectiveView> objectives(const Quest &quest, const world::FlagStore &flags,
                                                     const Registry *quests = nullptr, std::string_view zone_id = {});
 
 } // namespace corundum::gameplay::quest

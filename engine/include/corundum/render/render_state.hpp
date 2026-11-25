@@ -45,7 +45,7 @@ enum class RenderMode : uint8_t { None, SingleMap, World };
  */
 struct SpriteFrameIndex {
   std::vector<std::optional<platform::TextureId>> tex_by_sprite_id;
-  std::vector<corundum::core::math::IntRect> frame_rects;
+  std::vector<core::math::IntRect> frame_rects;
 
   /** walk_around_offset per sprite_id. */
   std::vector<float> walk_offsets;
@@ -55,7 +55,7 @@ struct SpriteFrameIndex {
   /** Lookup result: texture ID, source rect, and walk_around_offset. */
   struct Entry {
     platform::TextureId tex_id{platform::TextureId::Invalid};
-    corundum::core::math::IntRect src{};
+    core::math::IntRect src{};
     float walk_offset = 0.f;
   };
 
@@ -65,7 +65,7 @@ struct SpriteFrameIndex {
    *  @param frame_index Zero-based frame within the animation.
    *  @return Entry with tex_id, src, walk_offset, or std::nullopt.
    */
-  [[nodiscard]] std::optional<Entry> get(corundum::sprites::SpriteId sprite_id, corundum::sprites::AnimId anim_id,
+  [[nodiscard]] std::optional<Entry> get(sprites::SpriteId sprite_id, sprites::AnimId anim_id,
                                          uint8_t frame_index) const noexcept;
 };
 
@@ -83,7 +83,7 @@ struct MapData {
 /** Sorted draw-list entry for depth-ordered ground-layer rendering (tiles and entities). */
 struct DepthEntry {
   platform::TextureId tex_id{platform::TextureId::Invalid};
-  corundum::core::math::IntRect src{};
+  core::math::IntRect src{};
   float x = 0.f;
   float y = 0.f;
   float depth = 0.f;
@@ -179,14 +179,14 @@ struct RenderState {
   std::vector<platform::TextureId> area_texture_ids{};
 
   /** Per-role font families, indexed by ui::FontRole; loaded by load_fonts(). */
-  std::array<corundum::ui::FontFamily, corundum::ui::k_font_role_count> fonts{};
+  std::array<ui::FontFamily, ui::k_font_role_count> fonts{};
 
   /** @return The family for `role`. */
-  [[nodiscard]] const corundum::ui::FontFamily &family(corundum::ui::FontRole role) const noexcept {
+  [[nodiscard]] const ui::FontFamily &family(ui::FontRole role) const noexcept {
     return fonts[static_cast<std::size_t>(role)];
   }
 
-  corundum::ui::PanelSkin panel_skin{};
+  ui::PanelSkin panel_skin{};
 
   SpriteFrameIndex sprite_index{};
 

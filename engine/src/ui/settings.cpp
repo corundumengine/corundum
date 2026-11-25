@@ -225,13 +225,13 @@ void place_tabs_and_rows(SettingsLayout &layout, core::math::Vec2 panel_pos, cor
   const float tabs_w = general_w + tab_gap + controls_w;
   const float tabs_x = panel_pos.x + ((panel_size.x - tabs_w) * 0.5f);
   const float tabs_y = panel_pos.y + pad_y + title_h + title_gap;
-  layout.tabs[0] = ui::RowRect{.pos = {.x = tabs_x, .y = tabs_y}, .width = general_w, .height = line_h};
-  layout.tabs[1] = ui::RowRect{
+  layout.tabs[0] = RowRect{.pos = {.x = tabs_x, .y = tabs_y}, .width = general_w, .height = line_h};
+  layout.tabs[1] = RowRect{
       .pos = {.x = tabs_x + general_w + tab_gap, .y = tabs_y},
       .width = controls_w,
       .height = line_h,
   };
-  layout.rows = ui::ListHit{
+  layout.rows = ListHit{
       .row_pos = {.x = panel_pos.x + pad_x, .y = tabs_y + line_h + title_gap},
       .row_width = panel_size.x - (pad_x * 2.f),
       .row_height = line_h,

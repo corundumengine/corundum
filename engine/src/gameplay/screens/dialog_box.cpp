@@ -130,8 +130,7 @@ void render_choices(const DialogLayout &layout, platform::Renderer &renderer, co
 
 } // namespace
 
-void dialog_box_advance(DialogBoxState &ds, const gameplay::dialogue::Conversation &conversation, float dt,
-                        float text_speed) {
+void dialog_box_advance(DialogBoxState &ds, const dialogue::Conversation &conversation, float dt, float text_speed) {
   if (!conversation.is_active()) {
     ds.reveal_chars = 0.f;
     ds.reveal_node_id.clear();
@@ -146,9 +145,8 @@ void dialog_box_advance(DialogBoxState &ds, const gameplay::dialogue::Conversati
     ds.reveal_chars += reveal_chars_per_second * dt;
 }
 
-void dialog_box_update(DialogBoxState &ds, const gameplay::dialogue::Conversation &conversation,
-                       platform::Renderer &renderer, core::math::Vec2 viewport, const ui::PanelSkin &skin,
-                       float text_speed) {
+void dialog_box_update(DialogBoxState &ds, const dialogue::Conversation &conversation, platform::Renderer &renderer,
+                       core::math::Vec2 viewport, const ui::PanelSkin &skin, float text_speed) {
   ds.reveal_active = k_base_reveal_chars_per_second * text_speed > 0.f;
   if (!conversation.is_active()) {
     ds.visible = false;
@@ -165,7 +163,7 @@ void dialog_box_update(DialogBoxState &ds, const gameplay::dialogue::Conversatio
   // present a different set of choices. The cache key must include it even when the graph,
   // node, and viewport are unchanged — e.g. ending and restarting the same graph after
   // quest progress, or a goto_graph loop back through this node.
-  const bool choices_changed = ds.layout && conversation.node_type() == gameplay::dialogue::NodeType::Choice &&
+  const bool choices_changed = ds.layout && conversation.node_type() == dialogue::NodeType::Choice &&
                                !choices_match(*ds.layout, conversation.visible_choice_indices());
 
   const bool stale = !ds.layout || conversation.current_node_id() != ds.last_node_id || graph_id != ds.last_graph_id ||
@@ -197,14 +195,14 @@ void dialog_box_render(const DialogBoxState &ds, platform::Renderer &renderer, c
   ui::panel_chrome(renderer, skin.style.bg, skin.border, layout.panel_pos, layout.panel_size);
 
   switch (layout.node_type) {
-    case gameplay::dialogue::NodeType::Talk: render_talk_body(layout, ds, renderer, skin.style, last_device); break;
-    case gameplay::dialogue::NodeType::Choice: render_choices(layout, renderer, skin.style); break;
-    case gameplay::dialogue::NodeType::End:
+    case dialogue::NodeType::Talk: render_talk_body(layout, ds, renderer, skin.style, last_device); break;
+    case dialogue::NodeType::Choice: render_choices(layout, renderer, skin.style); break;
+    case dialogue::NodeType::End:
       draw_dialogue_text(renderer, skin.style, ui::FontStyle::Regular, end_footer(last_device),
                          skin.style.font_size_body, skin.style.choice, layout.panel_pos.x + layout.inset,
                          layout.panel_pos.y + layout.inset);
       break;
-    case gameplay::dialogue::NodeType::Event: break;
+    case dialogue::NodeType::Event: break;
   }
 }
 

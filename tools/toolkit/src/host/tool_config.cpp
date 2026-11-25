@@ -27,7 +27,7 @@ std::filesystem::path find_config_path(int argc, char *argv[]) {
     if (std::string_view(argv[i]) == "--config")
       return argv[i + 1];
   }
-  if (const std::optional<std::string> env = corundum::core::read_env("CORUNDUM_TOOLS_CONFIG"))
+  if (const std::optional<std::string> env = core::read_env("CORUNDUM_TOOLS_CONFIG"))
     return *env;
   return "tools/tools.json";
 }
@@ -47,7 +47,7 @@ std::filesystem::path resolve_with_fallback(const std::filesystem::path &candida
 std::expected<ToolConfig, std::string> load_tool_config(int argc, char *argv[]) {
   const auto config_path = find_config_path(argc, argv);
 
-  auto json_result = corundum::core::read_json(corundum::core::DirectoryContentSource{}, config_path);
+  auto json_result = core::read_json(core::DirectoryContentSource{}, config_path);
   if (!json_result)
     return std::unexpected(std::format("Cannot load tool config: {}", json_result.error()));
   const json &j = *json_result;

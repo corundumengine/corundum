@@ -54,7 +54,7 @@ public:
    *  highlight; Select commits it (Confirmed) or backs out (Dismissed);
    *  Cancel always Dismisses. Dismiss also latches `declined`.
    */
-  [[nodiscard]] Step step(const corundum::input::InputIntent &intent) noexcept;
+  [[nodiscard]] Step step(const input::InputIntent &intent) noexcept;
 
 private:
   bool confirm_selected_ = true;

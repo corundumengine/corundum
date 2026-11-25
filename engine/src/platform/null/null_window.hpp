@@ -21,7 +21,7 @@ namespace corundum::platform::null {
  *  the test sets. `poll_game_input` feeds the mapper whatever a test has scripted (key transitions
  *  once; the gamepad and cursor every poll) and emits the queued `scripted_events`.
  */
-class NullWindow final : public corundum::platform::Window {
+class NullWindow final : public Window {
 public:
   explicit NullWindow(unsigned width, unsigned height) : width_{width}, height_{height} {}
 
@@ -31,7 +31,7 @@ public:
 
   void show() override { visible = true; }
 
-  void poll_game_input(corundum::input::InputMapper &mapper, PlatformEvents &events) override {
+  void poll_game_input(input::InputMapper &mapper, PlatformEvents &events) override {
     for (const auto &[key, down] : scripted_keys)
       mapper.key(key, down);
     scripted_keys.clear();
@@ -61,8 +61,8 @@ public:
 
   [[nodiscard]] core::WindowMode window_mode() const override { return mode_; }
 
-  [[nodiscard]] std::string input_label(corundum::input::PhysicalInput input) const override {
-    return std::string{corundum::input::name_of(input)};
+  [[nodiscard]] std::string input_label(input::PhysicalInput input) const override {
+    return std::string{input::name_of(input)};
   }
 
   [[nodiscard]] void *native_handle() const override { return nullptr; }
@@ -74,13 +74,13 @@ public:
   std::pair<float, float> cursor{};
 
   /** Connected gamepad state reported on every poll; nullopt means no gamepad. */
-  std::optional<corundum::input::GamepadState> gamepad;
+  std::optional<input::GamepadState> gamepad;
 
   /** Key transitions fed on the next poll_game_input(), then cleared. */
-  std::vector<std::pair<corundum::input::Key, bool>> scripted_keys;
+  std::vector<std::pair<input::Key, bool>> scripted_keys;
 
   /** Mouse-button transitions fed on the next poll_game_input(), then cleared. */
-  std::vector<std::pair<corundum::input::MouseButton, bool>> scripted_mouse;
+  std::vector<std::pair<input::MouseButton, bool>> scripted_mouse;
 
   /** Events emitted on the next poll_game_input(), then cleared.
    *

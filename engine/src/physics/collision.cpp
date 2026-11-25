@@ -14,7 +14,7 @@ namespace corundum::physics {
 
 namespace {
 
-using corundum::world::tilemap::TriangleCut;
+using world::tilemap::TriangleCut;
 
 /** Test whether an AABB at (ax, ay, aw, ah) overlaps any rect in the SoA view.
  *  The four parallel float spans let the compiler auto-vectorize this loop with SIMD.
@@ -22,8 +22,8 @@ using corundum::world::tilemap::TriangleCut;
  *  within elevation.tolerance of elevation.player_elevation — lets a raised platform's
  *  walls block only entities standing on that platform, not something beside it.
  */
-[[nodiscard]] bool overlaps_any(float ax, float ay, float aw, float ah,
-                                corundum::world::tilemap::CollisionRectsView rects, ElevationGate elevation) noexcept {
+[[nodiscard]] bool overlaps_any(float ax, float ay, float aw, float ah, world::tilemap::CollisionRectsView rects,
+                                ElevationGate elevation) noexcept {
   const float ax1 = ax + aw;
   const float ay1 = ay + ah;
   const std::size_t n = rects.size();
@@ -44,8 +44,7 @@ using corundum::world::tilemap::TriangleCut;
  *  free instead of being trapped by it.
  */
 [[nodiscard]] bool blocks_new_overlap(float x, float y, float prev_x, float prev_y, float aw, float ah,
-                                      corundum::world::tilemap::CollisionRectsView rects,
-                                      ElevationGate elevation) noexcept {
+                                      world::tilemap::CollisionRectsView rects, ElevationGate elevation) noexcept {
   return overlaps_any(x, y, aw, ah, rects, elevation) && !overlaps_any(prev_x, prev_y, aw, ah, rects, elevation);
 }
 
@@ -64,7 +63,7 @@ using corundum::world::tilemap::TriangleCut;
  *    SE: solid u+v < 1  — AABB in empty if min u+v > 1  → u0+v0 > 1
  */
 [[nodiscard]] bool overlaps_any_triangle(float ax, float ay, float aw, float ah,
-                                         corundum::world::tilemap::CollisionTrianglesView triangles,
+                                         world::tilemap::CollisionTrianglesView triangles,
                                          ElevationGate elevation) noexcept {
   const float ax1 = ax + aw;
   const float ay1 = ay + ah;
@@ -99,7 +98,7 @@ using corundum::world::tilemap::TriangleCut;
 
 /** Triangle counterpart of blocks_new_overlap. */
 [[nodiscard]] bool blocks_new_overlap_triangle(float x, float y, float prev_x, float prev_y, float aw, float ah,
-                                               corundum::world::tilemap::CollisionTrianglesView triangles,
+                                               world::tilemap::CollisionTrianglesView triangles,
                                                ElevationGate elevation) noexcept {
   return overlaps_any_triangle(x, y, aw, ah, triangles, elevation) &&
          !overlaps_any_triangle(prev_x, prev_y, aw, ah, triangles, elevation);
@@ -165,8 +164,7 @@ using corundum::world::tilemap::TriangleCut;
  *  clamp never pushes the entity backwards.
  */
 [[nodiscard]] float clamp_x_contact(float pos_col, float prev_col, float y_top, float aw, float ah,
-                                    corundum::world::tilemap::CollisionRectsView rects,
-                                    ElevationGate elevation) noexcept {
+                                    world::tilemap::CollisionRectsView rects, ElevationGate elevation) noexcept {
   float best = pos_col;
   bool found = false;
   const bool moving_right = pos_col > prev_col;
@@ -191,8 +189,7 @@ using corundum::world::tilemap::TriangleCut;
 
 /** Y-axis equivalent of clamp_x_contact. */
 [[nodiscard]] float clamp_y_contact(float pos_row, float prev_row, float x_left, float aw, float ah,
-                                    corundum::world::tilemap::CollisionRectsView rects,
-                                    ElevationGate elevation) noexcept {
+                                    world::tilemap::CollisionRectsView rects, ElevationGate elevation) noexcept {
   float best = pos_row;
   bool found = false;
   const bool moving_down = pos_row > prev_row;
@@ -219,7 +216,7 @@ using corundum::world::tilemap::TriangleCut;
  *  fixed (post-X-Y), then keep the closest contact reachable in the direction of motion.
  */
 [[nodiscard]] float clamp_x_contact_triangle(float pos_col, float prev_col, float y_top, float aw, float ah,
-                                             corundum::world::tilemap::CollisionTrianglesView triangles,
+                                             world::tilemap::CollisionTrianglesView triangles,
                                              ElevationGate elevation) noexcept {
   float best = pos_col;
   bool found = false;
@@ -249,7 +246,7 @@ using corundum::world::tilemap::TriangleCut;
 
 /** Y-axis equivalent of clamp_x_contact_triangle. */
 [[nodiscard]] float clamp_y_contact_triangle(float pos_row, float prev_row, float x_left, float aw, float ah,
-                                             corundum::world::tilemap::CollisionTrianglesView triangles,
+                                             world::tilemap::CollisionTrianglesView triangles,
                                              ElevationGate elevation) noexcept {
   float best = pos_row;
   bool found = false;
@@ -279,9 +276,8 @@ using corundum::world::tilemap::TriangleCut;
 
 } // namespace
 
-void resolve_collisions(corundum::entities::Position &pos, corundum::entities::Position prev_pos, float entity_w,
-                        float entity_h, corundum::world::tilemap::CollisionRectsView rects, float y_offset,
-                        ElevationGate elevation) noexcept {
+void resolve_collisions(entities::Position &pos, entities::Position prev_pos, float entity_w, float entity_h,
+                        world::tilemap::CollisionRectsView rects, float y_offset, ElevationGate elevation) noexcept {
   assert(elevation.tolerance >= 0);
   const float effective_h = entity_h - y_offset;
 
@@ -299,9 +295,8 @@ void resolve_collisions(corundum::entities::Position &pos, corundum::entities::P
     pos.row = clamp_y_contact(pos.row, prev_pos.row, pos.col, entity_w, effective_h, rects, elevation);
 }
 
-void resolve_triangle_collisions(corundum::entities::Position &pos, corundum::entities::Position prev_pos,
-                                 float entity_w, float entity_h,
-                                 corundum::world::tilemap::CollisionTrianglesView triangles, float y_offset,
+void resolve_triangle_collisions(entities::Position &pos, entities::Position prev_pos, float entity_w, float entity_h,
+                                 world::tilemap::CollisionTrianglesView triangles, float y_offset,
                                  ElevationGate elevation) noexcept {
   assert(elevation.tolerance >= 0);
   const float effective_h = entity_h - y_offset;

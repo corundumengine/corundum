@@ -59,7 +59,7 @@ template <typename T>
  *  manually (not via nlohmann's map support) so no conversion surprises
  *  depend on which container flat_map aliases.
  */
-[[nodiscard]] nlohmann::json serialize_flags(const corundum::world::FlagStore &flags) {
+[[nodiscard]] nlohmann::json serialize_flags(const world::FlagStore &flags) {
   nlohmann::json j = nlohmann::json::object();
   for (const auto &[key, value] : flags)
     j[key] = value;
@@ -129,7 +129,7 @@ std::expected<void, std::string> read_identity_fields(const nlohmann::json &j, S
   return parse_meta(j, state.meta);
 }
 
-std::expected<void, std::string> read_flags(const nlohmann::json &j, corundum::world::FlagStore &flags) {
+std::expected<void, std::string> read_flags(const nlohmann::json &j, world::FlagStore &flags) {
   if (!j.contains("flags"))
     return {};
   if (!j["flags"].is_object())
@@ -263,8 +263,8 @@ std::expected<SaveMeta, std::string> load_game(Engine &engine, const core::UserS
   // Rebuild the scene first: apply_spawn reads no flag state, so committing flags
   // only after it succeeds keeps a failed load from leaving the engine with the
   // save's flags but the previous scene.
-  const corundum::world::SpawnMode spawn_mode =
-      state->mode == k_mode_world ? corundum::world::SpawnMode::World : corundum::world::SpawnMode::SingleMap;
+  const world::SpawnMode spawn_mode =
+      state->mode == k_mode_world ? world::SpawnMode::World : world::SpawnMode::SingleMap;
   auto spawn = world::apply_spawn(engine, spawn_mode, state->map_or_world_id, state->active_zone, state->player_col,
                                   state->player_row);
   if (!spawn) {

@@ -36,13 +36,13 @@ struct MotionSpriteTable {
 
   /** Spawn-time configuration for one motion-sprite entry. */
   struct Config {
-    corundum::sprites::SpriteId walk_id = corundum::sprites::k_null_sprite_id;
+    sprites::SpriteId walk_id = sprites::k_null_sprite_id;
 
-    corundum::sprites::SpriteId idle_id = corundum::sprites::k_null_sprite_id;
+    sprites::SpriteId idle_id = sprites::k_null_sprite_id;
 
-    std::array<uint8_t, corundum::sprites::k_num_anim_ids> walk_counts{};
+    std::array<uint8_t, sprites::k_num_anim_ids> walk_counts{};
 
-    std::array<uint8_t, corundum::sprites::k_num_anim_ids> idle_counts{};
+    std::array<uint8_t, sprites::k_num_anim_ids> idle_counts{};
 
     float idle_to_walk_delay = 0.f;
 
@@ -53,22 +53,22 @@ struct MotionSpriteTable {
     float idle_frame_duration = 0.f;
 
     /** The sheet to stand on in a stance; k_null_sprite_id = the character has none. */
-    corundum::sprites::SpriteId ready_id = corundum::sprites::k_null_sprite_id;
+    sprites::SpriteId ready_id = sprites::k_null_sprite_id;
 
-    std::array<uint8_t, corundum::sprites::k_num_anim_ids> ready_counts{};
+    std::array<uint8_t, sprites::k_num_anim_ids> ready_counts{};
 
     float ready_frame_duration = 0.f;
   };
 
   SparseIndex<k_max> index;
 
-  std::array<corundum::sprites::SpriteId, k_max> walk_id{};
+  std::array<sprites::SpriteId, k_max> walk_id{};
 
-  std::array<corundum::sprites::SpriteId, k_max> idle_id{};
+  std::array<sprites::SpriteId, k_max> idle_id{};
 
-  std::array<std::array<uint8_t, corundum::sprites::k_num_anim_ids>, k_max> walk_counts{};
+  std::array<std::array<uint8_t, sprites::k_num_anim_ids>, k_max> walk_counts{};
 
-  std::array<std::array<uint8_t, corundum::sprites::k_num_anim_ids>, k_max> idle_counts{};
+  std::array<std::array<uint8_t, sprites::k_num_anim_ids>, k_max> idle_counts{};
 
   /** Delay before idle→walk commits. */
   std::array<float, k_max> idle_to_walk_delay{};
@@ -83,9 +83,9 @@ struct MotionSpriteTable {
   std::array<float, k_max> idle_frame_duration{};
 
   /** k_null_sprite_id = no ready sheet. */
-  std::array<corundum::sprites::SpriteId, k_max> ready_id{};
+  std::array<sprites::SpriteId, k_max> ready_id{};
 
-  std::array<std::array<uint8_t, corundum::sprites::k_num_anim_ids>, k_max> ready_counts{};
+  std::array<std::array<uint8_t, sprites::k_num_anim_ids>, k_max> ready_counts{};
 
   /** Seconds per frame in a stance; 0 = no override. */
   std::array<float, k_max> ready_frame_duration{};
@@ -94,7 +94,7 @@ struct MotionSpriteTable {
   std::array<bool, k_max> in_stance{};
 
   /** SpriteId the entity is transitioning toward; k_null_sprite_id = no pending transition. */
-  std::array<corundum::sprites::SpriteId, k_max> pending_sid{};
+  std::array<sprites::SpriteId, k_max> pending_sid{};
 
   /** Accumulated time toward the pending transition. */
   std::array<float, k_max> transition_timer{};
@@ -105,20 +105,20 @@ struct MotionSpriteTable {
   [[nodiscard]] bool has(EntityId e) const noexcept { return index.has(e); }
 
   /** Walk SpriteId for `e`. @pre has(e). */
-  [[nodiscard]] corundum::sprites::SpriteId walk_sprite(EntityId e) const noexcept {
+  [[nodiscard]] sprites::SpriteId walk_sprite(EntityId e) const noexcept {
     assert(has(e));
     return walk_id[index.dense_index(e)];
   }
 
   /** The SpriteId `e` stands on: its ready sheet in a stance, else its idle sheet. @pre has(e). */
-  [[nodiscard]] corundum::sprites::SpriteId idle_sprite(EntityId e) const noexcept {
+  [[nodiscard]] sprites::SpriteId idle_sprite(EntityId e) const noexcept {
     assert(has(e));
     const std::uint32_t slot = index.dense_index(e);
     return in_stance[slot] ? ready_id[slot] : idle_id[slot];
   }
 
   /** Configured delay (seconds) for the transition to `target_sid`. @pre has(e). */
-  [[nodiscard]] float delay_for(EntityId e, corundum::sprites::SpriteId target_sid) const noexcept {
+  [[nodiscard]] float delay_for(EntityId e, sprites::SpriteId target_sid) const noexcept {
     assert(has(e));
     const std::uint32_t slot = index.dense_index(e);
     return (target_sid == walk_id[slot]) ? idle_to_walk_delay[slot] : walk_to_idle_delay[slot];
@@ -127,7 +127,7 @@ struct MotionSpriteTable {
   /** Frame duration override (seconds/frame) for `target_sid`; 0 means use AnimationTable default. @pre
    *  has(e).
    */
-  [[nodiscard]] float frame_duration_for(EntityId e, corundum::sprites::SpriteId target_sid) const noexcept {
+  [[nodiscard]] float frame_duration_for(EntityId e, sprites::SpriteId target_sid) const noexcept {
     assert(has(e));
     const std::uint32_t slot = index.dense_index(e);
     if (target_sid == walk_id[slot])
@@ -136,13 +136,13 @@ struct MotionSpriteTable {
   }
 
   /** SpriteId currently pending transition, or k_null_sprite_id if none. @pre has(e). */
-  [[nodiscard]] corundum::sprites::SpriteId pending_sprite(EntityId e) const noexcept {
+  [[nodiscard]] sprites::SpriteId pending_sprite(EntityId e) const noexcept {
     assert(has(e));
     return pending_sid[index.dense_index(e)];
   }
 
   /** Walk frame counts for `e`, suitable for AnimationTable::set_frame_counts. @pre has(e). */
-  [[nodiscard]] std::array<uint8_t, corundum::sprites::k_num_anim_ids> walk_frame_counts(EntityId e) const noexcept {
+  [[nodiscard]] std::array<uint8_t, sprites::k_num_anim_ids> walk_frame_counts(EntityId e) const noexcept {
     assert(has(e));
     return walk_counts[index.dense_index(e)];
   }
@@ -150,7 +150,7 @@ struct MotionSpriteTable {
   /** Frame counts of the sheet `e` stands on, suitable for AnimationTable::set_frame_counts.
    *  @pre has(e).
    */
-  [[nodiscard]] std::array<uint8_t, corundum::sprites::k_num_anim_ids> idle_frame_counts(EntityId e) const noexcept {
+  [[nodiscard]] std::array<uint8_t, sprites::k_num_anim_ids> idle_frame_counts(EntityId e) const noexcept {
     assert(has(e));
     const std::uint32_t slot = index.dense_index(e);
     return in_stance[slot] ? ready_counts[slot] : idle_counts[slot];
@@ -166,7 +166,7 @@ struct MotionSpriteTable {
   void enter_stance(EntityId e) noexcept {
     assert(has(e));
     const std::uint32_t slot = index.dense_index(e);
-    in_stance[slot] = ready_id[slot] != corundum::sprites::k_null_sprite_id;
+    in_stance[slot] = ready_id[slot] != sprites::k_null_sprite_id;
   }
 
   /** Stand on the idle sheet again. @pre has(e). */
@@ -179,7 +179,7 @@ struct MotionSpriteTable {
    *  No-op if `target` is already the pending target.
    *  @pre has(e).
    */
-  void set_pending(EntityId e, corundum::sprites::SpriteId target) noexcept {
+  void set_pending(EntityId e, sprites::SpriteId target) noexcept {
     assert(has(e));
     const std::uint32_t slot = index.dense_index(e);
     if (pending_sid[slot] == target)
@@ -202,7 +202,7 @@ struct MotionSpriteTable {
   void cancel_transition(EntityId e) noexcept {
     assert(has(e));
     const std::uint32_t slot = index.dense_index(e);
-    pending_sid[slot] = corundum::sprites::k_null_sprite_id;
+    pending_sid[slot] = sprites::k_null_sprite_id;
     transition_timer[slot] = 0.f;
   }
 
@@ -223,7 +223,7 @@ struct MotionSpriteTable {
       ready_counts[slot] = config.ready_counts;
       ready_frame_duration[slot] = config.ready_frame_duration;
       in_stance[slot] = false;
-      pending_sid[slot] = corundum::sprites::k_null_sprite_id;
+      pending_sid[slot] = sprites::k_null_sprite_id;
       transition_timer[slot] = 0.f;
       walk_counts[slot] = config.walk_counts;
       idle_counts[slot] = config.idle_counts;

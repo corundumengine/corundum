@@ -205,8 +205,8 @@ json load_validated_root(const core::SchemaValidator &schema, const core::Conten
 
   // The "type" field is optional — directory context already tells us the type.
   if (root.contains("type") && root["type"].is_string() && root["type"] != "graph" && root["type"] != "dialogue")
-    corundum::detail::warn_log(R"([warning] dialogue file {} has type "{}" instead of "graph")", path,
-                               root["type"].get<std::string>());
+    detail::warn_log(R"([warning] dialogue file {} has type "{}" instead of "graph")", path,
+                     root["type"].get<std::string>());
 
   return root;
 }

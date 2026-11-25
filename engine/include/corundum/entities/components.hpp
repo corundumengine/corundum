@@ -18,19 +18,19 @@ namespace corundum::entities {
  */
 struct Animation {
   /** Frame count per AnimId; 0 means the clip is absent. */
-  std::array<uint8_t, corundum::sprites::k_num_anim_ids> frame_counts{};
+  std::array<uint8_t, sprites::k_num_anim_ids> frame_counts{};
 };
 
 /** Tile-grid position of an entity (feet position in fractional tile coordinates). */
-using Position = corundum::core::math::TilePos;
+using Position = core::math::TilePos;
 
 /** Rendering component: identifies which sprite asset and animation frame to draw. */
 struct Sprite {
   /** Interned sprite asset. */
-  corundum::sprites::SpriteId sprite_id = corundum::sprites::k_null_sprite_id;
+  sprites::SpriteId sprite_id = sprites::k_null_sprite_id;
 
   /** Current animation. */
-  corundum::sprites::AnimId anim_id = corundum::sprites::AnimId::Default;
+  sprites::AnimId anim_id = sprites::AnimId::Default;
 
   /** Frame within anim_id. */
   uint8_t frame_index = 0;
@@ -53,7 +53,7 @@ struct Velocity {
  *  Only entities with directional idle behaviour (e.g. the player) receive this component.
  */
 struct Facing {
-  corundum::core::Direction dir = corundum::core::Direction::South;
+  core::Direction dir = core::Direction::South;
 };
 
 /** Euclidean distance between two tile-grid positions. */

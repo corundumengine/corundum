@@ -19,7 +19,7 @@ namespace corundum::world {
 
 /** Actor entities spawned for one resident world chunk. */
 struct ChunkActorSet {
-  corundum::world::tilemap::ChunkCoord coord{};
+  tilemap::ChunkCoord coord{};
 
   /** Set when the chunk leaves the active window and its actors are queued for deletion. A set
    *  that is not departed has already spawned (or failed) for the current residency, so it is
@@ -27,7 +27,7 @@ struct ChunkActorSet {
    */
   bool departed{};
 
-  std::vector<corundum::entities::EntityId> entities{};
+  std::vector<entities::EntityId> entities{};
 
   /** Set when the chunk's spawn file was read but spawning failed; the set stays tracked so the
    *  load is not retried every frame while the chunk remains resident.
@@ -44,13 +44,13 @@ struct ChunkActorSet {
  *        queries. See the render layer (RenderState::area) for tilemap ownership.
  */
 struct Scene {
-  corundum::entities::World world;
+  entities::World world;
 
   /** World mode: per-chunk actor entities, kept in sync with the streaming window. */
   std::vector<ChunkActorSet> chunk_actors;
 
   /** Remaining click-to-move waypoints, front = next. */
-  std::vector<corundum::world::TileCoord> path;
+  std::vector<world::TileCoord> path;
 
   /** While true the player doesn't walk: held movement keys and click-to-move are ignored, and
    *  `path` is cleared each step. A fight sets it while the protagonist can't move.
@@ -70,7 +70,7 @@ struct Scene {
    *        and only the exploring branch sets it; the gameplay fixed-step system reads and clears
    *        it, so an unconsumed value (no NPC in range, wrong mode) never reaches the next step.
    */
-  std::optional<corundum::entities::EntityId> pending_interaction;
+  std::optional<entities::EntityId> pending_interaction;
 
   std::optional<MapTransition> pending_transition;
 
@@ -83,12 +83,12 @@ struct Scene {
    */
   UIStack ui;
 
-  corundum::entities::EntityId player{};
+  entities::EntityId player{};
 
   Camera camera;
 
   /** Updated once per frame by pick_tile(). */
-  std::optional<corundum::world::TileCoord> hovered_tile;
+  std::optional<world::TileCoord> hovered_tile;
 
   /** The screen currently on top of the UI stack, or GameMode::Exploring when none is open. */
   [[nodiscard]] GameMode mode() const noexcept { return ui.top(); }

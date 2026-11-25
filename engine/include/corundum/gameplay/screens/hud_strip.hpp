@@ -35,7 +35,7 @@ struct HudStripData {
  *  @param quests  Loaded quest registry.
  *  @param zone_id Current zone; `local.<key>` objective conditions resolve against it.
  */
-[[nodiscard]] HudStripData build_hud_strip(const world::FlagStore &flags, const gameplay::quest::Registry &quests,
+[[nodiscard]] HudStripData build_hud_strip(const world::FlagStore &flags, const quest::Registry &quests,
                                            std::string_view zone_id = {});
 
 /** Draw the persistent HUD as a small top-left box: gold plus the active objective.

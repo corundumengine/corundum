@@ -111,14 +111,13 @@ std::expected<void, std::string> validate_actor(const ActorFields &fields, const
     return std::unexpected(std::format("Spawn points '{}' actors[{}] 'col' and 'row' must be >= 0", path, index));
   if (fields.sprite_name.empty())
     return std::unexpected(std::format("Spawn points '{}' actors[{}] 'sprite' must not be empty", path, index));
-  if (auto checked = check_id_length(fields.id, "id", corundum::entities::ActorIdTable::k_max_id_len - 1, path, index);
+  if (auto checked = check_id_length(fields.id, "id", entities::ActorIdTable::k_max_id_len - 1, path, index); !checked)
+    return std::unexpected(checked.error());
+  if (auto checked =
+          check_id_length(fields.dialogue_ref, "dialogue", entities::DialogueTable::k_max_id_len - 1, path, index);
       !checked)
     return std::unexpected(checked.error());
-  if (auto checked = check_id_length(fields.dialogue_ref, "dialogue",
-                                     corundum::entities::DialogueTable::k_max_id_len - 1, path, index);
-      !checked)
-    return std::unexpected(checked.error());
-  if (fields.facing && !corundum::core::direction_from_name(*fields.facing))
+  if (fields.facing && !core::direction_from_name(*fields.facing))
     return std::unexpected(std::format("Spawn points '{}' actors[{}] 'facing' is not a valid direction", path, index));
   return {};
 }

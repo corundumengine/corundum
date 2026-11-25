@@ -71,12 +71,12 @@ std::optional<SpriteFrameIndex::Entry> SpriteFrameIndex::get(SpriteId sprite_id,
   return Entry{.tex_id = *tex_id, .src = frame_rects[rect_index], .walk_offset = woff};
 }
 
-void snapshot_previous_step(render::RenderState &state, const corundum::world::Scene &scene) noexcept {
-  const corundum::entities::TransformTable &transforms = scene.world.transforms;
+void snapshot_previous_step(RenderState &state, const world::Scene &scene) noexcept {
+  const entities::TransformTable &transforms = scene.world.transforms;
   const auto entities = transforms.active_entities();
   StepSnapshot &snapshot = state.previous_step;
   for (std::uint32_t slot = 0; slot < transforms.count; ++slot) {
-    const corundum::entities::EntityId e = entities[slot];
+    const entities::EntityId e = entities[slot];
     snapshot.col[e.index] = transforms.col[slot];
     snapshot.row[e.index] = transforms.row[slot];
     snapshot.generation[e.index] = e.generation;
@@ -85,10 +85,10 @@ void snapshot_previous_step(render::RenderState &state, const corundum::world::S
   snapshot.zoom = scene.camera.zoom;
 }
 
-core::math::TilePos interpolated_tile_position(const render::RenderState &state, corundum::entities::EntityId e,
+core::math::TilePos interpolated_tile_position(const RenderState &state, entities::EntityId e,
                                                core::math::TilePos current, float alpha) noexcept {
   const StepSnapshot &snapshot = state.previous_step;
-  if (e.index >= corundum::entities::k_max_entities || snapshot.generation[e.index] != e.generation)
+  if (e.index >= entities::k_max_entities || snapshot.generation[e.index] != e.generation)
     return current;
   return {
       .col = std::lerp(snapshot.col[e.index], current.col, alpha),
@@ -239,15 +239,14 @@ platform::DrawSprite to_draw_sprite(const DepthEntry &entry) noexcept {
 }
 
 /** Global tile id at (col, row), or std::nullopt for an empty cell or an animation with no frames. */
-std::optional<corundum::world::tilemap::TileId> resolve_tile_gid(const corundum::world::tilemap::TilemapLayer &layer,
-                                                                 const LayerRenderCache &cache,
-                                                                 const corundum::world::tilemap::Tilemap &tilemap,
-                                                                 int col, int row, std::size_t cell_index,
-                                                                 const corundum::world::Scene &scene) {
+std::optional<world::tilemap::TileId> resolve_tile_gid(const world::tilemap::TilemapLayer &layer,
+                                                       const LayerRenderCache &cache,
+                                                       const world::tilemap::Tilemap &tilemap, int col, int row,
+                                                       std::size_t cell_index, const world::Scene &scene) {
   const uint32_t anim_idx = cache.animation_index[cell_index];
   if (anim_idx == LayerRenderCache::k_no_animation) {
-    const corundum::world::tilemap::TileId gid = tilemap.tile_at(layer, col, row);
-    if (gid == corundum::world::tilemap::k_empty_tile)
+    const world::tilemap::TileId gid = tilemap.tile_at(layer, col, row);
+    if (gid == world::tilemap::k_empty_tile)
       return std::nullopt;
     return gid;
   }
@@ -260,22 +259,22 @@ std::optional<corundum::world::tilemap::TileId> resolve_tile_gid(const corundum:
   return anim.frame_gids[frame_index];
 }
 
-ResolvedTile make_resolved_tile(const TileRenderParams &ctx, const corundum::world::tilemap::TilemapLayer &layer,
-                                const LayerRenderCache &cache, const corundum::world::tilemap::TilemapTileset &tileset,
-                                int col, int row, std::size_t cell_index, corundum::world::tilemap::TileId gid,
-                                platform::TextureId texture_id, const corundum::core::GameConfig &config) {
-  const auto source = corundum::world::tilemap::tile_source_rect(tileset, gid);
+ResolvedTile make_resolved_tile(const TileRenderParams &ctx, const world::tilemap::TilemapLayer &layer,
+                                const LayerRenderCache &cache, const world::tilemap::TilemapTileset &tileset, int col,
+                                int row, std::size_t cell_index, world::tilemap::TileId gid,
+                                platform::TextureId texture_id, const core::GameConfig &config) {
+  const auto source = world::tilemap::tile_source_rect(tileset, gid);
   const uint8_t flags = cache.flip_flags[cell_index];
-  const bool flip_x = (flags & corundum::world::tilemap::k_flip_h) != 0;
-  const bool flip_y = (flags & corundum::world::tilemap::k_flip_v) != 0;
+  const bool flip_x = (flags & world::tilemap::k_flip_h) != 0;
+  const bool flip_y = (flags & world::tilemap::k_flip_v) != 0;
   const int elevation = (!layer.elevation.empty() && std::cmp_less(cell_index, layer.elevation.size()))
                             ? static_cast<int>(layer.elevation[cell_index])
                             : 0;
 
   const int abs_col = ctx.chunk_offset_col + col;
   const int abs_row = ctx.chunk_offset_row + row;
-  const corundum::core::math::Vec2 world_pos =
-      corundum::core::math::tile_to_world(static_cast<float>(abs_col), static_cast<float>(abs_row), elevation, ctx.iso);
+  const core::math::Vec2 world_pos =
+      core::math::tile_to_world(static_cast<float>(abs_col), static_cast<float>(abs_row), elevation, ctx.iso);
 
   // Pivot is always measured against the full (untrimmed) frame, not the trimmed size, so sprites
   // sharing one canvas convention (e.g. a wall body and its separately-authored topper) stay
@@ -283,15 +282,14 @@ ResolvedTile make_resolved_tile(const TileRenderParams &ctx, const corundum::wor
   // and frame size are per-tile (TilesetInfo::tile_pivot_*/tile_full_*) since spritepacker computes
   // them per sprite — there's no tileset-wide default to fall back to.
   const int local_id = static_cast<int>(gid) - static_cast<int>(tileset.first_gid);
-  const auto frame = corundum::world::tilemap::get_tile_frame_offset(tileset.info, local_id);
-  const auto pivot = corundum::world::tilemap::get_tile_pivot(tileset.info, local_id);
+  const auto frame = world::tilemap::get_tile_frame_offset(tileset.info, local_id);
+  const auto pivot = world::tilemap::get_tile_pivot(tileset.info, local_id);
   const float scaled_tw = static_cast<float>(frame.full_width) * config.tile_scale;
   const float scaled_th = static_cast<float>(frame.full_height) * config.tile_scale;
   const float trim_x_px = static_cast<float>(frame.trim_x) * config.tile_scale;
   const float trim_y_px = static_cast<float>(frame.trim_y) * config.tile_scale;
-  const float depth =
-      corundum::core::math::iso_depth_key(static_cast<float>(abs_col), static_cast<float>(abs_row),
-                                          static_cast<float>(elevation), ctx.iso.half_th, ctx.iso.elev_step);
+  const float depth = core::math::iso_depth_key(static_cast<float>(abs_col), static_cast<float>(abs_row),
+                                                static_cast<float>(elevation), ctx.iso.half_th, ctx.iso.elev_step);
 
   return {
       .sprite =
@@ -313,18 +311,17 @@ ResolvedTile make_resolved_tile(const TileRenderParams &ctx, const corundum::wor
 }
 
 /** Resolves the tile at (col, row) in `layer` to draw data, or std::nullopt if the cell is empty/unrenderable. */
-std::optional<ResolvedTile>
-resolve_tile_cell(const TileRenderParams &ctx, const corundum::world::tilemap::TilemapLayer &layer,
-                  const LayerRenderCache &cache, const corundum::world::tilemap::Tilemap &tilemap, int col, int row,
-                  const corundum::core::GameConfig &config, const corundum::world::Scene &scene) {
+std::optional<ResolvedTile> resolve_tile_cell(const TileRenderParams &ctx, const world::tilemap::TilemapLayer &layer,
+                                              const LayerRenderCache &cache, const world::tilemap::Tilemap &tilemap,
+                                              int col, int row, const core::GameConfig &config,
+                                              const world::Scene &scene) {
   const std::size_t cell_index = world::tilemap::cell_index(tilemap.width, col, row);
-  const std::optional<corundum::world::tilemap::TileId> gid =
+  const std::optional<world::tilemap::TileId> gid =
       resolve_tile_gid(layer, cache, tilemap, col, row, cell_index, scene);
   if (!gid)
     return std::nullopt;
 
-  const corundum::world::tilemap::TilemapTileset *tileset =
-      corundum::world::tilemap::find_tileset(tilemap.tilesets, *gid);
+  const world::tilemap::TilemapTileset *tileset = world::tilemap::find_tileset(tilemap.tilesets, *gid);
   if (tileset == nullptr) [[unlikely]]
     return std::nullopt;
 
@@ -341,8 +338,7 @@ resolve_tile_cell(const TileRenderParams &ctx, const corundum::world::tilemap::T
  *  art extends into it aren't skipped.
  */
 core::math::IsometricCullBounds compute_layer_cull_bounds(const TileRenderParams &params, const LayerRenderCache &cache,
-                                                          const corundum::world::tilemap::Tilemap &tilemap,
-                                                          float tile_scale) {
+                                                          const world::tilemap::Tilemap &tilemap, float tile_scale) {
   if (params.viewport_world.x <= 0.f || params.viewport_world.y <= 0.f)
     return {
         .depth_min = std::numeric_limits<int>::min() / 2,
@@ -503,7 +499,7 @@ void collect_entities(const RenderState &state, const core::GameConfig &config, 
         sprite_y > viewport_bottom)
       continue;
 
-    const float depth = corundum::core::math::iso_depth_key(col_f, row_f, elevation, iso.half_th, iso.elev_step);
+    const float depth = core::math::iso_depth_key(col_f, row_f, elevation, iso.half_th, iso.elev_step);
     sorted.push_back({
         .tex_id = entry.tex_id,
         .src = entry.src,

@@ -22,12 +22,12 @@ namespace detail {
  *  deletes the concrete NullWindow/NullRenderer through the interface's virtual
  *  destructor, so the engine core never needs those destructors.
  */
-inline void destroy_window(platform::Window *window) noexcept {
-  std::default_delete<platform::Window>{}(window);
+inline void destroy_window(Window *window) noexcept {
+  std::default_delete<Window>{}(window);
 }
 
-inline void destroy_renderer(platform::Renderer *renderer) noexcept {
-  std::default_delete<platform::Renderer>{}(renderer);
+inline void destroy_renderer(Renderer *renderer) noexcept {
+  std::default_delete<Renderer>{}(renderer);
 }
 
 } // namespace detail
@@ -42,10 +42,10 @@ inline void destroy_renderer(platform::Renderer *renderer) noexcept {
  */
 struct NullPlatform {
   /** No-op renderer; every asset load returns the shared dummy handle. */
-  Handle<platform::Renderer> renderer;
+  Handle<Renderer> renderer;
 
   /** No-op window of the requested size. */
-  Handle<platform::Window> window;
+  Handle<Window> window;
 };
 
 /** Construct a NullPlatform bundle with a window of the given size.
@@ -56,10 +56,8 @@ struct NullPlatform {
  */
 [[nodiscard]] inline NullPlatform make_null_platform(unsigned width, unsigned height) {
   NullPlatform bundle{};
-  bundle.renderer =
-      Handle<platform::Renderer>{new NullRenderer(), BackendDeleter<platform::Renderer>{&detail::destroy_renderer}};
-  bundle.window = Handle<platform::Window>{new NullWindow(width, height),
-                                           BackendDeleter<platform::Window>{&detail::destroy_window}};
+  bundle.renderer = Handle<Renderer>{new NullRenderer(), BackendDeleter<Renderer>{&detail::destroy_renderer}};
+  bundle.window = Handle<Window>{new NullWindow(width, height), BackendDeleter<Window>{&detail::destroy_window}};
   return bundle;
 }
 
@@ -72,7 +70,7 @@ struct NullPlatform {
  *  @param engine Uninitialised Engine.
  *  @param platform The bundle; its members are moved out.
  */
-inline void adopt_null_platform(corundum::Engine &engine, NullPlatform &platform) {
+inline void adopt_null_platform(Engine &engine, NullPlatform &platform) {
   engine.adopt_platform(PlatformContext{
       .window = std::move(platform.window),
       .gpu = {},

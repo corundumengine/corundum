@@ -145,7 +145,7 @@ struct MiniaudioBackend::State {
   }
 };
 
-MiniaudioBackend::MiniaudioBackend(MiniaudioOutput output, const corundum::core::ContentSource &content)
+MiniaudioBackend::MiniaudioBackend(MiniaudioOutput output, const core::ContentSource &content)
     : state_(std::make_unique<State>()) {
   state_->output = output;
 
@@ -341,7 +341,7 @@ void MiniaudioBackend::render_frames(std::span<float> frames_out) {
   ma_engine_read_pcm_frames(&state_->engine, frames_out.data(), frames_out.size() / 2, nullptr);
 }
 
-std::unique_ptr<audio::AudioBackend> make_miniaudio_backend(const corundum::core::ContentSource &content) {
+std::unique_ptr<audio::AudioBackend> make_miniaudio_backend(const core::ContentSource &content) {
   return std::make_unique<MiniaudioBackend>(MiniaudioOutput::Device, content);
 }
 

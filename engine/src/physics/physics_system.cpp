@@ -32,9 +32,9 @@
 namespace corundum::physics {
 
 namespace {
-using corundum::core::math::IsometricParams;
-using corundum::core::math::tile_to_screen_delta;
-using corundum::core::math::Vec2;
+using core::math::IsometricParams;
+using core::math::tile_to_screen_delta;
+using core::math::Vec2;
 
 /** Convert a screen-space velocity back to tile-grid velocity components.
  *
@@ -52,8 +52,8 @@ using corundum::core::math::Vec2;
 }
 
 /** Borrow `graph` as a reference when present, or std::nullopt when null. */
-[[nodiscard]] std::optional<std::reference_wrapper<const corundum::world::tilemap::WalkabilityGraph>>
-borrow_walkability(const corundum::world::tilemap::WalkabilityGraph *graph) noexcept {
+[[nodiscard]] std::optional<std::reference_wrapper<const world::tilemap::WalkabilityGraph>>
+borrow_walkability(const world::tilemap::WalkabilityGraph *graph) noexcept {
   return graph != nullptr ? std::make_optional(std::cref(*graph)) : std::nullopt;
 }
 
@@ -69,16 +69,15 @@ borrow_walkability(const corundum::world::tilemap::WalkabilityGraph *graph) noex
  *
  *  @pre `player_slot` is the dense index of the player in `transforms`.
  */
-void resolve_portals(corundum::entities::TransformTable &transforms, std::uint32_t player_slot,
-                     corundum::entities::Position pos, float col_span, float row_span,
-                     const corundum::world::MapView &map, corundum::world::Scene &scene, int player_elev,
+void resolve_portals(entities::TransformTable &transforms, std::uint32_t player_slot, entities::Position pos,
+                     float col_span, float row_span, const world::MapView &map, world::Scene &scene, int player_elev,
                      int elev_tolerance) noexcept {
   if (map.portals.empty())
     return;
 
   // Same footprint the collision pass uses: a ground patch centred on the feet, so it
   // covers the tile the player stands on and does not reach into its neighbours.
-  const corundum::entities::GridBox footprint = corundum::entities::footprint_of(pos.col, pos.row, col_span, row_span);
+  const entities::GridBox footprint = entities::footprint_of(pos.col, pos.row, col_span, row_span);
   const float col0 = footprint.col;
   const float col1 = footprint.col + footprint.col_span;
   const float row0 = footprint.row;
@@ -89,7 +88,7 @@ void resolve_portals(corundum::entities::TransformTable &transforms, std::uint32
     scene.transition_prompt.reset();
 
   for (const auto &portal : map.portals) {
-    if (!corundum::world::portal_overlaps(portal, col0, col1, row0, row1))
+    if (!world::portal_overlaps(portal, col0, col1, row0, row1))
       continue;
     if (!portal_elev_matches(map, portal, player_elev, elev_tolerance))
       continue;
@@ -102,7 +101,7 @@ void resolve_portals(corundum::entities::TransformTable &transforms, std::uint32
     if (scene.transition_prompt && scene.transition_prompt->declined() && scene.transition_prompt->guards(portal))
       continue;
     scene.transition_prompt.emplace(portal);
-    scene.ui.push(corundum::world::GameMode::Prompt);
+    scene.ui.push(world::GameMode::Prompt);
     return;
   }
 }
@@ -114,32 +113,31 @@ void resolve_portals(corundum::entities::TransformTable &transforms, std::uint32
  *  spuriously queue a path toward wherever the mouse happens to hover any time the player
  *  presses Enter/Space/a gamepad button for an unrelated reason (e.g. confirming dialogue).
  */
-void queue_click_path(corundum::world::Scene &scene, const corundum::world::MapView &map,
-                      const corundum::input::InputState &input, const corundum::entities::CollisionTable &collisions,
-                      const corundum::entities::TransformTable &transforms, corundum::entities::EntityId player,
-                      float prev_col, float prev_row) noexcept {
+void queue_click_path(world::Scene &scene, const world::MapView &map, const input::InputState &input,
+                      const entities::CollisionTable &collisions, const entities::TransformTable &transforms,
+                      entities::EntityId player, float prev_col, float prev_row) noexcept {
   if (!input.mouse_click_pressed || !scene.hovered_tile || map.walkability == nullptr)
     return;
   // std::floor (not truncate) so a fractionally-negative prev_col/prev_row selects the cell the
   // player is actually standing in — same convention as chunk_at_iso and picking. Latent today
   // (positions clamped >= 0), defensive against future knockback / camera-shake paths.
-  const corundum::world::TileCoord start{
+  const world::TileCoord start{
       .col = static_cast<int>(std::floor(prev_col)),
       .row = static_cast<int>(std::floor(prev_row)),
   };
-  scene.path = corundum::world::find_path(map, start, *scene.hovered_tile, &collisions, &transforms, player);
+  scene.path = world::find_path(map, start, *scene.hovered_tile, &collisions, &transforms, player);
 }
 
 /** Snapshot of every non-player entity's collision AABB and rounded tile elevation. */
 struct NpcColliders {
-  std::array<float, corundum::entities::k_max_entities> cols{};
-  std::array<float, corundum::entities::k_max_entities> rows{};
-  std::array<float, corundum::entities::k_max_entities> col_spans{};
-  std::array<float, corundum::entities::k_max_entities> row_spans{};
-  std::array<uint8_t, corundum::entities::k_max_entities> elevations{};
+  std::array<float, entities::k_max_entities> cols{};
+  std::array<float, entities::k_max_entities> rows{};
+  std::array<float, entities::k_max_entities> col_spans{};
+  std::array<float, entities::k_max_entities> row_spans{};
+  std::array<uint8_t, entities::k_max_entities> elevations{};
   uint16_t count{};
 
-  [[nodiscard]] corundum::world::tilemap::CollisionRectsView view() const noexcept {
+  [[nodiscard]] world::tilemap::CollisionRectsView view() const noexcept {
     return {
         .cols = std::span{cols.data(), count},
         .rows = std::span{rows.data(), count},
@@ -154,11 +152,11 @@ struct NpcColliders {
  *  position to a collision AABB top-left and capturing its elevation so the player-vs-NPC pass
  *  can gate by elevation (same band as player-vs-world).
  */
-void gather_npc_colliders(NpcColliders &out, corundum::entities::TransformTable &transforms,
-                          const corundum::entities::CollisionTable &collisions, corundum::entities::EntityId exclude,
-                          const corundum::world::MapView &map) noexcept {
+void gather_npc_colliders(NpcColliders &out, entities::TransformTable &transforms,
+                          const entities::CollisionTable &collisions, entities::EntityId exclude,
+                          const world::MapView &map) noexcept {
   for (std::uint32_t i = 0; i < collisions.count; ++i) {
-    const corundum::entities::EntityId eid = collisions.index.entities[i];
+    const entities::EntityId eid = collisions.index.entities[i];
     if (eid == exclude)
       continue;
     if (!transforms.has(eid))
@@ -168,14 +166,12 @@ void gather_npc_colliders(NpcColliders &out, corundum::entities::TransformTable 
     const float np_col = transforms.col[slot];
     const float np_row = transforms.row[slot];
     // NPC feet position to AABB top-left, per the shared CollisionTable convention.
-    const corundum::entities::GridBox box =
-        corundum::entities::footprint_of(np_col, np_row, rect.col_span, rect.row_span);
+    const entities::GridBox box = entities::footprint_of(np_col, np_row, rect.col_span, rect.row_span);
     out.cols[out.count] = box.col;
     out.rows[out.count] = box.row;
     out.col_spans[out.count] = box.col_span;
     out.row_spans[out.count] = box.row_span;
-    out.elevations[out.count] =
-        static_cast<uint8_t>(std::round(corundum::world::elevation_at_tile(map, np_col, np_row)));
+    out.elevations[out.count] = static_cast<uint8_t>(std::round(world::elevation_at_tile(map, np_col, np_row)));
     ++out.count;
   }
 }
@@ -186,34 +182,31 @@ void gather_npc_colliders(NpcColliders &out, corundum::entities::TransformTable 
  *  geometry, so thin walls can't be skipped. The initial position is wherever the movement
  *  branch left the entity, so a follow_path snap is preserved.
  */
-[[nodiscard]] corundum::entities::Position integrate_and_resolve_player(
-    corundum::entities::TransformTable &transforms, corundum::entities::EntityId player, std::uint32_t player_slot,
-    const corundum::world::MapView &map, const corundum::entities::CollisionTable::Rect &player_rect,
-    ElevationGate elev_gate,
-    std::optional<std::reference_wrapper<const corundum::world::tilemap::WalkabilityGraph>> walkability,
-    float dt) noexcept {
+[[nodiscard]] entities::Position integrate_and_resolve_player(
+    entities::TransformTable &transforms, entities::EntityId player, std::uint32_t player_slot,
+    const world::MapView &map, const entities::CollisionTable::Rect &player_rect, ElevationGate elev_gate,
+    std::optional<std::reference_wrapper<const world::tilemap::WalkabilityGraph>> walkability, float dt) noexcept {
   const float step_dist = std::hypot(transforms.dc[player_slot], transforms.dr[player_slot]) * dt;
   constexpr float k_substep_max_tile = 0.5f;
   const int substeps = std::max(1, static_cast<int>(std::ceil(step_dist / k_substep_max_tile)));
   const float sub_dt = dt / static_cast<float>(substeps);
 
-  corundum::entities::Position p{.col = transforms.col[player_slot], .row = transforms.row[player_slot]};
+  entities::Position p{.col = transforms.col[player_slot], .row = transforms.row[player_slot]};
   for (int s = 0; s < substeps; ++s) {
-    const corundum::entities::Position sub_prev{.col = p.col, .row = p.row};
+    const entities::Position sub_prev{.col = p.col, .row = p.row};
     integrate(transforms, player, sub_dt);
     p.col = transforms.col[player_slot];
     p.row = transforms.row[player_slot];
 
     if (map.projection.half_tw > 0.f && map.projection.half_th > 0.f) {
-      const corundum::entities::GridBox box =
-          corundum::entities::footprint_of(p.col, p.row, player_rect.col_span, player_rect.row_span);
-      const corundum::entities::GridBox prev_box =
-          corundum::entities::footprint_of(sub_prev.col, sub_prev.row, player_rect.col_span, player_rect.row_span);
-      corundum::entities::Position pc{.col = box.col, .row = box.row};
-      const corundum::entities::Position pcp{.col = prev_box.col, .row = prev_box.row};
+      const entities::GridBox box = entities::footprint_of(p.col, p.row, player_rect.col_span, player_rect.row_span);
+      const entities::GridBox prev_box =
+          entities::footprint_of(sub_prev.col, sub_prev.row, player_rect.col_span, player_rect.row_span);
+      entities::Position pc{.col = box.col, .row = box.row};
+      const entities::Position pcp{.col = prev_box.col, .row = prev_box.row};
       resolve_collisions(pc, pcp, box.col_span, box.row_span, map.collisions, 0.f, elev_gate);
       resolve_triangle_collisions(pc, pcp, box.col_span, box.row_span, map.collision_triangles, 0.f, elev_gate);
-      p = corundum::entities::position_of(corundum::entities::GridBox{
+      p = entities::position_of(entities::GridBox{
           .col = pc.col,
           .row = pc.row,
           .col_span = box.col_span,
@@ -230,18 +223,17 @@ void gather_npc_colliders(NpcColliders &out, corundum::entities::TransformTable 
 /** Resolve the player's footprint against the gathered NPC boxes, anchored on the same point
  *  as the world pass, and return the corrected tile-grid position.
  */
-[[nodiscard]] corundum::entities::Position
-resolve_npc_collisions(const corundum::entities::CollisionTable::Rect &player_rect,
-                       corundum::world::tilemap::CollisionRectsView npc_view, corundum::entities::Position pos,
-                       corundum::entities::Position prev_pos, ElevationGate elev_gate) noexcept {
-  const corundum::entities::GridBox box =
-      corundum::entities::footprint_of(pos.col, pos.row, player_rect.col_span, player_rect.row_span);
-  const corundum::entities::GridBox prev_box =
-      corundum::entities::footprint_of(prev_pos.col, prev_pos.row, player_rect.col_span, player_rect.row_span);
-  corundum::entities::Position p_aabb{.col = box.col, .row = box.row};
-  const corundum::entities::Position prev_aabb{.col = prev_box.col, .row = prev_box.row};
+[[nodiscard]] entities::Position resolve_npc_collisions(const entities::CollisionTable::Rect &player_rect,
+                                                        world::tilemap::CollisionRectsView npc_view,
+                                                        entities::Position pos, entities::Position prev_pos,
+                                                        ElevationGate elev_gate) noexcept {
+  const entities::GridBox box = entities::footprint_of(pos.col, pos.row, player_rect.col_span, player_rect.row_span);
+  const entities::GridBox prev_box =
+      entities::footprint_of(prev_pos.col, prev_pos.row, player_rect.col_span, player_rect.row_span);
+  entities::Position p_aabb{.col = box.col, .row = box.row};
+  const entities::Position prev_aabb{.col = prev_box.col, .row = prev_box.row};
   resolve_collisions(p_aabb, prev_aabb, box.col_span, box.row_span, npc_view, 0.f, elev_gate);
-  return corundum::entities::position_of(corundum::entities::GridBox{
+  return entities::position_of(entities::GridBox{
       .col = p_aabb.col,
       .row = p_aabb.row,
       .col_span = box.col_span,
@@ -250,16 +242,16 @@ resolve_npc_collisions(const corundum::entities::CollisionTable::Rect &player_re
 }
 
 /** Clamp the stored position so the footprint never leaves the map. */
-[[nodiscard]] corundum::entities::Position
-clamp_to_map_bounds(corundum::entities::Position pos, const corundum::entities::CollisionTable::Rect &player_rect,
-                    const corundum::world::MapView &map) noexcept {
+[[nodiscard]] entities::Position clamp_to_map_bounds(entities::Position pos,
+                                                     const entities::CollisionTable::Rect &player_rect,
+                                                     const world::MapView &map) noexcept {
   // The footprint sits half a tile in from the stored position: the position may reach
   // map_w - 0.5 - col_span/2, not map_w - col_span. The lower bound stays 0 so the position
   // itself never leaves the map — stricter than the box needs, and harmless.
   const float col_limit = std::max(0.f, static_cast<float>(map.world_size_tiles.width) -
-                                            corundum::entities::k_entity_anchor_offset - (player_rect.col_span * 0.5f));
+                                            entities::k_entity_anchor_offset - (player_rect.col_span * 0.5f));
   const float row_limit = std::max(0.f, static_cast<float>(map.world_size_tiles.height) -
-                                            corundum::entities::k_entity_anchor_offset - (player_rect.row_span * 0.5f));
+                                            entities::k_entity_anchor_offset - (player_rect.row_span * 0.5f));
   pos.col = std::clamp(pos.col, 0.f, col_limit);
   pos.row = std::clamp(pos.row, 0.f, row_limit);
   return pos;
@@ -267,13 +259,13 @@ clamp_to_map_bounds(corundum::entities::Position pos, const corundum::entities::
 
 } // namespace
 
-ElevationGate compute_elevation_gate(const corundum::world::MapView &map, float col, float row) noexcept {
-  using corundum::world::tilemap::elevation_at;
-  using corundum::world::tilemap::ramp_axis_at;
-  using corundum::world::tilemap::RampAxis;
+ElevationGate compute_elevation_gate(const world::MapView &map, float col, float row) noexcept {
+  using world::tilemap::elevation_at;
+  using world::tilemap::ramp_axis_at;
+  using world::tilemap::RampAxis;
 
   ElevationGate gate{};
-  const float elev_f = corundum::world::elevation_at_tile(map, col, row);
+  const float elev_f = world::elevation_at_tile(map, col, row);
   gate.player_elevation = static_cast<int>(std::round(elev_f));
 
   // World mode has no Tilemap to query — elevation_tolerance stays 0 (no ramps to widen for).
@@ -297,25 +289,24 @@ ElevationGate compute_elevation_gate(const corundum::world::MapView &map, float 
   return gate;
 }
 
-bool portal_elev_matches(const corundum::world::MapView &map, const corundum::world::Portal &portal, int player_elev,
+bool portal_elev_matches(const world::MapView &map, const world::Portal &portal, int player_elev,
                          int elev_tolerance) noexcept {
   // Use the portal's center cell — a multi-cell portal's intent is "the player is on
   // the floor that runs through here", so the center cell is the canonical reference.
   const float portal_elev_f =
-      corundum::world::elevation_at_tile(map, portal.col + (portal.w * 0.5f), portal.row + (portal.h * 0.5f));
+      world::elevation_at_tile(map, portal.col + (portal.w * 0.5f), portal.row + (portal.h * 0.5f));
   const int portal_elev = static_cast<int>(std::round(portal_elev_f));
   return std::abs(portal_elev - player_elev) <= elev_tolerance;
 }
 
-void integrate(corundum::entities::TransformTable &transforms, corundum::entities::EntityId e, float dt) noexcept {
+void integrate(entities::TransformTable &transforms, entities::EntityId e, float dt) noexcept {
   const auto slot = transforms.dense_index(e);
   transforms.col[slot] += transforms.dc[slot] * dt;
   transforms.row[slot] += transforms.dr[slot] * dt;
 }
 
-void follow_path(corundum::entities::TransformTable &transforms, corundum::entities::EntityId player,
-                 std::vector<corundum::world::TileCoord> &path, float player_speed,
-                 corundum::core::math::IsometricParams iso, float dt) noexcept {
+void follow_path(entities::TransformTable &transforms, entities::EntityId player, std::vector<world::TileCoord> &path,
+                 float player_speed, core::math::IsometricParams iso, float dt) noexcept {
   if (!transforms.has(player)) [[unlikely]]
     return;
   const std::uint32_t slot = transforms.dense_index(player);
@@ -361,9 +352,8 @@ void follow_path(corundum::entities::TransformTable &transforms, corundum::entit
   transforms.dr[slot] = 0.f;
 }
 
-void apply_input(corundum::entities::TransformTable &transforms, corundum::entities::EntityId player,
-                 const corundum::input::InputState &input, float player_speed,
-                 corundum::core::math::IsometricParams iso) noexcept {
+void apply_input(entities::TransformTable &transforms, entities::EntityId player, const input::InputState &input,
+                 float player_speed, core::math::IsometricParams iso) noexcept {
   if (!transforms.has(player)) [[unlikely]]
     return;
 
@@ -378,19 +368,19 @@ void apply_input(corundum::entities::TransformTable &transforms, corundum::entit
   // Screen down  = SE = both col and row increase.
   // Screen left  = SW = col decreases, row increases.
   // Screen right = NE = col increases, row decreases.
-  if (input.is_held(corundum::input::Action::MoveUp)) {
+  if (input.is_held(input::Action::MoveUp)) {
     dc -= 1.f;
     dr -= 1.f;
   }
-  if (input.is_held(corundum::input::Action::MoveDown)) {
+  if (input.is_held(input::Action::MoveDown)) {
     dc += 1.f;
     dr += 1.f;
   }
-  if (input.is_held(corundum::input::Action::MoveLeft)) {
+  if (input.is_held(input::Action::MoveLeft)) {
     dc -= 1.f;
     dr += 1.f;
   }
-  if (input.is_held(corundum::input::Action::MoveRight)) {
+  if (input.is_held(input::Action::MoveRight)) {
     dc += 1.f;
     dr -= 1.f;
   }
@@ -412,13 +402,13 @@ void apply_input(corundum::entities::TransformTable &transforms, corundum::entit
   }
 }
 
-void update_player(corundum::entities::TransformTable &transforms, const corundum::entities::CollisionTable &collisions,
-                   corundum::entities::EntityId player, const corundum::input::InputState &input, float player_speed,
-                   const corundum::world::MapView &map, corundum::world::Scene &scene, float dt) noexcept {
-  using corundum::core::math::IsometricParams;
-  using corundum::entities::CollisionTable;
-  using corundum::entities::EntityId;
-  using corundum::entities::Position;
+void update_player(entities::TransformTable &transforms, const entities::CollisionTable &collisions,
+                   entities::EntityId player, const input::InputState &input, float player_speed,
+                   const world::MapView &map, world::Scene &scene, float dt) noexcept {
+  using core::math::IsometricParams;
+  using entities::CollisionTable;
+  using entities::EntityId;
+  using entities::Position;
 
   const std::uint32_t p_slot = transforms.dense_index(player);
   const float prev_col = transforms.col[p_slot];
@@ -441,9 +431,8 @@ void update_player(corundum::entities::TransformTable &transforms, const corundu
 
   queue_click_path(scene, map, input, collisions, transforms, player, prev_col, prev_row);
 
-  const bool manual_move =
-      input.is_held(corundum::input::Action::MoveUp) || input.is_held(corundum::input::Action::MoveDown) ||
-      input.is_held(corundum::input::Action::MoveLeft) || input.is_held(corundum::input::Action::MoveRight);
+  const bool manual_move = input.is_held(input::Action::MoveUp) || input.is_held(input::Action::MoveDown) ||
+                           input.is_held(input::Action::MoveLeft) || input.is_held(input::Action::MoveRight);
   const IsometricParams iso{
       .half_tw = map.projection.half_tw,
       .half_th = map.projection.half_th,

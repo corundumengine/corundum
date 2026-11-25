@@ -55,7 +55,7 @@ struct JournalEntry {
   std::string id{};
   std::string name{};
   std::string objective{};
-  gameplay::quest::Lifecycle lifecycle{gameplay::quest::Lifecycle::NotStarted};
+  quest::Lifecycle lifecycle{quest::Lifecycle::NotStarted};
   bool tracked{false};
   std::vector<JournalObjective> objectives{};
 };
@@ -83,7 +83,7 @@ struct JournalState {
  *  @param zone_id Current zone; `local.<key>` objective conditions resolve against it.
  *  @return One entry per started quest in `tab`, empty when none qualify.
  */
-[[nodiscard]] std::vector<JournalEntry> build_journal_entries(const gameplay::quest::Registry &quests,
+[[nodiscard]] std::vector<JournalEntry> build_journal_entries(const quest::Registry &quests,
                                                               const world::FlagStore &flags, JournalTab tab,
                                                               std::string_view zone_id = {});
 

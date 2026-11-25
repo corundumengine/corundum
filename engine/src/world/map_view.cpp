@@ -82,7 +82,7 @@ WorldBounds single_map_bounds(const tilemap::Tilemap &tm, float half_tw, float h
 
 float elevation_at_tile(const MapView &map, float col_f, float row_f) noexcept {
   if (map.elevation_map != nullptr)
-    return corundum::world::tilemap::interpolated_elevation_at(*map.elevation_map, col_f, row_f);
+    return tilemap::interpolated_elevation_at(*map.elevation_map, col_f, row_f);
   if (map.world_area != nullptr)
     return render::elevation_under(*map.world_area, col_f, row_f);
   return 0.f;
@@ -90,7 +90,7 @@ float elevation_at_tile(const MapView &map, float col_f, float row_f) noexcept {
 
 int discrete_elevation_at(const MapView &map, int col, int row) noexcept {
   if (map.elevation_map != nullptr)
-    return corundum::world::tilemap::elevation_at(*map.elevation_map, col, row);
+    return tilemap::elevation_at(*map.elevation_map, col, row);
   if (map.world_area != nullptr)
     return static_cast<int>(
         std::lround(render::elevation_under(*map.world_area, static_cast<float>(col), static_cast<float>(row))));

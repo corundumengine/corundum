@@ -30,9 +30,8 @@ namespace corundum::physics {
  *  @post Player dx/dy set to 0 then adjusted for held directions; speed is normalised.
  *  Performance: O(1).
  */
-void apply_input(corundum::entities::TransformTable &transforms, corundum::entities::EntityId player,
-                 const corundum::input::InputState &input, float player_speed,
-                 corundum::core::math::IsometricParams iso) noexcept;
+void apply_input(entities::TransformTable &transforms, entities::EntityId player, const input::InputState &input,
+                 float player_speed, core::math::IsometricParams iso) noexcept;
 
 /** Advance `e`'s position by velocity * dt.
  *  @param transforms  SoA table; col/row for `e` are advanced.
@@ -41,7 +40,7 @@ void apply_input(corundum::entities::TransformTable &transforms, corundum::entit
  *  @pre `e` must exist in `transforms`.
  *  @post Entity position updated by velocity * dt.
  */
-void integrate(corundum::entities::TransformTable &transforms, corundum::entities::EntityId e, float dt) noexcept;
+void integrate(entities::TransformTable &transforms, entities::EntityId e, float dt) noexcept;
 
 /** Drive velocity toward the next waypoint in a click-to-move path.
  *
@@ -59,9 +58,8 @@ void integrate(corundum::entities::TransformTable &transforms, corundum::entitie
  *   @param dt          Fixed timestep in seconds.
  *   @note A player absent from `transforms` is a no-op.
  */
-void follow_path(corundum::entities::TransformTable &transforms, corundum::entities::EntityId player,
-                 std::vector<corundum::world::TileCoord> &path, float player_speed,
-                 corundum::core::math::IsometricParams iso, float dt) noexcept;
+void follow_path(entities::TransformTable &transforms, entities::EntityId player, std::vector<world::TileCoord> &path,
+                 float player_speed, core::math::IsometricParams iso, float dt) noexcept;
 
 /** Full player step: input → integrate → collision resolve → portal detect.
  *
@@ -84,9 +82,9 @@ void follow_path(corundum::entities::TransformTable &transforms, corundum::entit
  *         the player confirms. Chunk-to-chunk portals teleport the player immediately.
  *   Performance: O(n) over NPC count. No heap allocation.
  */
-void update_player(corundum::entities::TransformTable &transforms, const corundum::entities::CollisionTable &collisions,
-                   corundum::entities::EntityId player, const corundum::input::InputState &input, float player_speed,
-                   const corundum::world::MapView &map, corundum::world::Scene &scene, float dt) noexcept;
+void update_player(entities::TransformTable &transforms, const entities::CollisionTable &collisions,
+                   entities::EntityId player, const input::InputState &input, float player_speed,
+                   const world::MapView &map, world::Scene &scene, float dt) noexcept;
 
 /** Compute the elevation gate used to filter authored colliders by elevation.
  *
@@ -101,7 +99,7 @@ void update_player(corundum::entities::TransformTable &transforms, const corundu
  *  @param row   Fractional tile row.
  *  @return Gate to pass to resolve_collisions / resolve_triangle_collisions.
  */
-[[nodiscard]] ElevationGate compute_elevation_gate(const corundum::world::MapView &map, float col, float row) noexcept;
+[[nodiscard]] ElevationGate compute_elevation_gate(const world::MapView &map, float col, float row) noexcept;
 
 /** True if the player is at an elevation that matches the portal's cell elevation.
  *
@@ -115,7 +113,7 @@ void update_player(corundum::entities::TransformTable &transforms, const corundu
  *  @param player_elev     Player's rounded gate value (from compute_elevation_gate).
  *  @param elev_tolerance  Ramp-aware tolerance; 0 for off-ramp gating.
  */
-[[nodiscard]] bool portal_elev_matches(const corundum::world::MapView &map, const corundum::world::Portal &portal,
-                                       int player_elev, int elev_tolerance) noexcept;
+[[nodiscard]] bool portal_elev_matches(const world::MapView &map, const world::Portal &portal, int player_elev,
+                                       int elev_tolerance) noexcept;
 
 } // namespace corundum::physics

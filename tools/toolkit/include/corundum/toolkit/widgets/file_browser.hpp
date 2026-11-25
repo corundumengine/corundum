@@ -49,7 +49,7 @@ struct FileBrowserState {
   std::filesystem::path current_dir;
 
   /** Listing of current_dir, directories first then alphabetical. */
-  std::vector<corundum::core::DirEntry> entries;
+  std::vector<core::DirEntry> entries;
 
   /** Text field holding the chosen filename. */
   std::array<char, k_name_buffer_size> name_buf{};

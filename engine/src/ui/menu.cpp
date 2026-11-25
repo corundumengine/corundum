@@ -86,7 +86,7 @@ MenuLayout menu_panel_layout(const platform::Renderer &renderer, const PanelStyl
   MenuLayout layout{};
   layout.panel_pos = {.x = panel_x, .y = panel_y};
   layout.panel_size = {.x = panel_w, .y = panel_h};
-  layout.rows = ui::ListHit{
+  layout.rows = ListHit{
       .row_pos = {.x = panel_x + k_menu_pad_x, .y = panel_y + k_menu_pad_y + title_h + k_menu_title_gap},
       .row_width = panel_w - (k_menu_pad_x * 2.f),
       .row_height = line_h,

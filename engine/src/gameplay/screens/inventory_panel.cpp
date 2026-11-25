@@ -36,19 +36,19 @@ constexpr std::string_view k_equipment_header = "Equipment";
 /** UI display name for a category. Deliberately separate from gameplay::item::to_string(),
  *  which is the lowercase serialized/schema form, not presentation text.
  */
-std::string_view category_display_name(gameplay::item::ItemCategory category) noexcept {
+std::string_view category_display_name(item::ItemCategory category) noexcept {
   switch (category) {
-    case gameplay::item::ItemCategory::Apparel: return "Apparel";
-    case gameplay::item::ItemCategory::Misc: return "Misc";
-    case gameplay::item::ItemCategory::Potion: return "Potion";
-    case gameplay::item::ItemCategory::Weapon: return "Weapon";
+    case item::ItemCategory::Apparel: return "Apparel";
+    case item::ItemCategory::Misc: return "Misc";
+    case item::ItemCategory::Potion: return "Potion";
+    case item::ItemCategory::Weapon: return "Weapon";
   }
   return "Misc";
 }
 
 /** A run of consecutive rows sharing one category (input is sorted by (category, name)). */
 struct Group {
-  gameplay::item::ItemCategory category = gameplay::item::ItemCategory::Misc;
+  item::ItemCategory category = item::ItemCategory::Misc;
 
   /** Index of the group's first label in the labels vector. */
   std::size_t first = 0;
@@ -60,8 +60,8 @@ struct Group {
 /** Headers are drawn for every category once any non-Misc row is present; an all-Misc
  *  inventory omits them so a handful of un-categorized items don't look over-organized.
  */
-bool show_group_header(gameplay::item::ItemCategory category, bool has_non_misc) noexcept {
-  return category != gameplay::item::ItemCategory::Misc || has_non_misc;
+bool show_group_header(item::ItemCategory category, bool has_non_misc) noexcept {
+  return category != item::ItemCategory::Misc || has_non_misc;
 }
 
 /** Wrap a row's description to the tooltip's reading width; empty when there is none. */
@@ -213,8 +213,8 @@ void collect_inventory_labels(const std::vector<InventoryLine> &lines, Inventory
   for (const InventoryLine &line : lines)
     geometry.labels.push_back(std::format("{}  x{}", line.name, line.count));
 
-  geometry.has_non_misc = std::ranges::any_of(
-      lines, [](const InventoryLine &line) { return line.category != gameplay::item::ItemCategory::Misc; });
+  geometry.has_non_misc =
+      std::ranges::any_of(lines, [](const InventoryLine &line) { return line.category != item::ItemCategory::Misc; });
 }
 
 /** Resolve the cursor, wrap the cursor row's description, and reserve that description's
@@ -279,8 +279,7 @@ InventoryGeometry compute_inventory_geometry(const platform::Renderer &renderer,
 
 } // namespace
 
-std::vector<InventoryLine> build_item_lines(const corundum::world::FlagStore &flags,
-                                            const corundum::gameplay::item::Registry &items,
+std::vector<InventoryLine> build_item_lines(const world::FlagStore &flags, const item::Registry &items,
                                             std::string_view flag_prefix) {
   std::vector<InventoryLine> lines;
   for (const auto &[key, count] : flags) {
@@ -290,9 +289,9 @@ std::vector<InventoryLine> build_item_lines(const corundum::world::FlagStore &fl
     id.remove_prefix(flag_prefix.size());
     if (id.empty())
       continue;
-    const gameplay::item::Item *def = items.find(id);
+    const item::Item *def = items.find(id);
     lines.push_back(InventoryLine{
-        .category = def != nullptr ? def->category : gameplay::item::ItemCategory::Misc,
+        .category = def != nullptr ? def->category : item::ItemCategory::Misc,
         .count = count,
         .name = def != nullptr ? def->name : std::string{id},
         .description = def != nullptr ? def->description : std::string{},
@@ -303,22 +302,20 @@ std::vector<InventoryLine> build_item_lines(const corundum::world::FlagStore &fl
   return lines;
 }
 
-std::vector<InventoryLine> build_inventory_lines(const corundum::world::FlagStore &flags,
-                                                 const corundum::gameplay::item::Registry &items) {
-  return build_item_lines(flags, items, gameplay::item::k_flag_prefix);
+std::vector<InventoryLine> build_inventory_lines(const world::FlagStore &flags, const item::Registry &items) {
+  return build_item_lines(flags, items, item::k_flag_prefix);
 }
 
-std::vector<EquipmentLine> build_equipment_lines(const corundum::world::FlagStore &flags,
-                                                 const corundum::gameplay::item::Registry &items) {
+std::vector<EquipmentLine> build_equipment_lines(const world::FlagStore &flags, const item::Registry &items) {
   std::vector<EquipmentLine> lines;
   for (const auto &[key, count] : flags) {
-    if (!gameplay::item::is_held_item(key, count))
+    if (!item::is_held_item(key, count))
       continue;
-    const std::string_view id = gameplay::item::item_id_from_flag(key);
-    const gameplay::item::Item *def = items.find(id);
+    const std::string_view id = item::item_id_from_flag(key);
+    const item::Item *def = items.find(id);
     if (def == nullptr)
       continue;
-    const std::string slot = gameplay::item::equipment_slot(*def);
+    const std::string slot = item::equipment_slot(*def);
     if (slot.empty())
       continue;
 
@@ -326,7 +323,7 @@ std::vector<EquipmentLine> build_equipment_lines(const corundum::world::FlagStor
     if (line == lines.end())
       line = lines.insert(lines.end(), EquipmentLine{.slot = slot});
     // First equipped item wins, matching the one-equipped-item-per-slot convention.
-    if (line->item_name.empty() && world::has_flag(flags, gameplay::item::equip_flag_key(slot, id))) {
+    if (line->item_name.empty() && world::has_flag(flags, item::equip_flag_key(slot, id))) {
       line->item_id = std::string{id};
       line->item_name = def->name;
     }

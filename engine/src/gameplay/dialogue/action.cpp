@@ -174,12 +174,12 @@ Action parse_impl(std::string_view src) {
 struct ActionExecutor {
   std::vector<EventAction> *events{};
 
-  corundum::world::FlagStore *flags{};
+  world::FlagStore *flags{};
 
   std::string_view zone_id{};
 
   void operator()(const StateAction &action) const {
-    int &flag = (*flags)[corundum::world::scoped_flag_key(action.var, zone_id)];
+    int &flag = (*flags)[world::scoped_flag_key(action.var, zone_id)];
     switch (action.op) {
       case StateAction::Op::Assign: flag = action.value; return;
       case StateAction::Op::Add: flag += action.value; return;
@@ -200,7 +200,7 @@ std::expected<Action, ActionError> parse_action(std::string_view src) {
   }
 }
 
-std::vector<EventAction> execute_actions(std::span<const std::string> actions, corundum::world::FlagStore &flags,
+std::vector<EventAction> execute_actions(std::span<const std::string> actions, world::FlagStore &flags,
                                          std::string_view zone_id) {
   std::vector<EventAction> events;
   const ActionExecutor executor{.events = &events, .flags = &flags, .zone_id = zone_id};

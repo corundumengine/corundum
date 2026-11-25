@@ -30,7 +30,7 @@ bool TransitionPrompt::guards(const Portal &portal) const noexcept {
   return portal_ == portal;
 }
 
-TransitionPrompt::Step TransitionPrompt::step(const corundum::input::InputIntent &intent) noexcept {
+TransitionPrompt::Step TransitionPrompt::step(const input::InputIntent &intent) noexcept {
   // Left/Up → Yes, Right/Down → No. Only two options, so no wrap needed.
   if (intent.navigate_x < 0 || intent.navigate_y < 0)
     confirm_selected_ = true;

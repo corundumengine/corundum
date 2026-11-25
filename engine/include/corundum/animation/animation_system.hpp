@@ -43,19 +43,19 @@ namespace corundum::animation {
  *        Entities with a row in `clips` are skipped; update_clips plays them.
  *  Performance: O(n) over active animation count. No heap allocation.
  */
-void update(corundum::entities::SpriteTable &sprites, const corundum::entities::TransformTable &transforms,
-            corundum::entities::AnimationTable &animations, corundum::entities::FacingTable &facings,
-            corundum::entities::MotionSpriteTable &motion_sprites, const corundum::entities::ClipTable &clips,
-            corundum::core::math::IsometricParams iso, float reference_speed, float dt) noexcept;
+void update(entities::SpriteTable &sprites, const entities::TransformTable &transforms,
+            entities::AnimationTable &animations, entities::FacingTable &facings,
+            entities::MotionSpriteTable &motion_sprites, const entities::ClipTable &clips,
+            core::math::IsometricParams iso, float reference_speed, float dt) noexcept;
 
 /** Start `clip` on `e`, on the frame facing the way `e` faces. A clip started over
  *  another keeps the sheet that one will return to. A ClipEnd::Hold clip stays on its last frame
  *  until stop_clip.
  *  @pre `e` has transform, sprite and animation rows, and `clip` has a positive frame_duration.
  */
-void play_clip(corundum::entities::SpriteTable &sprites, corundum::entities::AnimationTable &animations,
-               const corundum::entities::FacingTable &facings, corundum::entities::ClipTable &clips,
-               corundum::entities::EntityId e, const corundum::entities::Clip &clip) noexcept;
+void play_clip(entities::SpriteTable &sprites, entities::AnimationTable &animations,
+               const entities::FacingTable &facings, entities::ClipTable &clips, entities::EntityId e,
+               const entities::Clip &clip) noexcept;
 
 /** End `e`'s clip now, putting it back on the sheet the clip interrupted.
  *
@@ -69,9 +69,8 @@ void play_clip(corundum::entities::SpriteTable &sprites, corundum::entities::Ani
  *  @note An entity with no clip row is a no-op. Ending a ClipEnd::Remove clip cancels the removal
  *        it would have caused, keeping the entity.
  */
-void stop_clip(corundum::entities::SpriteTable &sprites, corundum::entities::AnimationTable &animations,
-               const corundum::entities::FacingTable &facings, corundum::entities::ClipTable &clips,
-               corundum::entities::EntityId e) noexcept;
+void stop_clip(entities::SpriteTable &sprites, entities::AnimationTable &animations,
+               const entities::FacingTable &facings, entities::ClipTable &clips, entities::EntityId e) noexcept;
 
 /** Advance every playing clip by one fixed timestep, at its own frame_duration.
  *
@@ -89,8 +88,8 @@ void stop_clip(corundum::entities::SpriteTable &sprites, corundum::entities::Ani
  *       rows.
  *  Performance: O(n) over playing clips. No heap allocation.
  */
-void update_clips(corundum::entities::SpriteTable &sprites, const corundum::entities::TransformTable &transforms,
-                  corundum::entities::AnimationTable &animations, const corundum::entities::FacingTable &facings,
-                  corundum::entities::ClipTable &clips, float dt) noexcept;
+void update_clips(entities::SpriteTable &sprites, const entities::TransformTable &transforms,
+                  entities::AnimationTable &animations, const entities::FacingTable &facings,
+                  entities::ClipTable &clips, float dt) noexcept;
 
 } // namespace corundum::animation

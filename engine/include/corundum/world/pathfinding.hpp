@@ -53,10 +53,9 @@ namespace corundum::world {
  *       transform table is skipped rather than treated as an obstacle.
  *  @return Ordered waypoints from the first step after `start` through `goal`.
  */
-[[nodiscard]] std::vector<TileCoord>
-find_path(const MapView &map, TileCoord start, TileCoord goal,
-          const corundum::entities::CollisionTable *npc_collisions = nullptr,
-          const corundum::entities::TransformTable *npc_transforms = nullptr,
-          corundum::entities::EntityId exclude = corundum::entities::EntityId::invalid());
+[[nodiscard]] std::vector<TileCoord> find_path(const MapView &map, TileCoord start, TileCoord goal,
+                                               const entities::CollisionTable *npc_collisions = nullptr,
+                                               const entities::TransformTable *npc_transforms = nullptr,
+                                               entities::EntityId exclude = entities::EntityId::invalid());
 
 } // namespace corundum::world

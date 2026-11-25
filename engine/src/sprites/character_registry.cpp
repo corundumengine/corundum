@@ -90,10 +90,9 @@ std::expected<void, std::string> CharacterRegistry::load_sheet(const core::Conte
   // the log rather than discovered in play.
   for (const auto &entry : data.sprites) {
     if (!entry.footprint_authored)
-      corundum::detail::warn_log(
-          "[engine] WARN: sprite '{}/{}' declares no complete footprint; using {:.2f} x {:.2f} tiles "
-          "— set one in spritesmith",
-          data.id, entry.name, entry.footprint_col_span, entry.footprint_row_span);
+      detail::warn_log("[engine] WARN: sprite '{}/{}' declares no complete footprint; using {:.2f} x {:.2f} tiles "
+                       "— set one in spritesmith",
+                       data.id, entry.name, entry.footprint_col_span, entry.footprint_row_span);
   }
 
   for (auto &entry : data.sprites) {

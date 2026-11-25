@@ -31,7 +31,7 @@ enum class ItemCategory : uint8_t { Apparel, Misc, Potion, Weapon };
 [[nodiscard]] std::optional<ItemCategory> category_from_dir_name(std::string_view name) noexcept;
 
 /** FlagStore key prefix for an item's runtime count: `item.<id>`. */
-inline constexpr std::string_view k_flag_prefix = gameplay::k_item_flag_prefix;
+inline constexpr std::string_view k_flag_prefix = k_item_flag_prefix;
 
 /** True when `flag_key` names a held item and `count` is positive.
  *

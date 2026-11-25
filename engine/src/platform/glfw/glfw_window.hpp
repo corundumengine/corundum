@@ -29,7 +29,7 @@ enum class WindowError : std::uint8_t {
 /** Human-readable form of `error`, for diagnostics. */
 [[nodiscard]] std::string_view to_string(WindowError error) noexcept;
 
-class GLFWWindow final : public corundum::platform::Window {
+class GLFWWindow final : public Window {
 public:
   /** Factory method to safely create a window. */
   [[nodiscard]] static std::expected<std::unique_ptr<GLFWWindow>, WindowError>
@@ -47,18 +47,18 @@ public:
 
   void close() override;
   void show() override;
-  void poll_game_input(corundum::input::InputMapper &mapper, corundum::platform::PlatformEvents &events) override;
+  void poll_game_input(input::InputMapper &mapper, platform::PlatformEvents &events) override;
 
   /** @return {0, 0} once the underlying GLFW window no longer exists. */
-  [[nodiscard]] corundum::core::math::IntSize size() const override;
+  [[nodiscard]] core::math::IntSize size() const override;
 
   void set_vsync(bool enabled) override;
 
-  void set_window_mode(corundum::core::WindowMode mode) override;
+  void set_window_mode(core::WindowMode mode) override;
 
-  [[nodiscard]] corundum::core::WindowMode window_mode() const override;
+  [[nodiscard]] core::WindowMode window_mode() const override;
 
-  [[nodiscard]] std::string input_label(corundum::input::PhysicalInput input) const override;
+  [[nodiscard]] std::string input_label(input::PhysicalInput input) const override;
 
   [[nodiscard]] void *native_handle() const noexcept override;
 

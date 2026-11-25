@@ -69,7 +69,7 @@ struct ActionError {
  *                 `zone.<zone_id>.<key>`. Empty means no scoping.
  *  @return All EventActions found, in order.
  */
-[[nodiscard]] std::vector<EventAction>
-execute_actions(std::span<const std::string> actions, corundum::world::FlagStore &flags, std::string_view zone_id = {});
+[[nodiscard]] std::vector<EventAction> execute_actions(std::span<const std::string> actions, world::FlagStore &flags,
+                                                       std::string_view zone_id = {});
 
 } // namespace corundum::gameplay::dialogue

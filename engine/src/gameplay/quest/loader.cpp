@@ -113,8 +113,8 @@ json load_validated_root(const core::SchemaValidator &schema, const core::Conten
 
   // The "type" field is optional — directory context already tells us the type.
   if (root.contains("type") && root["type"].is_string() && root["type"] != "quest")
-    corundum::detail::warn_log(R"([warning] quest file {} has type "{}" instead of "quest")", path,
-                               root["type"].get<std::string>());
+    detail::warn_log(R"([warning] quest file {} has type "{}" instead of "quest")", path,
+                     root["type"].get<std::string>());
 
   return root;
 }
@@ -142,7 +142,7 @@ Quest load_quest_impl(const core::SchemaValidator &schema, const core::ContentSo
   if (!validation.ok())
     throw LoadError(std::format("[{}] {}", k_ctx, validation.errors.front()));
   for (const auto &warning : validation.warnings)
-    corundum::detail::warn_log("[warning] quest {}: {}", path, warning);
+    detail::warn_log("[warning] quest {}: {}", path, warning);
 
   return quest;
 }

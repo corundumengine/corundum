@@ -28,7 +28,7 @@ namespace {
 
 } // namespace
 
-Lifecycle lifecycle(const Quest &quest, const corundum::world::FlagStore &flags) {
+Lifecycle lifecycle(const Quest &quest, const world::FlagStore &flags) {
   const int stage_seq = get_stage(quest.quest_id, flags);
   if (stage_seq <= 0)
     return Lifecycle::NotStarted;
@@ -42,19 +42,19 @@ Lifecycle lifecycle(const Quest &quest, const corundum::world::FlagStore &flags)
   return Lifecycle::Active;
 }
 
-const Stage *current_stage(const Quest &quest, const corundum::world::FlagStore &flags) {
+const Stage *current_stage(const Quest &quest, const world::FlagStore &flags) {
   return stage_for_sequence(quest, get_stage(quest.quest_id, flags));
 }
 
-bool objective_done(const Objective &objective, const corundum::world::FlagStore &flags, const Registry *quests,
+bool objective_done(const Objective &objective, const world::FlagStore &flags, const Registry *quests,
                     std::string_view zone_id) {
   if (!objective.done_condition.has_value())
     return false;
   return dialogue::evaluate(*objective.done_condition, flags, quests, {}, zone_id);
 }
 
-std::vector<ObjectiveView> objectives(const Quest &quest, const corundum::world::FlagStore &flags,
-                                      const Registry *quests, std::string_view zone_id) {
+std::vector<ObjectiveView> objectives(const Quest &quest, const world::FlagStore &flags, const Registry *quests,
+                                      std::string_view zone_id) {
   const auto *stage = current_stage(quest, flags);
   if (stage == nullptr)
     return {};

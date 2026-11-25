@@ -28,8 +28,7 @@ namespace corundum::physics {
  *  @param graph     Walkability graph to test against, or std::nullopt to disable (no-op).
  *                   Populated in both single-map and world mode (see MapView::walkability).
  */
-void resolve_walkability(
-    corundum::entities::Position &pos, corundum::entities::Position prev_pos,
-    std::optional<std::reference_wrapper<const corundum::world::tilemap::WalkabilityGraph>> graph) noexcept;
+void resolve_walkability(entities::Position &pos, entities::Position prev_pos,
+                         std::optional<std::reference_wrapper<const world::tilemap::WalkabilityGraph>> graph) noexcept;
 
 } // namespace corundum::physics

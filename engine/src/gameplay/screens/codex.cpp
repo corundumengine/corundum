@@ -33,7 +33,7 @@ namespace corundum::gameplay::screens {
 
 namespace {
 
-std::string_view category_label(const gameplay::codex::CodexEntry &entry) noexcept {
+std::string_view category_label(const codex::CodexEntry &entry) noexcept {
   return entry.category.empty() ? std::string_view{"Lore"} : std::string_view{entry.category};
 }
 
@@ -66,7 +66,7 @@ struct CodexGeometry {
 };
 
 /** Flatten entries into header/entry rows and scroll the window to keep `cursor` visible. */
-std::vector<CodexRow> build_codex_rows(const std::vector<gameplay::codex::CodexEntry> &entries) {
+std::vector<CodexRow> build_codex_rows(const std::vector<codex::CodexEntry> &entries) {
   std::vector<CodexRow> rows;
   std::string_view last_category;
   for (int i = 0; std::cmp_less(i, entries.size()); ++i) {
@@ -90,9 +90,8 @@ float codex_row_y(const CodexGeometry &geometry, int index) noexcept {
   return geometry.content_top + (static_cast<float>(index - geometry.first_row) * geometry.line_h);
 }
 
-CodexGeometry compute_codex_geometry(const ui::PanelStyle &style,
-                                     const std::vector<gameplay::codex::CodexEntry> &entries, int cursor,
-                                     core::math::Vec2 viewport) {
+CodexGeometry compute_codex_geometry(const ui::PanelStyle &style, const std::vector<codex::CodexEntry> &entries,
+                                     int cursor, core::math::Vec2 viewport) {
   constexpr float k_pad = 20.f;
   constexpr float k_split_frac = 0.42f;
 
@@ -133,20 +132,19 @@ CodexGeometry compute_codex_geometry(const ui::PanelStyle &style,
 
 } // namespace
 
-std::vector<gameplay::codex::CodexEntry> build_codex_entries(const gameplay::codex::Registry &registry,
-                                                             const world::FlagStore &flags) {
-  std::vector<gameplay::codex::CodexEntry> entries;
+std::vector<codex::CodexEntry> build_codex_entries(const codex::Registry &registry, const world::FlagStore &flags) {
+  std::vector<codex::CodexEntry> entries;
   for (const auto &[id, entry] : registry) {
-    if (world::has_flag(flags, gameplay::codex::flag_key(id)))
+    if (world::has_flag(flags, codex::flag_key(id)))
       entries.push_back(entry);
   }
-  std::ranges::sort(entries, {}, [](const gameplay::codex::CodexEntry &entry) {
+  std::ranges::sort(entries, {}, [](const codex::CodexEntry &entry) {
     return std::tuple{std::string{category_label(entry)}, entry.title};
   });
   return entries;
 }
 
-void refresh_codex(CodexState &state, const gameplay::codex::Registry &registry, const world::FlagStore &flags) {
+void refresh_codex(CodexState &state, const codex::Registry &registry, const world::FlagStore &flags) {
   if (!state.dirty)
     return;
   state.entries = build_codex_entries(registry, flags);
@@ -155,8 +153,8 @@ void refresh_codex(CodexState &state, const gameplay::codex::Registry &registry,
 }
 
 CodexLayout codex_panel_layout(const platform::Renderer & /*r*/, const ui::PanelStyle &style,
-                               const std::vector<gameplay::codex::CodexEntry> &entries, int cursor,
-                               core::math::Vec2 viewport, input::InputDevice /*last_device*/) {
+                               const std::vector<codex::CodexEntry> &entries, int cursor, core::math::Vec2 viewport,
+                               input::InputDevice /*last_device*/) {
   const CodexGeometry geometry = compute_codex_geometry(style, entries, cursor, viewport);
 
   CodexLayout layout{};
@@ -230,7 +228,7 @@ void draw_codex_chrome(platform::Renderer &renderer, const ui::PanelStyle &style
 
 /** The entry list, or the placeholder line when the registry has no entries. */
 void draw_codex_list(platform::Renderer &renderer, const ui::PanelStyle &style, const CodexGeometry &geometry,
-                     const std::vector<gameplay::codex::CodexEntry> &entries) {
+                     const std::vector<codex::CodexEntry> &entries) {
   const ui::FontFamily &ui_fonts = style.family(ui::FontRole::Ui);
   if (entries.empty()) {
     renderer.draw(platform::DrawText{
@@ -264,7 +262,7 @@ void draw_codex_list(platform::Renderer &renderer, const ui::PanelStyle &style, 
 
 /** The selected entry's title and wrapped body, scrolled by `scroll` lines. */
 void draw_codex_body(platform::Renderer &renderer, const ui::PanelStyle &style, const CodexGeometry &geometry,
-                     const gameplay::codex::CodexEntry &selected, float scroll) {
+                     const codex::CodexEntry &selected, float scroll) {
   const ui::FontFamily &quest_fonts = style.family(ui::FontRole::Quest);
   const auto measure = [&](std::string_view text, ui::FontStyle font_style) -> float {
     return renderer.measure_text(quest_fonts.get(font_style), text, style.font_size_body);
@@ -295,7 +293,7 @@ void draw_codex_body(platform::Renderer &renderer, const ui::PanelStyle &style, 
 } // namespace
 
 void codex_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style, const ui::NinePatchBorder &border,
-                        const std::vector<gameplay::codex::CodexEntry> &entries, int cursor, float scroll,
+                        const std::vector<codex::CodexEntry> &entries, int cursor, float scroll,
                         core::math::Vec2 viewport, input::InputDevice last_device) {
   const CodexGeometry geometry = compute_codex_geometry(style, entries, cursor, viewport);
   draw_codex_chrome(renderer, style, border, geometry, viewport, last_device);

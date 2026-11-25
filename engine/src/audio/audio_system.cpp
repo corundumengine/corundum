@@ -84,13 +84,13 @@ void AudioSystem::load_catalog(const core::ContentSource &content, std::string_v
 
   auto json_result = core::read_json(content, catalog_path);
   if (!json_result) {
-    corundum::detail::warn_log("[audio] WARN: Sound catalog unavailable ({}): {}", catalog_path, json_result.error());
+    detail::warn_log("[audio] WARN: Sound catalog unavailable ({}): {}", catalog_path, json_result.error());
     return;
   }
   const nlohmann::json &j = *json_result;
 
   if (!j.is_object()) {
-    corundum::detail::warn_log("[audio] WARN: Sound catalog must be a JSON object: {}", catalog_path);
+    detail::warn_log("[audio] WARN: Sound catalog must be a JSON object: {}", catalog_path);
     return;
   }
 
@@ -101,7 +101,7 @@ void AudioSystem::load_catalog(const core::ContentSource &content, std::string_v
     catalog_.emplace(key, value.get<std::string>());
   }
 
-  corundum::detail::info_log("[audio] Loaded {} sound catalog entries", catalog_.size());
+  detail::info_log("[audio] Loaded {} sound catalog entries", catalog_.size());
 }
 
 std::expected<SoundInstanceId, std::string> AudioSystem::play_sound(std::string_view name, float volume, bool loop,

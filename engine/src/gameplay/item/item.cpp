@@ -132,7 +132,7 @@ std::vector<LoadedBatch> load_batch_files(const core::ContentSource &content, co
 
     auto result = loader.load(content, file_entry.path, category);
     if (!result) {
-      corundum::detail::warn_log("[item] skipping '{}': {}", file_entry.name, result.error());
+      detail::warn_log("[item] skipping '{}': {}", file_entry.name, result.error());
       continue;
     }
 
@@ -218,15 +218,15 @@ Loader::load(const core::ContentSource &content, const std::filesystem::path &pa
   for (const auto &elem : items_arr) {
     json element = elem;
     if (element.contains("category"))
-      corundum::detail::warn_log("[item] '{}': explicit 'category' is overridden by the folder; use category folders "
-                                 "instead of writing 'category' by hand",
-                                 path_string);
+      detail::warn_log("[item] '{}': explicit 'category' is overridden by the folder; use category folders "
+                       "instead of writing 'category' by hand",
+                       path_string);
     // The category folder is authoritative; inject it before validating.
     element["category"] = to_string(category);
 
     auto validation = schema_.validate(element);
     if (!validation) {
-      corundum::detail::warn_log("[item] skipping invalid item in '{}': {}", path_string, validation.error());
+      detail::warn_log("[item] skipping invalid item in '{}': {}", path_string, validation.error());
       continue;
     }
 
@@ -239,7 +239,7 @@ Loader::load(const core::ContentSource &content, const std::filesystem::path &pa
 int Registry::load_all(const core::ContentSource &content, const std::filesystem::path &dir) {
   const auto categories = content.list(dir, {});
   if (!categories) {
-    corundum::detail::warn_log("[item] no item directory at '{}'", dir.string());
+    detail::warn_log("[item] no item directory at '{}'", dir.string());
     return 0;
   }
 
@@ -251,7 +251,7 @@ int Registry::load_all(const core::ContentSource &content, const std::filesystem
 
     const auto category = category_from_dir_name(category_entry.name);
     if (!category) {
-      corundum::detail::warn_log("[item] unknown category folder '{}', skipping", category_entry.name);
+      detail::warn_log("[item] unknown category folder '{}', skipping", category_entry.name);
       continue;
     }
 
@@ -267,7 +267,7 @@ int Registry::add_batch(std::vector<Item> &batch, const std::string &file_name) 
   for (Item &item : batch) {
     const std::string id = item.id;
     if (items_.contains(id)) {
-      corundum::detail::warn_log("[item] duplicate item id '{}' — '{}' is shadowed", id, file_name);
+      detail::warn_log("[item] duplicate item id '{}' — '{}' is shadowed", id, file_name);
       continue;
     }
     items_.emplace(id, std::move(item));

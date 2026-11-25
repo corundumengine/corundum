@@ -17,7 +17,7 @@ namespace corundum::gameplay::quest {
 int Registry::load_all(const core::ContentSource &content, const std::filesystem::path &dir) {
   const auto entries = content.list(dir, {.extensions = {"json"}});
   if (!entries) {
-    corundum::detail::warn_log("[quest] cannot read quest directory '{}': {}", dir.string(), entries.error());
+    detail::warn_log("[quest] cannot read quest directory '{}': {}", dir.string(), entries.error());
     return 0;
   }
 
@@ -29,13 +29,13 @@ int Registry::load_all(const core::ContentSource &content, const std::filesystem
 
     auto result = loader.load(content, entry.path);
     if (!result) {
-      corundum::detail::warn_log("[quest] skipping '{}': {}", entry.name, result.error());
+      detail::warn_log("[quest] skipping '{}': {}", entry.name, result.error());
       continue;
     }
 
     const std::string_view id = result->quest_id;
     if (quests_.contains(id)) {
-      corundum::detail::warn_log("[quest] duplicate quest id '{}' — '{}' is shadowed", id, entry.name);
+      detail::warn_log("[quest] duplicate quest id '{}' — '{}' is shadowed", id, entry.name);
     } else {
       quests_.emplace(std::string(id), std::move(*result));
       ++loaded;

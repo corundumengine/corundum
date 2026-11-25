@@ -25,7 +25,7 @@ namespace corundum::gameplay::quest {
  */
 class Runner {
 public:
-  Runner(const Registry &registry, corundum::world::FlagStore &flags) noexcept : registry_(&registry), flags_(&flags) {}
+  Runner(const Registry &registry, world::FlagStore &flags) noexcept : registry_(&registry), flags_(&flags) {}
 
   /** Start a quest by id.
    *
@@ -50,7 +50,7 @@ private:
    *  (cppcoreguidelines-avoid-const-or-ref-data-members). Both are non-null by construction.
    */
   const Registry *registry_;
-  corundum::world::FlagStore *flags_;
+  world::FlagStore *flags_;
 };
 
 } // namespace corundum::gameplay::quest

@@ -18,7 +18,7 @@ namespace corundum::gameplay::codex {
 int Registry::load_all(const core::ContentSource &content, const std::filesystem::path &dir) {
   const auto entries = content.list(dir, {.extensions = {"json"}});
   if (!entries) {
-    corundum::detail::warn_log("[codex] cannot read codex directory '{}': {}", dir.string(), entries.error());
+    detail::warn_log("[codex] cannot read codex directory '{}': {}", dir.string(), entries.error());
     return 0;
   }
 
@@ -30,14 +30,14 @@ int Registry::load_all(const core::ContentSource &content, const std::filesystem
 
     auto result = loader.load(content, entry.path);
     if (!result) {
-      corundum::detail::warn_log("[codex] skipping '{}': {}", entry.name, result.error());
+      detail::warn_log("[codex] skipping '{}': {}", entry.name, result.error());
       continue;
     }
 
     for (auto &codex_entry : *result) {
       const std::string id = codex_entry.id;
       if (entries_.contains(id)) {
-        corundum::detail::warn_log("[codex] duplicate entry id '{}' — '{}' is shadowed", id, entry.name);
+        detail::warn_log("[codex] duplicate entry id '{}' — '{}' is shadowed", id, entry.name);
       } else {
         entries_.emplace(id, std::move(codex_entry));
         ++loaded;

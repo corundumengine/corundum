@@ -21,8 +21,8 @@ namespace {
 [[nodiscard]] bool matches_extensions(const std::filesystem::path &path, std::span<const std::string> extensions) {
   if (extensions.empty())
     return true;
-  return std::ranges::any_of(
-      extensions, [&path](const std::string &extension) { return corundum::core::has_extension(path, extension); });
+  return std::ranges::any_of(extensions,
+                             [&path](const std::string &extension) { return core::has_extension(path, extension); });
 }
 
 [[nodiscard]] const OpenRequest *find_open_request(const FileBrowserState &fb) {
@@ -33,7 +33,7 @@ namespace {
 
 /** Append `extension` to `name` unless `name` already ends in it. */
 [[nodiscard]] std::string with_extension(std::string_view name, std::string_view extension) {
-  const bool already_has_extension = corundum::core::has_extension(std::filesystem::path{name}, extension);
+  const bool already_has_extension = core::has_extension(std::filesystem::path{name}, extension);
   if (extension.empty() || already_has_extension)
     return std::string{name};
   std::string extended{name};
@@ -49,7 +49,7 @@ void refresh_entries(FileBrowserState &fb) {
   fb.entries.clear();
   fb.selected_entry.reset();
   const OpenRequest *open = find_open_request(fb);
-  auto listed = corundum::core::list_dir_entries(fb.current_dir);
+  auto listed = core::list_dir_entries(fb.current_dir);
   if (!listed) {
     std::print(stderr, "file_browser: failed to list {}: {}\n", fb.current_dir.string(), listed.error());
     return;
@@ -86,7 +86,7 @@ std::optional<std::filesystem::path> confirm_path(const FileBrowserState &fb) {
   if (std::holds_alternative<OpenRequest>(*fb.request)) {
     if (!fb.selected_entry || *fb.selected_entry >= fb.entries.size())
       return std::nullopt;
-    const corundum::core::DirEntry &entry = fb.entries[*fb.selected_entry];
+    const core::DirEntry &entry = fb.entries[*fb.selected_entry];
     if (entry.is_dir)
       return std::nullopt;
     return entry.path;

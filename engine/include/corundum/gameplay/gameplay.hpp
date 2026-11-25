@@ -497,7 +497,7 @@ private:
    *
    *  @pre The top UI mode is Exploring and `target` names a live interactable entity.
    */
-  void try_interact(corundum::entities::EntityId target);
+  void try_interact(entities::EntityId target);
 
   Engine *engine_{nullptr};
 

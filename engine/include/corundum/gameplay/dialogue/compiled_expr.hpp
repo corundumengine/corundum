@@ -111,7 +111,7 @@ public:
 
 private:
   friend std::expected<CompiledExpr, ExprError> compile(std::string_view src);
-  friend bool evaluate(const CompiledExpr &expr, const corundum::world::FlagStore &vars, const quest::Registry *quests,
+  friend bool evaluate(const CompiledExpr &expr, const world::FlagStore &vars, const quest::Registry *quests,
                        std::string_view graph_id, std::string_view zone_id);
 
   std::vector<ExprNode> nodes_;
@@ -139,7 +139,7 @@ private:
  *                `zone.<zone_id>.<key>` before lookup. Empty means no scoping.
  *  @return True when the expression holds.
  */
-[[nodiscard]] bool evaluate(const CompiledExpr &expr, const corundum::world::FlagStore &vars,
+[[nodiscard]] bool evaluate(const CompiledExpr &expr, const world::FlagStore &vars,
                             const quest::Registry *quests = nullptr, std::string_view graph_id = {},
                             std::string_view zone_id = {});
 

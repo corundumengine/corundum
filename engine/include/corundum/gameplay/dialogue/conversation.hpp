@@ -46,7 +46,7 @@ public:
    *  @param graphs  Dialogue registry resolving goto_graph targets; may be nullptr.
    *  @param zone_id Current zone for `local.<key>` state; empty disables scoping.
    */
-  Conversation(const Graph &graph, corundum::world::FlagStore &flags, const quest::Registry *quests = nullptr,
+  Conversation(const Graph &graph, world::FlagStore &flags, const quest::Registry *quests = nullptr,
                const Registry *graphs = nullptr, std::string zone_id = {});
 
   /** Advance the conversation by this frame's input actions.
@@ -175,7 +175,7 @@ private:
   bool active_ = false;
   std::vector<std::pair<const Graph *, std::string>> call_stack_;
   std::string current_id_;
-  corundum::world::FlagStore *flags_;
+  world::FlagStore *flags_;
   const Graph *graph_ = nullptr;
   const Registry *graphs_ = nullptr;
   const quest::Registry *quests_ = nullptr;

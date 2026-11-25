@@ -16,11 +16,11 @@ namespace corundum::gameplay::dialogue {
  *  The saved values are set only when the NPC had the corresponding component at bind time.
  */
 struct DialogueNpc {
-  corundum::entities::EntityId entity{};
+  entities::EntityId entity{};
 
-  std::optional<corundum::sprites::AnimId> saved_anim{};
+  std::optional<sprites::AnimId> saved_anim{};
 
-  std::optional<corundum::core::Direction> saved_facing{};
+  std::optional<core::Direction> saved_facing{};
 };
 
 } // namespace corundum::gameplay::dialogue

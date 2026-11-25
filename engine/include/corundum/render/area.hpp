@@ -32,7 +32,7 @@ namespace corundum::render {
  *
  *  @post mode(state) is RenderMode::None and state.area_texture_ids is empty.
  */
-void unload_world(corundum::platform::Renderer &renderer, render::RenderState &state);
+void unload_world(platform::Renderer &renderer, RenderState &state);
 
 /** Load a single tilemap for map mode.
  *  @param renderer      Renderer for tileset texture loading.
@@ -42,18 +42,18 @@ void unload_world(corundum::platform::Renderer &renderer, render::RenderState &s
  *  @return ok on success, or an error string on failure.
  *  @post On failure, mode(state) is RenderMode::None and state.area_texture_ids is empty.
  */
-[[nodiscard]] std::expected<void, std::string> load_map(const corundum::core::ContentSource &content,
-                                                        corundum::platform::Renderer &renderer,
-                                                        render::RenderState &state, const std::string &tilemap_path,
-                                                        const corundum::core::GameConfig &config);
+[[nodiscard]] std::expected<void, std::string> load_map(const core::ContentSource &content,
+                                                        platform::Renderer &renderer, RenderState &state,
+                                                        const std::string &tilemap_path,
+                                                        const core::GameConfig &config);
 
 /** What load_world() hands back so the caller can spawn the game world: the world's
  *  isometric projection and the spawn tile (the manifest centre unless WorldLoadParams overrides it).
  */
 struct WorldLoadInfo {
-  corundum::core::math::IsometricParams projection{};
+  core::math::IsometricParams projection{};
 
-  corundum::core::math::TilePos spawn_tile{};
+  core::math::TilePos spawn_tile{};
 };
 
 /** Optional spawn parameters for a (re)load of the world in world mode.
@@ -87,9 +87,10 @@ struct WorldLoadParams {
  *  @post On success, std::holds_alternative<WorldArea>(state.area) and the window is non-empty.
  *        On failure, mode(state) is RenderMode::None and state.area_texture_ids is empty.
  */
-[[nodiscard]] std::expected<WorldLoadInfo, std::string>
-load_world(const corundum::core::ContentSource &content, corundum::platform::Renderer &renderer,
-           render::RenderState &state, const corundum::core::GameConfig &config, const WorldLoadParams &params = {});
+[[nodiscard]] std::expected<WorldLoadInfo, std::string> load_world(const core::ContentSource &content,
+                                                                   platform::Renderer &renderer, RenderState &state,
+                                                                   const core::GameConfig &config,
+                                                                   const WorldLoadParams &params = {});
 
 /** Advance World-mode chunk streaming by one frame.
  *
@@ -101,7 +102,7 @@ load_world(const corundum::core::ContentSource &content, corundum::platform::Ren
  *  outside World mode or before any chunk is resident. Chunks are read through the content
  *  source load_world() was given.
  */
-void stream_world_chunks(corundum::platform::Renderer &renderer, render::RenderState &state,
-                         const corundum::core::GameConfig &config, const corundum::world::Scene &scene);
+void stream_world_chunks(platform::Renderer &renderer, RenderState &state, const core::GameConfig &config,
+                         const world::Scene &scene);
 
 } // namespace corundum::render

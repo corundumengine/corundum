@@ -33,8 +33,8 @@ struct MapEntry {
  *  set when the location's zone equals `zone_id`, so the map can mark where the player is.
  *  The row count is what the map cursor wraps against.
  */
-[[nodiscard]] std::vector<MapEntry> build_map_entries(const gameplay::location::Registry &registry,
-                                                      const world::FlagStore &flags, std::string_view zone_id = {});
+[[nodiscard]] std::vector<MapEntry> build_map_entries(const location::Registry &registry, const world::FlagStore &flags,
+                                                      std::string_view zone_id = {});
 
 /** Map-screen state: the highlighted row and the first visible destination. */
 struct MapState {

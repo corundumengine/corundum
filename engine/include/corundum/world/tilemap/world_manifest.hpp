@@ -89,7 +89,7 @@ struct WorldManifest {
  *  @pre iso.half_tw > 0, iso.half_th > 0, and `m` has positive chunk_size, chunks_wide and chunks_tall.
  */
 [[nodiscard]] ChunkCoord chunk_at_iso(float iso_x, float iso_y, const WorldManifest &m,
-                                      const corundum::core::math::IsometricParams &iso) noexcept;
+                                      const core::math::IsometricParams &iso) noexcept;
 
 /** World-space extent of a `tiles_wide` × `tiles_tall` isometric grid, in display pixels.
  *
@@ -97,8 +97,8 @@ struct WorldManifest {
  *  scales by its own half extent, so a non-square diamond yields distinct width and height.
  *  @pre half_tw > 0 and half_th > 0.
  */
-[[nodiscard]] corundum::world::WorldBounds world_bounds_for_tiles(int tiles_wide, int tiles_tall, float half_tw,
-                                                                  float half_th) noexcept;
+[[nodiscard]] world::WorldBounds world_bounds_for_tiles(int tiles_wide, int tiles_tall, float half_tw,
+                                                        float half_th) noexcept;
 
 /** Total isometric world extent in display pixels.
  *  Uses the manifest's effective tile counts — tiles_wide/tiles_tall, or the full
@@ -108,8 +108,7 @@ struct WorldManifest {
  *  box.
  *  @pre half_tw > 0 and half_th > 0.
  */
-[[nodiscard]] corundum::world::WorldBounds world_bounds_iso(const WorldManifest &m, float half_tw,
-                                                            float half_th) noexcept;
+[[nodiscard]] world::WorldBounds world_bounds_iso(const WorldManifest &m, float half_tw, float half_th) noexcept;
 
 /** Returns all valid ChunkCoords within `radius` chunks of `center`,
  *  clamped to the world bounds. radius=1 yields up to a 3×3 neighbourhood.

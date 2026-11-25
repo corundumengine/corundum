@@ -22,7 +22,7 @@
 namespace corundum::render {
 
 void rebuild_collision(WorldArea &area) {
-  using namespace corundum::world::tilemap;
+  using namespace world::tilemap;
   area.aggregates.collisions = {};
   area.aggregates.triangles = {};
   if (area.chunks.active_empty())
@@ -55,7 +55,7 @@ void rebuild_world_portals(WorldArea &area) {
     const int oy{chunk.coord.row * chunk_size};
     for (const auto &portal : chunk.portals) {
       area.aggregates.portals.push_back(portal);
-      corundum::world::Portal &agg = area.aggregates.portals.back();
+      world::Portal &agg = area.aggregates.portals.back();
       agg.col += static_cast<float>(ox);
       agg.row += static_cast<float>(oy);
       if (agg.target_chunk_col >= 0 && agg.target_chunk_row >= 0) {
@@ -67,7 +67,7 @@ void rebuild_world_portals(WorldArea &area) {
 }
 
 /** Active chunk owning the global tile cell (gc, gr), or nullptr if outside the window. */
-const render::ChunkEntry *chunk_owner_at(const ChunkWindow &chunks, int gc, int gr, int chunk_size) noexcept {
+const ChunkEntry *chunk_owner_at(const ChunkWindow &chunks, int gc, int gr, int chunk_size) noexcept {
   const int cc = static_cast<int>(std::floor(static_cast<float>(gc) / static_cast<float>(chunk_size)));
   const int cr = static_cast<int>(std::floor(static_cast<float>(gr) / static_cast<float>(chunk_size)));
   const std::optional<std::size_t> slot =
@@ -79,8 +79,8 @@ const render::ChunkEntry *chunk_owner_at(const ChunkWindow &chunks, int gc, int 
 
 /** Elevation of the global tile cell (gc, gr); 0 when no active chunk owns it. */
 int chunk_tile_elevation_at(const ChunkWindow &chunks, int gc, int gr, int chunk_size) noexcept {
-  using corundum::world::tilemap::elevation_at;
-  const render::ChunkEntry *e = chunk_owner_at(chunks, gc, gr, chunk_size);
+  using world::tilemap::elevation_at;
+  const ChunkEntry *e = chunk_owner_at(chunks, gc, gr, chunk_size);
   return e != nullptr ? elevation_at(e->tilemap, gc - (e->coord.col * chunk_size), gr - (e->coord.row * chunk_size))
                       : 0;
 }
@@ -88,10 +88,10 @@ int chunk_tile_elevation_at(const ChunkWindow &chunks, int gc, int gr, int chunk
 /** First walkability pass: clear the edge from each cell to any neighbour whose
  *  elevation differs by more than `max_step_height`.
  */
-void clear_steep_walkability_edges(const ChunkWindow &chunks, corundum::world::tilemap::WalkabilityGraph &g,
-                                   int chunk_size, int max_step_height) {
-  using corundum::world::tilemap::k_walk_neighbors;
-  using corundum::world::tilemap::walk_dir_bit;
+void clear_steep_walkability_edges(const ChunkWindow &chunks, world::tilemap::WalkabilityGraph &g, int chunk_size,
+                                   int max_step_height) {
+  using world::tilemap::k_walk_neighbors;
+  using world::tilemap::walk_dir_bit;
   for (int r = 0; r < g.height; ++r) {
     for (int c = 0; c < g.width; ++c) {
       const int gc = c + g.col_origin;
@@ -115,15 +115,14 @@ void clear_steep_walkability_edges(const ChunkWindow &chunks, corundum::world::t
 /** Second walkability pass: ramp cells force both directions along their axis back open
  *  (mirrors build_walkability_graph's second pass). set_passable() takes global coords.
  */
-void reopen_walkability_ramp_edges(const ChunkWindow &chunks, corundum::world::tilemap::WalkabilityGraph &g,
-                                   int chunk_size) {
-  using corundum::world::tilemap::ramp_axis_at;
-  using corundum::world::tilemap::RampAxis;
+void reopen_walkability_ramp_edges(const ChunkWindow &chunks, world::tilemap::WalkabilityGraph &g, int chunk_size) {
+  using world::tilemap::ramp_axis_at;
+  using world::tilemap::RampAxis;
   for (int r = 0; r < g.height; ++r) {
     for (int c = 0; c < g.width; ++c) {
       const int gc = c + g.col_origin;
       const int gr = r + g.row_origin;
-      const render::ChunkEntry *e = chunk_owner_at(chunks, gc, gr, chunk_size);
+      const ChunkEntry *e = chunk_owner_at(chunks, gc, gr, chunk_size);
       if (e == nullptr)
         continue;
       const std::optional<RampAxis> axis =
@@ -140,7 +139,7 @@ void reopen_walkability_ramp_edges(const ChunkWindow &chunks, corundum::world::t
 } // namespace
 
 void rebuild_world_walkability(WorldArea &area, int max_step_height) {
-  using corundum::world::tilemap::WalkabilityGraph;
+  using world::tilemap::WalkabilityGraph;
 
   area.aggregates.walkability = {};
   if (area.chunks.active_empty())
@@ -166,7 +165,7 @@ void rebuild_world_walkability(WorldArea &area, int max_step_height) {
   g.width = (max_cc - min_cc + 1) * chunk_size;
   g.height = (max_cr - min_cr + 1) * chunk_size;
   g.edges.assign(static_cast<std::size_t>(g.width) * static_cast<std::size_t>(g.height),
-                 corundum::world::tilemap::k_all_walk_dirs);
+                 world::tilemap::k_all_walk_dirs);
 
   clear_steep_walkability_edges(area.chunks, g, chunk_size, max_step_height);
   reopen_walkability_ramp_edges(area.chunks, g, chunk_size);
