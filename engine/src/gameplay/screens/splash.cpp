@@ -3,9 +3,14 @@
 
 #include <corundum/gameplay/screens/splash.hpp>
 
+#include "gameplay/screens/screen_handlers.hpp"
+
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/gameplay.hpp>
+#include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/resource_ids.hpp>
+#include <corundum/ui/screen_transition.hpp>
 
 #include <algorithm>
 
@@ -34,6 +39,49 @@ void splash_render(platform::Renderer &renderer, core::math::Vec2 viewport, cons
       .source = {.x = 0, .y = 0, .width = static_cast<int>(image.size.x), .height = static_cast<int>(image.size.y)},
       .scale = {.x = scale, .y = scale},
   });
+}
+
+/** Step the Splash screen. engine.screen_transition carries each image's fade: the image fades
+ *  in from black, holds for screens::k_splash_hold_seconds, then fades out, each fade taking
+ *  screens::k_splash_fade_seconds. The first image first waits out
+ *  screens::k_splash_initial_delay_seconds at black. Once the fade-out reaches black, the next
+ *  image (or the first screen) takes over. Activate, Cancel or a click jumps straight to the
+ *  fade-out, including from part-way through the fade-in or the initial delay.
+ */
+void update_splash(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+  ui::ScreenTransition &fade = engine.screen_transition;
+  SplashState &state = gameplay.splash_screen;
+  const bool skip_requested = intent.activate || intent.back || intent.cursor_clicked;
+  switch (fade.phase()) {
+    case ui::TransitionPhase::FadingOut: return;
+    case ui::TransitionPhase::FadingIn:
+      if (skip_requested) {
+        fade.begin_fade_out(k_splash_fade_seconds);
+        return;
+      }
+      if (state.initial_delay_seconds > 0.f) {
+        // screen_transition.update() ran before this step and lowered alpha; re-arm to full
+        // black so the image stays hidden until the delay elapses.
+        state.initial_delay_seconds = std::max(0.f, state.initial_delay_seconds - engine.timer.target_dt);
+        fade.begin_fade_in(k_splash_fade_seconds);
+      }
+      return;
+    case ui::TransitionPhase::None: break;
+  }
+  if (fade.at_black()) {
+    gameplay.advance_splash();
+    return;
+  }
+  state.shown_seconds += engine.timer.target_dt;
+  if (skip_requested || state.shown_seconds >= k_splash_hold_seconds)
+    fade.begin_fade_out(k_splash_fade_seconds);
+}
+
+void render_splash(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+                   core::math::Vec2 viewport) {
+  if (engine.scene.mode() != Splash)
+    return;
+  splash_render(renderer, viewport, gameplay.splash_screen);
 }
 
 } // namespace corundum::gameplay::screens

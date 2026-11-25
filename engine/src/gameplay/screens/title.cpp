@@ -4,15 +4,24 @@
 #include <corundum/gameplay/screens/title.hpp>
 
 #include "gameplay/screens/framing_menu.hpp"
+#include "gameplay/screens/screen_handlers.hpp"
+#include "gameplay/screens/screen_input.hpp"
 
+#include <corundum/core/game_config.hpp>
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/gameplay.hpp>
+#include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/ui/input_glyph.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
+#include <corundum/ui/settings.hpp>
+#include <corundum/ui/ui_draw.hpp>
+#include <corundum/world/ui_stack.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <format>
@@ -106,6 +115,89 @@ void title_panel_render(platform::Renderer &renderer, const ui::PanelStyle &styl
   detail::framing_menu_render(renderer, style, border, framing, labels,
                               std::span<const bool>(enabled).first(labels.size()), state.cursor, title,
                               title_footer(last_device), viewport);
+}
+
+namespace {
+
+/** Move the title cursor by `delta`, wrapping and skipping disabled rows (Continue when no
+ *  save exists). No-op when every row is disabled, which cannot happen today. The row count
+ *  follows the Credits row's visibility, so the cursor never lands on a hidden row.
+ */
+void move_title_cursor(Gameplay &gameplay, int delta) noexcept {
+  TitleState &state = gameplay.title_screen;
+  const int rows = title_visible_row_count(state.credits_available);
+  int row = std::clamp(state.cursor, 0, rows - 1);
+  for (int step = 0; step < rows; ++step) {
+    row = wrap_cursor(row, delta, rows);
+    if (title_row_enabled(title_row_at(row, state.credits_available), state.continue_available)) {
+      state.cursor = row;
+      return;
+    }
+  }
+}
+
+/** Apply mouse intent to the title: a hovered enabled row takes focus and the wheel moves the cursor. */
+void apply_title_pointer(const Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+  if (!pointer_active(intent))
+    return;
+  TitleState &state = gameplay.title_screen;
+  const TitleLayout layout =
+      title_panel_layout(engine.renderer(), engine.render.panel_skin.style, state, core::game_title(engine.config),
+                         screen_viewport(engine), engine.input_mapper.last_device());
+  const core::math::Vec2 cursor = intent_cursor(intent);
+  if (pointer_focus(intent)) {
+    if (const int hovered = ui::hovered_row(cursor, layout.rows);
+        hovered >= 0 && title_row_enabled(title_row_at(hovered, state.credits_available), state.continue_available))
+      state.cursor = hovered;
+  }
+  if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0)
+    move_title_cursor(gameplay, steps);
+}
+
+/** Run the title row the player activated. */
+void run_title_row(Engine &engine, Gameplay &gameplay, TitleRow row) {
+  switch (row) {
+    case TitleRow::Continue:
+      if (gameplay.title_screen.continue_available)
+        gameplay.begin_load([](Gameplay &g) { return g.continue_game(); });
+      break;
+    case TitleRow::NewGame: gameplay.begin_load([](Gameplay &g) { return g.new_game(); }); break;
+    case TitleRow::Load: gameplay.open_save_load(SaveLoadIntent::Load); break;
+    case TitleRow::Settings:
+      engine.settings_screen = {.presentation = ui::SettingsPresentation::Framing};
+      engine.scene.ui.push(world::GameMode::Settings);
+      break;
+    case TitleRow::Credits: gameplay.open_credits(); break;
+    case TitleRow::Quit: engine.request_quit(); break;
+  }
+}
+
+} // namespace
+
+/** Step the Title screen: a hovered enabled row takes focus on a real mouse move or click,
+ *  Up/Down move the highlight (skipping Continue when no save exists), and Activate runs the
+ *  highlighted command. Cancel does nothing — Title is the bottom of the framing flow.
+ */
+void update_title(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+  const TitleState &state = gameplay.title_screen;
+  apply_title_pointer(engine, gameplay, intent);
+
+  if (intent.navigate_y != 0)
+    move_title_cursor(gameplay, intent.navigate_y);
+  if (!intent.activate)
+    return;
+
+  const int rows = title_visible_row_count(state.credits_available);
+  const TitleRow row = title_row_at(std::clamp(state.cursor, 0, rows - 1), state.credits_available);
+  run_title_row(engine, gameplay, row);
+}
+
+void render_title(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+                  core::math::Vec2 viewport) {
+  if (engine.scene.mode() != Title)
+    return;
+  title_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border, gameplay.title_screen,
+                     core::game_title(engine.config), viewport, engine.input_mapper.last_device());
 }
 
 } // namespace corundum::gameplay::screens

@@ -4,7 +4,10 @@
 #include <corundum/gameplay/screens/hud_strip.hpp>
 #include <corundum/ui/font_family.hpp>
 
+#include "gameplay/screens/screen_handlers.hpp"
+
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/gameplay.hpp>
 #include <corundum/gameplay/quest/status.hpp>
 #include <corundum/gameplay/screens/journal.hpp>
 #include <corundum/platform/renderer.hpp>
@@ -175,6 +178,17 @@ void hud_strip_render(platform::Renderer &renderer, const ui::PanelStyle &style,
   ui::panel_fill(renderer, hud_bg, layout.panel_pos, layout.panel_size);
   ui::panel_frame(renderer, border, layout.panel_pos, layout.panel_size);
   draw_hud_runs(renderer, style, data, layout);
+}
+
+/** Gameplay HUD strip: hidden while any modal is up. The engine gates the Hud layer on an
+ *  empty UI stack and no transition prompt; the dialogue check is defensive.
+ */
+void render_hud(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+                core::math::Vec2 /*viewport*/) {
+  if (gameplay.dialogue)
+    return;
+  hud_strip_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
+                   build_hud_strip(engine.flags, gameplay.quests, engine.scene.zone_id));
 }
 
 } // namespace corundum::gameplay::screens

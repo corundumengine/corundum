@@ -4,9 +4,16 @@
 #include <corundum/gameplay/screens/barter.hpp>
 #include <corundum/ui/font_family.hpp>
 
+#include "gameplay/item_counts.hpp"
+#include "gameplay/screens/screen_handlers.hpp"
+#include "gameplay/screens/screen_input.hpp"
+
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/gameplay.hpp>
 #include <corundum/gameplay/item/item.hpp>
 #include <corundum/gameplay/item/registry.hpp>
+#include <corundum/gameplay/screens/hud_strip.hpp>
+#include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/gameplay/shop/shop.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
@@ -172,6 +179,82 @@ void barter_panel_render(platform::Renderer &renderer, const ui::PanelStyle &sty
     ui::draw_option(renderer, style, label, {.x = layout.rows.row_pos.x, .y = y}, std::cmp_equal(i, clamped_cursor));
     y += line_h;
   }
+}
+
+namespace {
+
+/** Apply mouse intent to the barter screen: a hovered row takes focus on a real mouse move or
+ *  click, and the wheel moves one row per notch.
+ */
+void apply_barter_pointer(const Engine &engine, Gameplay &gameplay, const input::InputIntent &intent,
+                          const shop::Shop &shop, const std::vector<BarterLine> &lines) {
+  if (!pointer_active(intent))
+    return;
+
+  const BarterLayout layout = barter_panel_layout(engine.renderer(), engine.render.panel_skin.style, shop.name,
+                                                  world::visit_count(engine.flags, k_gold_flag), lines,
+                                                  screen_viewport(engine), engine.input_mapper.last_device());
+  if (pointer_focus(intent)) {
+    if (const int hovered = ui::hovered_row(intent_cursor(intent), layout.rows); hovered >= 0)
+      gameplay.barter_screen.cursor = hovered;
+  }
+  if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && !lines.empty())
+    gameplay.barter_screen.cursor = wrap_cursor(gameplay.barter_screen.cursor, steps, static_cast<int>(lines.size()));
+}
+
+/** Buy one of the highlighted barter row's item with the player's gold. */
+void buy_barter_row(Engine &engine, const BarterLine &selected) {
+  const int gold = world::visit_count(engine.flags, k_gold_flag);
+  if (selected.unit_price > gold) {
+    engine.notify("Not enough gold");
+    return;
+  }
+  adjust_flag(engine.flags, item_flag_key(selected.id), 1);
+  engine.flags[k_gold_flag] = gold - selected.unit_price;
+}
+
+} // namespace
+
+/** Step the barter screen: Back closes, Up/Down move the row, a hovered row takes focus on a
+ *  real mouse move or click, the wheel moves one row per notch, and Activate buys.
+ */
+void update_barter(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+  if (intent.back) {
+    gameplay.active_shop_id.clear();
+    engine.scene.ui.pop();
+    return;
+  }
+
+  const shop::Shop *shop = gameplay.shops.find(gameplay.active_shop_id);
+  if (shop == nullptr) {
+    engine.scene.ui.pop();
+    return;
+  }
+
+  const std::vector<BarterLine> lines = build_barter_stock(*shop, gameplay.items);
+  const int rows = static_cast<int>(lines.size());
+  apply_barter_pointer(engine, gameplay, intent, *shop, lines);
+
+  if (intent.navigate_y != 0 && rows > 0)
+    gameplay.barter_screen.cursor = wrap_cursor(gameplay.barter_screen.cursor, intent.navigate_y, rows);
+  if (!intent.activate || rows == 0)
+    return;
+
+  const BarterLine &selected = lines[static_cast<std::size_t>(std::clamp(gameplay.barter_screen.cursor, 0, rows - 1))];
+  buy_barter_row(engine, selected);
+}
+
+void render_barter(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+                   core::math::Vec2 viewport) {
+  if (engine.scene.mode() != Barter)
+    return;
+  const shop::Shop *shop = gameplay.shops.find(gameplay.active_shop_id);
+  if (shop == nullptr)
+    return;
+  const std::vector<BarterLine> lines = build_barter_stock(*shop, gameplay.items);
+  barter_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border, shop->name,
+                      world::visit_count(engine.flags, k_gold_flag), lines, gameplay.barter_screen, viewport,
+                      engine.input_mapper.last_device());
 }
 
 } // namespace corundum::gameplay::screens

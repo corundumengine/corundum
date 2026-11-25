@@ -4,8 +4,16 @@
 #include <corundum/gameplay/screens/loot.hpp>
 #include <corundum/ui/font_family.hpp>
 
+#include "gameplay/item_counts.hpp"
+#include "gameplay/screens/screen_handlers.hpp"
+#include "gameplay/screens/screen_input.hpp"
+
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/gameplay.hpp>
+#include <corundum/gameplay/item/container.hpp>
+#include <corundum/gameplay/item/item.hpp>
 #include <corundum/gameplay/screens/inventory_panel.hpp>
+#include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
@@ -196,6 +204,107 @@ void loot_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style
       .char_size = style.font_size_body,
       .colour = style.choice,
   });
+}
+
+namespace {
+
+/** Switch to the hovered loot pane and focus its hovered row. */
+void focus_hovered_loot_pane(Gameplay &gameplay, const LootLayout &layout, core::math::Vec2 cursor) {
+  const bool over_player = cursor_in(cursor, layout.player_pane);
+  if (over_player || cursor_in(cursor, layout.container_pane)) {
+    const LootPane pane = over_player ? LootPane::Player : LootPane::Container;
+    if (gameplay.loot_screen.pane != pane) {
+      gameplay.loot_screen.pane = pane;
+      gameplay.loot_screen.cursor = 0;
+    }
+    if (const int hovered = ui::hovered_row(cursor, over_player ? layout.player_rows : layout.container_rows);
+        hovered >= 0)
+      gameplay.loot_screen.cursor = hovered;
+  }
+}
+
+/** Apply mouse intent to the loot screen: hovering a pane switches to it, hovering a row (on a
+ *  real move or click) focuses it, and the wheel moves one row per notch.
+ */
+void apply_loot_pointer(const Engine &engine, Gameplay &gameplay, const input::InputIntent &intent,
+                        std::string_view container_name, const std::vector<InventoryLine> &container_lines,
+                        const std::vector<InventoryLine> &player_lines) {
+  if (!pointer_active(intent))
+    return;
+
+  const LootLayout layout =
+      loot_panel_layout(engine.renderer(), engine.render.panel_skin.style, container_name, container_lines,
+                        player_lines, screen_viewport(engine), engine.input_mapper.last_device());
+  const core::math::Vec2 cursor = intent_cursor(intent);
+
+  if (pointer_focus(intent))
+    focus_hovered_loot_pane(gameplay, layout, cursor);
+
+  const int active_rows =
+      static_cast<int>((gameplay.loot_screen.pane == LootPane::Container ? container_lines : player_lines).size());
+  if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && active_rows > 0)
+    gameplay.loot_screen.cursor = wrap_cursor(gameplay.loot_screen.cursor, steps, active_rows);
+}
+
+} // namespace
+
+/** Step the loot screen: Back closes, Left/Right or a click switch the active pane, a hovered
+ *  row takes focus on a real mouse move or click, the wheel moves one row per notch, and
+ *  Activate moves one unit of the highlighted item to the other holder.
+ */
+void update_loot(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+  if (intent.back) {
+    gameplay.active_container_id.clear();
+    engine.scene.ui.pop();
+    return;
+  }
+
+  const std::string container_name =
+      gameplay.active_container_id.empty() ? std::string{"Container"} : gameplay.active_container_id;
+  const std::vector<InventoryLine> container_lines =
+      build_item_lines(engine.flags, gameplay.items, item::container_flag_prefix(gameplay.active_container_id));
+  const std::vector<InventoryLine> player_lines = build_item_lines(engine.flags, gameplay.items, item::k_flag_prefix);
+
+  if (intent.navigate_x != 0) {
+    gameplay.loot_screen.pane =
+        gameplay.loot_screen.pane == LootPane::Container ? LootPane::Player : LootPane::Container;
+    gameplay.loot_screen.cursor = 0;
+  }
+
+  apply_loot_pointer(engine, gameplay, intent, container_name, container_lines, player_lines);
+
+  const bool container_active = gameplay.loot_screen.pane == LootPane::Container;
+  const std::vector<InventoryLine> &lines = container_active ? container_lines : player_lines;
+  const int rows = static_cast<int>(lines.size());
+
+  if (intent.navigate_y != 0 && rows > 0)
+    gameplay.loot_screen.cursor = wrap_cursor(gameplay.loot_screen.cursor, intent.navigate_y, rows);
+  if (!intent.activate || rows == 0)
+    return;
+
+  const InventoryLine &selected = lines[static_cast<std::size_t>(std::clamp(gameplay.loot_screen.cursor, 0, rows - 1))];
+  const std::string container_key = item::container_item_flag_key(gameplay.active_container_id, selected.id);
+  const std::string player_key = item_flag_key(selected.id);
+  if (container_active) {
+    adjust_flag(engine.flags, container_key, -1);
+    adjust_flag(engine.flags, player_key, 1);
+  } else {
+    adjust_flag(engine.flags, player_key, -1);
+    adjust_flag(engine.flags, container_key, 1);
+  }
+}
+
+void render_loot(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+                 core::math::Vec2 viewport) {
+  if (engine.scene.mode() != Loot)
+    return;
+  const std::string container_name =
+      gameplay.active_container_id.empty() ? std::string{"Container"} : gameplay.active_container_id;
+  loot_panel_render(
+      renderer, engine.render.panel_skin.style, engine.render.panel_skin.border, container_name,
+      build_item_lines(engine.flags, gameplay.items, item::container_flag_prefix(gameplay.active_container_id)),
+      build_item_lines(engine.flags, gameplay.items, item::k_flag_prefix), gameplay.loot_screen, viewport,
+      engine.input_mapper.last_device());
 }
 
 } // namespace corundum::gameplay::screens

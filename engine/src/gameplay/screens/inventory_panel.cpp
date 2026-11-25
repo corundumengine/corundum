@@ -14,6 +14,10 @@
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/world/flags.hpp>
 
+#include "gameplay/screens/screen_handlers.hpp"
+#include "gameplay/screens/screen_input.hpp"
+
+#include <corundum/gameplay/gameplay.hpp>
 #include <corundum/ui/ui_draw.hpp>
 #include <corundum/ui/word_wrap.hpp>
 
@@ -429,6 +433,74 @@ void inventory_panel_render(platform::Renderer &renderer, const ui::PanelStyle &
   if (!geometry.description_lines.empty())
     draw_description(renderer, style, geometry.description_lines, geometry.list_x, geometry.description_y,
                      geometry.body_line_h);
+}
+
+namespace {
+
+/** Apply mouse intent to the inventory: a hovered row takes focus and the wheel moves a row. */
+void apply_inventory_pointer(const Engine &engine, Gameplay &gameplay, const input::InputIntent &intent, int rows) {
+  if (!pointer_active(intent))
+    return;
+  const InventoryLayout layout = inventory_panel_layout(
+      engine.renderer(), engine.render.panel_skin.style, gameplay.inventory_lines, gameplay.inventory_equipment,
+      gameplay.inventory_cursor, gameplay.inventory_scroll, screen_viewport(engine));
+  const core::math::Vec2 cursor = intent_cursor(intent);
+  if (pointer_focus(intent)) {
+    if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
+      gameplay.inventory_cursor = layout.first_row + hovered;
+  }
+  if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && rows > 0)
+    gameplay.inventory_cursor = wrap_cursor(gameplay.inventory_cursor, steps, rows);
+}
+
+/** Equip or unequip the highlighted inventory row, rebuilding the equipment column on success. */
+void activate_inventory_row(Engine &engine, Gameplay &gameplay, int rows) {
+  const std::size_t index = static_cast<std::size_t>(std::clamp(gameplay.inventory_cursor, 0, rows - 1));
+  const InventoryLine &selected = gameplay.inventory_lines[index];
+  if (const auto result = item::toggle_equip(engine.flags, gameplay.items, selected.id); !result)
+    engine.notify(result.error());
+  else
+    gameplay.inventory_equipment = build_equipment_lines(engine.flags, gameplay.items);
+}
+
+} // namespace
+
+/** Step the Inventory hub tab: Cancel closes it; a hovered row takes focus on a real mouse
+ *  move or click; the wheel moves one row per notch; Up/Down wrap the highlight.
+ */
+void update_inventory(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+  if (intent.back) {
+    engine.scene.ui.pop();
+    return;
+  }
+  const int rows = static_cast<int>(gameplay.inventory_lines.size());
+
+  apply_inventory_pointer(engine, gameplay, intent, rows);
+
+  if (intent.navigate_y != 0) {
+    if (rows <= 0)
+      gameplay.inventory_cursor = 0;
+    else
+      gameplay.inventory_cursor = wrap_cursor(gameplay.inventory_cursor, intent.navigate_y, rows);
+  }
+
+  // Activate equips or unequips the highlighted row. The equipment column is cached with
+  // the rows, so a successful toggle rebuilds only it; the item rows themselves are
+  // unchanged (equipping never moves or consumes an item).
+  if (intent.activate && rows > 0)
+    activate_inventory_row(engine, gameplay, rows);
+
+  const InventoryLayout visible = inventory_panel_layout(
+      engine.renderer(), engine.render.panel_skin.style, gameplay.inventory_lines, gameplay.inventory_equipment,
+      gameplay.inventory_cursor, gameplay.inventory_scroll, screen_viewport(engine));
+  gameplay.inventory_scroll = visible.first_row;
+}
+
+void render_inventory(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+                      core::math::Vec2 viewport) {
+  inventory_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
+                         gameplay.inventory_lines, gameplay.inventory_equipment, gameplay.inventory_cursor,
+                         gameplay.inventory_scroll, viewport);
 }
 
 } // namespace corundum::gameplay::screens

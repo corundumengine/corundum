@@ -3,20 +3,28 @@
 
 #include <corundum/gameplay/screens/combat_hud.hpp>
 
+#include "gameplay/screens/screen_handlers.hpp"
+
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/gameplay.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/resource_ids.hpp>
+#include <corundum/render/render_state.hpp>
 #include <corundum/ui/font_family.hpp>
 #include <corundum/ui/input_glyph.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/ui_draw.hpp>
+#include <corundum/world/map_view.hpp>
+#include <corundum/world/picking.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <format>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -227,6 +235,52 @@ void combat_hud_render(platform::Renderer &renderer, const ui::PanelStyle &style
   draw_rows_panel(renderer, style, border, hud.rows);
   draw_command_bar(renderer, style, border, hud, viewport, device);
   draw_banner(renderer, style, viewport, banner);
+}
+
+namespace {
+
+constexpr float k_target_line_thickness = 2.f;
+
+/** Outline the fight's target's tile in the selected colour, through the view the world just
+ *  drew with so the outline stays on the ground while the camera moves.
+ */
+void draw_target_marker(const Engine &engine, const combat::Battle &battle, platform::Renderer &renderer) {
+  const world::MapView map = world::build_map_view(engine.render, engine.config);
+  const std::optional<world::TileCoord> target_tile = battle.target_tile();
+  if (!target_tile)
+    return;
+  const world::TileCoord tile = *target_tile;
+  const world::TileDiamond diamond =
+      world::tile_diamond(tile, world::discrete_elevation_at(map, tile.col, tile.row), map.projection);
+  const std::array corners{diamond.top, diamond.right, diamond.bottom, diamond.left};
+
+  const render::WorldView &view = engine.render.world_view;
+  const core::math::Colour target_colour = engine.render.panel_skin.style.selected;
+  renderer.set_world_view(view.camera, view.viewport_size, view.zoom);
+  for (std::size_t i = 0; i < corners.size(); ++i) {
+    renderer.draw(platform::DrawLine{
+        .start = corners[i],
+        .end = corners[(i + 1) % corners.size()],
+        .colour = target_colour,
+        .thickness = k_target_line_thickness,
+    });
+  }
+  renderer.reset_screen_view();
+}
+
+} // namespace
+
+/** Draw the target's tile marker, then the combat HUD with `banner` (empty for none). */
+void render_combat(const Engine &engine, const combat::Battle &battle, platform::Renderer &renderer,
+                   core::math::Vec2 viewport, std::string_view banner) {
+  draw_target_marker(engine, battle, renderer);
+  combat_hud_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border, battle.hud(), viewport,
+                    engine.input_mapper.last_device(), banner);
+}
+
+/** The paused fight's banner: "Paused" and the key that resumes it. */
+std::string paused_banner(input::InputDevice device) {
+  return std::format("Paused: {} to resume", ui::input_glyph(input::Action::Pause, device));
 }
 
 } // namespace corundum::gameplay::screens

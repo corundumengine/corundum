@@ -5,9 +5,14 @@
 #include <corundum/gameplay/screens/map.hpp>
 #include <corundum/ui/font_family.hpp>
 
+#include "gameplay/screens/screen_handlers.hpp"
+#include "gameplay/screens/screen_input.hpp"
+
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/gameplay.hpp>
 #include <corundum/gameplay/location/location.hpp>
 #include <corundum/gameplay/location/registry.hpp>
+#include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
@@ -17,12 +22,14 @@
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/ui_draw.hpp>
 #include <corundum/world/flags.hpp>
+#include <corundum/world/portals/portal.hpp>
 
 #include <algorithm>
 #include <cstddef>
 #include <format>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace corundum::gameplay::screens {
@@ -146,6 +153,87 @@ void map_panel_render(platform::Renderer &renderer, const ui::PanelStyle &style,
                     {.x = layout.rows.row_pos.x, .y = y}, i == clamped_cursor);
     y += line_h;
   }
+}
+
+namespace {
+
+/** Apply mouse intent to the map: a hovered row takes focus and the wheel moves a row. */
+void apply_map_pointer(const Engine &engine, MapState &state, const std::vector<MapEntry> &entries,
+                       const input::InputIntent &intent, int rows) {
+  if (!pointer_active(intent))
+    return;
+  const MapLayout layout = map_panel_layout(engine.renderer(), engine.render.panel_skin.style, entries, state.cursor,
+                                            state.scroll, screen_viewport(engine), engine.input_mapper.last_device());
+  const core::math::Vec2 cursor = intent_cursor(intent);
+  if (pointer_focus(intent)) {
+    if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
+      state.cursor = hovered;
+  }
+  if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && rows > 0)
+    state.cursor = wrap_cursor(state.cursor, steps, rows);
+}
+
+/** Fast-travel to the selected destination, notifying when it is already the active one. */
+void travel_to(Engine &engine, const Gameplay &gameplay, const MapEntry &selected) {
+  if (selected.current) {
+    engine.notify("You are already here");
+    return;
+  }
+
+  const location::Location *location = gameplay.locations.find(selected.id);
+  if (location == nullptr)
+    return;
+  world::MapTransition transition{
+      .spawn_col = static_cast<int>(location->col),
+      .spawn_row = static_cast<int>(location->row),
+      .return_to_world = location->return_to_world || location->map.empty(),
+  };
+  if (!transition.return_to_world)
+    transition.target_map = location->map;
+  engine.scene.pending_transition = std::move(transition);
+  engine.scene.ui.pop();
+}
+
+} // namespace
+
+/** Step the Map hub tab: Cancel closes it, a hovered row takes focus on a real mouse move or
+ *  click, Up/Down and the wheel move the highlighted destination, and Activate fast-travels.
+ *  A destination already in the active zone is a no-op.
+ */
+void update_map(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+  if (intent.back) {
+    engine.scene.ui.pop();
+    return;
+  }
+
+  const std::vector<MapEntry> entries = build_map_entries(gameplay.locations, engine.flags, engine.scene.zone_id);
+  const int rows = static_cast<int>(entries.size());
+  MapState &state = gameplay.map_screen;
+
+  apply_map_pointer(engine, state, entries, intent, rows);
+
+  if (intent.navigate_y != 0 && rows > 0)
+    state.cursor = wrap_cursor(state.cursor, intent.navigate_y, rows);
+
+  // Keep the highlighted destination inside the window; the layout clamps the offset.
+  const MapLayout visible = map_panel_layout(engine.renderer(), engine.render.panel_skin.style, entries, state.cursor,
+                                             state.scroll, screen_viewport(engine), engine.input_mapper.last_device());
+  state.scroll = visible.rows.first_row;
+
+  if (!intent.activate || rows == 0)
+    return;
+
+  const MapEntry &selected = entries[static_cast<std::size_t>(std::clamp(state.cursor, 0, rows - 1))];
+  travel_to(engine, gameplay, selected);
+}
+
+void render_map(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+                core::math::Vec2 viewport) {
+  if (engine.scene.mode() != Map)
+    return;
+  map_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
+                   build_map_entries(gameplay.locations, engine.flags, engine.scene.zone_id),
+                   gameplay.map_screen.cursor, gameplay.map_screen.scroll, viewport, engine.input_mapper.last_device());
 }
 
 } // namespace corundum::gameplay::screens

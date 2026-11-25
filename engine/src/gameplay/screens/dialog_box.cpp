@@ -4,8 +4,10 @@
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/dialogue/conversation.hpp>
 #include <corundum/gameplay/dialogue/dialogue.hpp>
+#include <corundum/gameplay/gameplay.hpp>
 #include <corundum/gameplay/screens/dialog_box.hpp>
 #include <corundum/gameplay/screens/dialog_layout.hpp>
+#include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
@@ -16,6 +18,8 @@
 #include <corundum/ui/styled_text.hpp>
 #include <corundum/ui/ui_draw.hpp>
 #include <corundum/ui/word_wrap_styled.hpp>
+
+#include "gameplay/screens/screen_handlers.hpp"
 
 #include <cstddef>
 #include <format>
@@ -204,6 +208,21 @@ void dialog_box_render(const DialogBoxState &ds, platform::Renderer &renderer, c
       break;
     case dialogue::NodeType::Event: break;
   }
+}
+
+/** Modal dialogue box: draws only while a conversation is active and Dialogue is the top
+ *  mode, so a screen pushed over it (the pause menu) never double-draws. Hiding clears
+ *  visibility only — the cached layout and reveal progress are untouched, so popping the
+ *  screen above restores the box exactly.
+ */
+void render_dialogue(const Engine &engine, Gameplay &gameplay, platform::Renderer &renderer,
+                     core::math::Vec2 viewport) {
+  if (gameplay.dialogue && engine.scene.mode() == Dialogue)
+    dialog_box_update(gameplay.dialog_box, *gameplay.dialogue, renderer, viewport, engine.render.panel_skin,
+                      engine.render.text_speed);
+  else
+    dialog_box_hide(gameplay.dialog_box);
+  dialog_box_render(gameplay.dialog_box, renderer, engine.render.panel_skin, engine.input_mapper.last_device());
 }
 
 } // namespace corundum::gameplay::screens

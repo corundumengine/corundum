@@ -119,6 +119,7 @@ set(GAMEPLAY_SOURCES
     src/gameplay/dialogue/serialize.cpp
     src/gameplay/dialogue/validate.cpp
     src/gameplay/dialogue/validate_refs.cpp
+    src/gameplay/dialogue_events.cpp
     src/gameplay/gameplay.cpp
     src/gameplay/item/equipment.cpp
     src/gameplay/item/item.cpp
@@ -137,6 +138,7 @@ set(GAMEPLAY_SOURCES
     src/gameplay/screens/character_sheet.cpp
     src/gameplay/screens/codex.cpp
     src/gameplay/screens/combat_hud.cpp
+    src/gameplay/screens/confirm.cpp
     src/gameplay/screens/credits.cpp
     src/gameplay/screens/dialog_box.cpp
     src/gameplay/screens/framing_menu.cpp

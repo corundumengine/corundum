@@ -3,8 +3,12 @@
 
 #include <corundum/gameplay/screens/credits.hpp>
 
+#include "gameplay/screens/screen_handlers.hpp"
+
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/credits/credits.hpp>
+#include <corundum/gameplay/gameplay.hpp>
+#include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/font_family.hpp>
@@ -154,6 +158,32 @@ void credits_panel_render(platform::Renderer &renderer, const ui::PanelStyle &st
     }
     y += k_credits_section_gap;
   }
+}
+
+/** Step the Credits screen: Cancel closes it, otherwise the roll holds still for
+ *  k_credits_hold_seconds, then the text scrolls upward at a fixed rate per step until the
+ *  last line reaches the vertical center.
+ */
+void update_credits(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+  if (intent.back) {
+    engine.scene.ui.pop();
+    return;
+  }
+  CreditsState &state = gameplay.credits_screen;
+  if (state.hold > 0.f) {
+    state.hold = std::max(state.hold - engine.timer.target_dt, 0.f);
+    return;
+  }
+  const float content = credits_content_height(engine.renderer(), engine.render.panel_skin.style, state);
+  constexpr float k_credits_scroll_speed = 24.f;
+  state.scroll = std::min(state.scroll + (k_credits_scroll_speed * engine.timer.target_dt), content);
+}
+
+void render_credits(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+                    core::math::Vec2 viewport) {
+  if (engine.scene.mode() != Credits)
+    return;
+  credits_panel_render(renderer, engine.render.panel_skin.style, viewport, gameplay.credits_screen);
 }
 
 } // namespace corundum::gameplay::screens

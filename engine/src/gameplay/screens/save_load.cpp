@@ -3,7 +3,12 @@
 
 #include <corundum/gameplay/screens/save_load.hpp>
 
+#include "gameplay/screens/screen_handlers.hpp"
+#include "gameplay/screens/screen_input.hpp"
+
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/gameplay.hpp>
+#include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
@@ -13,6 +18,7 @@
 #include <corundum/ui/input_glyph.hpp>
 #include <corundum/ui/nine_patch.hpp>
 #include <corundum/ui/panel_style.hpp>
+#include <corundum/ui/toast.hpp>
 #include <corundum/ui/ui_draw.hpp>
 
 #include <algorithm>
@@ -20,6 +26,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <ctime>
+#include <expected>
 #include <format>
 #include <functional>
 #include <map>
@@ -253,6 +260,112 @@ void save_load_panel_render(platform::Renderer &renderer, const ui::PanelStyle &
     });
     detail_y += line_h;
   }
+}
+
+namespace {
+
+/** Save `slot_id`, raising a success or failure toast, then pop the Save/Load screen. */
+void commit_slot_save(Engine &engine, Gameplay &gameplay, const std::string &slot_id) {
+  if (const std::expected<void, std::string> result = gameplay.save_to_slot(slot_id); !result)
+    engine.notify(std::format("Save failed: {}", result.error()), ui::k_toast_failed_colour);
+  else
+    engine.notify("Game saved");
+  engine.scene.ui.pop();
+}
+
+/** Save the selected row, first confirming when it would overwrite an existing slot. The
+ *  autosave slot is never overwritable from the UI; the game decides when to autosave.
+ */
+void activate_save_load_row(Engine &engine, Gameplay &gameplay, const save::SaveSlotInfo &selected) {
+  const std::string slot_id = selected.slot_id;
+  if (slot_id == save::k_autosave_slot) {
+    engine.notify("Autosave cannot be overwritten");
+    return;
+  }
+
+  const bool occupied = selected.meta.has_value() || !selected.error.empty();
+  if (!occupied) {
+    commit_slot_save(engine, gameplay, slot_id);
+    return;
+  }
+  gameplay.open_confirm(std::format("Overwrite {}?", slot_display_name(slot_id)),
+                        // The confirm callback runs inside the noexcept fixed-step loop, where a throw is fatal
+                        // by engine policy (see run_fixed_steps); the escape is intentional here.
+                        // NOLINTNEXTLINE(bugprone-exception-escape)
+                        [&engine, slot_id](Gameplay &g) { commit_slot_save(engine, g, slot_id); });
+}
+
+/** Apply mouse intent to the save/load screen: a hovered row takes focus and the wheel moves a row. */
+void apply_save_load_pointer(const Engine &engine, SaveLoadState &state, const input::InputIntent &intent, int rows) {
+  if (!pointer_active(intent))
+    return;
+  const SaveLoadLayout layout = save_load_panel_layout(engine.renderer(), engine.render.panel_skin.style, state,
+                                                       screen_viewport(engine), engine.input_mapper.last_device());
+  const core::math::Vec2 cursor = intent_cursor(intent);
+  if (pointer_focus(intent)) {
+    if (const int hovered = ui::hovered_row(cursor, layout.rows); hovered >= 0)
+      state.cursor = layout.rows.first_row + hovered;
+  }
+  if (const int steps = ui::scroll_row_delta(intent.scroll_y); steps != 0 && rows > 0)
+    state.cursor = wrap_cursor(state.cursor, steps, rows);
+}
+
+/** Save or load the selected slot, honouring the screen's mode. */
+void activate_selected_slot(Engine &engine, Gameplay &gameplay, const SaveLoadState &state,
+                            const save::SaveSlotInfo &selected) {
+  if (state.saving) {
+    activate_save_load_row(engine, gameplay, selected);
+    return;
+  }
+  if (slot_is_empty(selected) || !selected.error.empty())
+    return;
+  const std::string slot_id = selected.slot_id;
+  // The queued callback runs inside the noexcept fixed-step loop, where a throw is fatal by
+  // engine policy (see run_fixed_steps); the escape is intentional here.
+  // NOLINTNEXTLINE(bugprone-exception-escape)
+  gameplay.begin_load([slot_id](Gameplay &g) { return g.load_from_slot(slot_id); });
+}
+
+} // namespace
+
+/** Step the Save/Load screen: Cancel closes it; Up/Down and the wheel move the highlighted
+ *  slot; Activate saves (confirming an overwrite) or loads a valid slot. Empty and corrupt
+ *  slots cannot be loaded.
+ */
+void update_save_load(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+  SaveLoadState &state = gameplay.save_load_screen;
+  if (intent.back) {
+    engine.scene.ui.pop();
+    return;
+  }
+
+  const int rows = static_cast<int>(state.slots.size());
+  apply_save_load_pointer(engine, state, intent, rows);
+
+  if (intent.navigate_y != 0) {
+    if (rows <= 0)
+      state.cursor = 0;
+    else
+      state.cursor = wrap_cursor(state.cursor, intent.navigate_y, rows);
+  }
+
+  const SaveLoadLayout visible = save_load_panel_layout(engine.renderer(), engine.render.panel_skin.style, state,
+                                                        screen_viewport(engine), engine.input_mapper.last_device());
+  state.scroll = visible.rows.first_row;
+
+  if (!intent.activate || rows == 0)
+    return;
+
+  const save::SaveSlotInfo &selected = state.slots[static_cast<std::size_t>(std::clamp(state.cursor, 0, rows - 1))];
+  activate_selected_slot(engine, gameplay, state, selected);
+}
+
+void render_save_load(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+                      core::math::Vec2 viewport) {
+  if (engine.scene.mode() != SaveLoad)
+    return;
+  save_load_panel_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
+                         gameplay.save_load_screen, viewport, engine.input_mapper.last_device());
 }
 
 } // namespace corundum::gameplay::screens

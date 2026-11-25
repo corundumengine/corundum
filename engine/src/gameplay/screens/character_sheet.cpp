@@ -3,12 +3,17 @@
 
 #include <corundum/gameplay/screens/character_sheet.hpp>
 
+#include "gameplay/screens/screen_handlers.hpp"
+
 #include <corundum/core/math/vec.hpp>
 #include <corundum/gameplay/flag_access.hpp>
+#include <corundum/gameplay/gameplay.hpp>
+#include <corundum/gameplay/item/equipment.hpp>
 #include <corundum/gameplay/item/registry.hpp>
 #include <corundum/gameplay/rules/rules.hpp>
 #include <corundum/gameplay/screens/hud_strip.hpp>
 #include <corundum/gameplay/screens/inventory_panel.hpp>
+#include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/input/actions.hpp>
 #include <corundum/input/physical_input.hpp>
 #include <corundum/platform/renderer.hpp>
@@ -19,6 +24,7 @@
 #include <corundum/ui/panel_style.hpp>
 #include <corundum/ui/ui_draw.hpp>
 #include <corundum/world/flags.hpp>
+#include <corundum/world/ui_stack.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -26,6 +32,7 @@
 #include <format>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace corundum::gameplay::screens {
@@ -239,6 +246,80 @@ void character_sheet_render(platform::Renderer &renderer, const ui::PanelStyle &
   const float footer_w = renderer.measure_text(regular_font(style), footer, style.font_size_body);
   draw_text(renderer, style, footer, {.x = panel.pos.x + panel.size.x - k_pad_x - footer_w, .y = sections.footer_y},
             style.font_size_body, style.choice);
+}
+
+namespace {
+
+/** Read the sheet's values again after a change, keeping the cursor on a row that still exists. */
+void resample_character_sheet(const Engine &engine, Gameplay &gameplay) {
+  const int row = gameplay.character_sheet_state.row;
+  gameplay.character_sheet_info = build_character_info(engine.flags, gameplay.items, gameplay.ruleset);
+  const int rows = character_section_row_count(gameplay.character_sheet_info, gameplay.character_sheet_state.section);
+  gameplay.character_sheet_state.row = std::clamp(row, 0, rows - 1);
+}
+
+/** Run the highlighted character-sheet row: an equipment row unequips its item and an inventory
+ *  row toggles its item's equip state; a Stats row does nothing. An acting row rebuilds the sheet
+ *  values so every column reflects the change.
+ */
+void activate_character_row(Engine &engine, Gameplay &gameplay) {
+  const CharacterSheetState state = gameplay.character_sheet_state;
+  const CharacterInfo &info = gameplay.character_sheet_info;
+  std::string_view item_id;
+  if (state.section == 1 && std::cmp_less(state.row, info.equipment.size()))
+    item_id = info.equipment[static_cast<std::size_t>(state.row)].item_id;
+  else if (state.section == 2 && std::cmp_less(state.row, info.inventory.size()))
+    item_id = info.inventory[static_cast<std::size_t>(state.row)].id;
+  if (item_id.empty())
+    return;
+  if (const auto result = item::toggle_equip(engine.flags, gameplay.items, item_id); !result) {
+    engine.notify(result.error());
+    return;
+  }
+  resample_character_sheet(engine, gameplay);
+}
+
+} // namespace
+
+/** Handle the Character hotkey (P / gamepad Back): open the sheet from Exploring, close it
+ *  when already on top. Any other top mode leaves the press alone, so the hotkey cannot
+ *  stack the sheet over a dialogue or prompt.
+ */
+bool handle_character_input(Engine &engine, Gameplay &gameplay) {
+  if (!engine.input_state.is_pressed(input::Action::Character))
+    return false;
+  if (engine.scene.mode() == Character) {
+    engine.scene.ui.pop();
+    return true;
+  }
+  if (engine.scene.mode() == world::GameMode::Exploring) {
+    gameplay.open_character_sheet();
+    return true;
+  }
+  return false;
+}
+
+/** Step the character sheet: Cancel closes it, the navigation axes move the highlight, and
+ *  Activate runs the highlighted row. The hotkey that opens it is handled by
+ *  the input hook before this step runs.
+ */
+void update_character(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent) {
+  if (intent.back) {
+    engine.scene.ui.pop();
+    return;
+  }
+  if (intent.navigate_x != 0 || intent.navigate_y != 0)
+    move_character_cursor(gameplay.character_sheet_state, gameplay.character_sheet_info, intent.navigate_x,
+                          intent.navigate_y);
+  if (intent.activate)
+    activate_character_row(engine, gameplay);
+}
+
+void render_character(const Engine &engine, const Gameplay &gameplay, platform::Renderer &renderer,
+                      core::math::Vec2 viewport) {
+  character_sheet_render(renderer, engine.render.panel_skin.style, engine.render.panel_skin.border,
+                         gameplay.character_sheet_info, viewport, engine.input_mapper.last_device(),
+                         gameplay.character_sheet_state);
 }
 
 } // namespace corundum::gameplay::screens

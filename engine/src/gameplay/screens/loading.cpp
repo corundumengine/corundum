@@ -3,7 +3,11 @@
 
 #include <corundum/gameplay/screens/loading.hpp>
 
+#include "gameplay/screens/screen_handlers.hpp"
+
 #include <corundum/core/math/vec.hpp>
+#include <corundum/gameplay/gameplay.hpp>
+#include <corundum/gameplay/screens/modes.hpp>
 #include <corundum/platform/renderer.hpp>
 #include <corundum/platform/resource_ids.hpp>
 #include <corundum/ui/font_family.hpp>
@@ -29,6 +33,19 @@ void loading_panel_render(platform::Renderer &renderer, const ui::PanelStyle &st
       .char_size = style.font_size_speaker,
       .colour = style.speaker,
   });
+}
+
+/** Step the Loading overlay: once the overlay has actually rendered, run the queued load. */
+void update_loading(Gameplay &gameplay) {
+  gameplay.advance_loading();
+}
+
+/** Draw "Loading..." and record that it happened, so the next step may run the queued work. */
+void render_loading(const Engine &engine, Gameplay &gameplay, platform::Renderer &renderer, core::math::Vec2 viewport) {
+  if (engine.scene.mode() != Loading)
+    return;
+  loading_panel_render(renderer, engine.render.panel_skin.style, viewport);
+  gameplay.notify_loading_rendered();
 }
 
 } // namespace corundum::gameplay::screens
