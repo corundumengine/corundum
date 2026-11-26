@@ -170,17 +170,24 @@ struct SimulationResult {
   bool budget_exhausted{false};
 };
 
-/** Invoke the user-provided platform-event hook, swallowing any exceptions
- *  so the frame's noexcept contract holds.
+/** Call a hook installed by the game or the gameplay framework, logging and swallowing any
+ *  throw: hooks run from noexcept frame and fixed-step paths, where a throw would terminate
+ *  rather than propagate.
+ *
+ *  Returns whether a hook was installed, so a caller whose command has an unset fallback can
+ *  branch on it. A hook that threw still counts as installed, so that fallback never runs on
+ *  top of a hook that already ran.
  */
-void invoke_platform_event_hook(Engine &engine, const platform::PlatformEvents &events) noexcept {
-  if (!engine.on_platform_event)
-    return;
+template <typename Hook, typename... Args>
+bool invoke_hook(std::string_view name, const Hook &hook, Args &&...args) noexcept {
+  if (!hook)
+    return false;
   try {
-    engine.on_platform_event(engine, events);
+    hook(std::forward<Args>(args)...);
   } catch (...) {
-    warn_log("[engine] WARN: on_platform_event handler threw");
+    warn_log("[engine] WARN: {} handler threw", name);
   }
+  return true;
 }
 
 /** Pause when the player loses their only controller mid-play; resume once a pad is back or
@@ -212,55 +219,20 @@ void process_input(Engine &engine) noexcept {
   update_controller_pause(engine, events);
 
   if (platform::has_any_event(events))
-    invoke_platform_event_hook(engine, events);
+    invoke_hook("on_platform_event", engine.hooks.on_platform_event, engine, events);
 
   if (engine.input_state.is_held(input::Action::Quit))
     engine.request_quit();
 }
 
-/** Invoke the user-provided per-fixed-step hook, swallowing any exceptions
- *  so the noexcept contract on the simulation loop holds.
+/** Ask the game's pause-menu block hook whether to suppress the menu, treating an unset hook
+ *  or a throw as "not blocked".
  */
-void invoke_fixed_update_hook(Engine &engine, float dt) noexcept {
-  if (!engine.on_fixed_update)
-    return;
-  try {
-    engine.on_fixed_update(engine, dt);
-  } catch (...) {
-    warn_log("[engine] WARN: on_fixed_update handler threw");
-  }
-}
-
-/** Invoke the pause menu's Quit hook, swallowing any exception so the fixed-step
- *  noexcept contract holds, as invoke_fixed_update_hook() does.
- */
-void invoke_menu_quit_hook(Engine &engine) noexcept {
-  if (!engine.on_menu_quit)
-    return;
-  try {
-    engine.on_menu_quit(engine);
-  } catch (...) {
-    warn_log("[engine] WARN: on_menu_quit handler threw");
-  }
-}
-
-/** Invoke the pause menu's Save/Load hook, swallowing any exception. */
-void invoke_menu_save_load_hook(Engine &engine, SaveLoadIntent intent) noexcept {
-  if (!engine.on_menu_save_load)
-    return;
-  try {
-    engine.on_menu_save_load(engine, intent);
-  } catch (...) {
-    warn_log("[engine] WARN: on_menu_save_load handler threw");
-  }
-}
-
-/** Consult the game's pause-menu block hook, treating a throw as "not blocked". */
 bool pause_menu_blocked(const Engine &engine, world::GameMode mode) noexcept {
-  if (!engine.blocks_pause_menu)
+  if (!engine.hooks.blocks_pause_menu)
     return false;
   try {
-    return engine.blocks_pause_menu(mode);
+    return engine.hooks.blocks_pause_menu(mode);
   } catch (...) {
     warn_log("[engine] WARN: blocks_pause_menu handler threw");
     return false;
@@ -390,22 +362,16 @@ void activate_menu_command(Engine &engine) {
       break;
     case ui::MenuCommand::Save:
       engine.scene.ui.pop();
-      if (engine.on_menu_save_load)
-        invoke_menu_save_load_hook(engine, SaveLoadIntent::Save);
-      else
+      if (!invoke_hook("on_menu_save_load", engine.hooks.on_menu_save_load, engine, SaveLoadIntent::Save))
         engine.raise_action_next_step(input::Action::QuickSave);
       break;
     case ui::MenuCommand::Load:
       engine.scene.ui.pop();
-      if (engine.on_menu_save_load)
-        invoke_menu_save_load_hook(engine, SaveLoadIntent::Load);
-      else
+      if (!invoke_hook("on_menu_save_load", engine.hooks.on_menu_save_load, engine, SaveLoadIntent::Load))
         engine.raise_action_next_step(input::Action::QuickLoad);
       break;
     case ui::MenuCommand::Quit:
-      if (engine.on_menu_quit)
-        invoke_menu_quit_hook(engine);
-      else
+      if (!invoke_hook("on_menu_quit", engine.hooks.on_menu_quit, engine))
         engine.request_quit();
       break;
     case ui::MenuCommand::Count: break;
@@ -624,10 +590,10 @@ constexpr int k_max_steps_per_frame{8};
       // Registered systems (gameplay's dialogue/event/quest tick) run every step — including
       // World mode with nothing streamed in — so queued work is never stranded while
       // elapsed_time advances. They run after world::update and before on_fixed_update.
-      for (const std::function<void(Engine &, float)> &system : engine.fixed_step_systems)
+      for (const std::function<void(Engine &, float)> &system : engine.hooks.fixed_step_systems)
         system(engine, engine.timer.target_dt);
 
-      invoke_fixed_update_hook(engine, engine.timer.target_dt);
+      invoke_hook("on_fixed_update", engine.hooks.on_fixed_update, engine, engine.timer.target_dt);
 
       entities::flush_deletions(engine.scene.world);
     }
@@ -740,7 +706,7 @@ void Engine::register_screens() {
 bool Engine::update_engine_screens(const input::InputIntent &intent) {
   // Registered input hooks (the gameplay menu hub) get first refusal and may consume the step
   // by opening, closing or switching a screen.
-  for (const std::function<bool(Engine &, const input::InputIntent &)> &hook : screen_input_hooks) {
+  for (const std::function<bool(Engine &, const input::InputIntent &)> &hook : hooks.screen_input_handlers) {
     if (hook(*this, intent))
       return true;
   }

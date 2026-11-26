@@ -43,7 +43,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace corundum {
@@ -86,7 +85,7 @@ enum class PauseReason : std::uint8_t {
 
 /** Which Save/Load command the pause menu raised.
  *
- *  Carried by Engine::on_menu_save_load and Gameplay::open_save_load so the two modes are a
+ *  Carried by `Engine::Hooks::on_menu_save_load` and `Gameplay::open_save_load` so the two modes are a
  *  named choice rather than a bare bool.
  */
 enum class SaveLoadIntent : std::uint8_t {
@@ -216,48 +215,6 @@ public:
    */
   core::Rng rng;
 
-  /** Hook called once per fixed step after the registered fixed_step_systems.
-   *
-   *  Invoked inside the fixed-timestep loop, after every fixed_step_systems entry
-   *  (including gameplay's dialogue/event/quest tick) and before entity deletions are
-   *  flushed. `dt` is the fixed timestep (timer.target_dt). Entities marked for deletion
-   *  here are drained the same frame.
-   */
-  std::function<void(Engine &, float dt)> on_fixed_update;
-
-  /** Hook called after the engine reacts to OS lifecycle events.
-   *
-   *  Invoked once per frame in which at least one PlatformEvents field is set,
-   *  after focus, controller and quit handling, so game code observes the
-   *  resulting run state. Unset, nothing is called.
-   */
-  std::function<void(Engine &, const platform::PlatformEvents &)> on_platform_event;
-
-  /** Hook replacing the pause menu's Quit command.
-   *
-   *  When set, selecting Quit invokes it instead of request_quit(), so the game can
-   *  interpose a confirmation or route the player to a framing screen. Unset, Quit calls
-   *  request_quit() at once. The gameplay framework installs it to offer Quit to Title.
-   */
-  std::function<void(Engine &)> on_menu_quit;
-
-  /** Hook replacing the pause menu's Save and Load commands.
-   *
-   *  When set, selecting Save invokes it with SaveLoadIntent::Save and Load with
-   *  SaveLoadIntent::Load, so the game can open a slot browser in the matching mode.
-   *  Unset, Save and Load raise QuickSave / QuickLoad one step later. The gameplay framework
-   *  installs it to open the Save/Load screen.
-   */
-  std::function<void(Engine &, SaveLoadIntent intent)> on_menu_save_load;
-
-  /** Hook consulted before the pause menu opens on Action::Menu.
-   *
-   *  Receives the current top GameMode; returning true suppresses the menu open. The
-   *  gameplay framework installs it so the menu does not open over the Title, Game over,
-   *  Loading and Credits screens. Default-empty means the menu never blocks on a mode.
-   */
-  std::function<bool(world::GameMode)> blocks_pause_menu;
-
   /** Screen specs keyed by GameMode, plus the ordered render-layer hooks.
    *
    *  Engine-owned screens (Menu, Settings) register here during initialize(); the gameplay
@@ -267,25 +224,80 @@ public:
    */
   ScreenRegistry screens;
 
-  /** Extra per-fixed-step systems, run in registration order before on_fixed_update.
+  /** Callbacks through which game code, the gameplay framework and engine-runtime systems extend the engine.
    *
-   *  This is the slot for engine-runtime systems and framework systems — never the game's
-   *  own hook. on_fixed_update stays the game's single slot. Each entry is a
-   *  `void(Engine&, float dt)` callable; the gameplay framework registers exactly one system
-   *  (dialogue update, event processing and the quest tick). Registered once, at construction
-   *  time, so the std::function storage allocates only then.
+   *  A hook that receives the `Engine` may call anything on it, a save load or a return to title
+   *  included. Each callable is a single slot, so setting one replaces whatever was installed.
+   *  The two vectors are registration lists whose entries run in registration order; a
+   *  `screen_input_handlers` entry that returns true consumes the step and ends the list.
    */
-  std::vector<std::function<void(Engine &, float)>> fixed_step_systems;
+  struct Hooks {
+    // Single slots
 
-  /** Input hooks consulted by update_engine_screens() before ScreenRegistry dispatch.
-   *
-   *  An engine/framework system registers here to claim a step for a screen it opens or
-   *  switches (the gameplay framework registers the menu hub here). Each entry runs in
-   *  registration order and returns true to consume the step; the game's own slots are
-   *  unaffected. Registered once, at initialize time, so the std::function storage allocates
-   *  only then.
-   */
-  std::vector<std::function<bool(Engine &, const input::InputIntent &)>> screen_input_hooks;
+    /** Hook consulted before the pause menu opens on Action::Menu.
+     *
+     *  Receives the current top GameMode; returning true suppresses the menu open. The
+     *  gameplay framework installs it so the menu does not open over the Title, Game over,
+     *  Loading and Credits screens. Default-empty means the menu never blocks on a mode.
+     */
+    std::function<bool(world::GameMode)> blocks_pause_menu{};
+
+    /** Hook called once per fixed step after the registered fixed_step_systems.
+     *
+     *  Invoked inside the fixed-timestep loop, after every fixed_step_systems entry
+     *  (including gameplay's dialogue/event/quest tick) and before entity deletions are
+     *  flushed. `dt` is the fixed timestep (timer.target_dt). Entities marked for deletion
+     *  here are drained the same frame.
+     */
+    std::function<void(Engine &, float dt)> on_fixed_update{};
+
+    /** Hook replacing the pause menu's Quit command.
+     *
+     *  When set, selecting Quit invokes it instead of request_quit(), so the game can
+     *  interpose a confirmation or route the player to a framing screen. Unset, Quit calls
+     *  request_quit() at once. The gameplay framework installs it to offer Quit to Title.
+     */
+    std::function<void(Engine &)> on_menu_quit{};
+
+    /** Hook replacing the pause menu's Save and Load commands.
+     *
+     *  When set, selecting Save invokes it with SaveLoadIntent::Save and Load with
+     *  SaveLoadIntent::Load, so the game can open a slot browser in the matching mode.
+     *  Unset, Save and Load raise QuickSave / QuickLoad one step later. The gameplay framework
+     *  installs it to open the Save/Load screen.
+     */
+    std::function<void(Engine &, SaveLoadIntent intent)> on_menu_save_load{};
+
+    /** Hook called after the engine reacts to OS lifecycle events.
+     *
+     *  Invoked once per frame in which at least one PlatformEvents field is set,
+     *  after focus, controller and quit handling, so game code observes the
+     *  resulting run state. Unset, nothing is called.
+     */
+    std::function<void(Engine &, const platform::PlatformEvents &)> on_platform_event{};
+
+    // Registration lists
+
+    /** Extra per-fixed-step systems, run in registration order before on_fixed_update.
+     *
+     *  This is the slot for engine-runtime systems and framework systems — never the game's
+     *  own hook. on_fixed_update stays the game's single slot. Each entry is a
+     *  `void(Engine&, float dt)` callable; the gameplay framework registers exactly one system
+     *  (dialogue update, event processing and the quest tick). Registered once, at construction
+     *  time, so the std::function storage allocates only then.
+     */
+    std::vector<std::function<void(Engine &, float)>> fixed_step_systems{};
+
+    /** Input hooks consulted by update_engine_screens() before ScreenRegistry dispatch.
+     *
+     *  An engine/framework system registers here to claim a step for a screen it opens or
+     *  switches (the gameplay framework registers the menu hub here). Registered once, at
+     *  initialize time, so the std::function storage allocates only then.
+     */
+    std::vector<std::function<bool(Engine &, const input::InputIntent &)>> screen_input_handlers{};
+  };
+
+  Hooks hooks{};
 
   /** True while inside an interior reached from the overworld. */
   bool entered_from_world{false};
@@ -326,8 +338,8 @@ public:
    *          while (run_frame(std::chrono::steady_clock::now())) {}.
    *
    *  @pre initialize() must have returned successfully.
-   *  @post If no step-owning screen was on top during a fixed step, both fixed_step_systems
-   *        and on_fixed_update ran. If a step-owning screen was on top, neither ran, and
+   *  @post If no step-owning screen was on top during a fixed step, both `hooks.fixed_step_systems`
+   *        and `hooks.on_fixed_update` ran. If a step-owning screen was on top, neither ran, and
    *        world::update and deletion flushing were skipped — which in turn skips the
    *        gameplay fixed-step system's dialogue update, event processing and quest tick.
    *        This holds whatever the top GameMode is.
@@ -355,9 +367,9 @@ public:
 
   /** Step the top screen through the registry for one fixed step.
    *
-   *  Runs the registered screen_input_hooks (which may consume the step by opening or
+   *  Runs the registered `hooks.screen_input_handlers` (which may consume the step by opening or
    *  switching a screen), then handles the pause-menu open input, then dispatches the top
-   *  mode's ScreenSpec::update. Returns true when the step was claimed — by a screen_input_hook,
+   *  mode's ScreenSpec::update. Returns true when the step was claimed — by a registered input handler,
    *  by opening the pause menu, or by a registered mode whose spec owns the step — so the caller
    *  skips world::update and the rest of the simulation, which is what pauses the world while a
    *  menu is open.
@@ -400,7 +412,7 @@ public:
    *  input_state.pressed at the first step whose top screen does not own the step, keeping it
    *  pending while a step-owning screen (the pause menu, a hub tab, settings) is open. A
    *  lower bound of one step of latency is deliberate: the action is observed by
-   *  fixed_step_systems and on_fixed_update on the step after it is raised, never by a
+   *  `hooks.fixed_step_systems` and `hooks.on_fixed_update` on the step after it is raised, never by a
    *  screen's own Activate handling.
    *
    *  @param action Action to raise; ignored when it is not a valid Action index.

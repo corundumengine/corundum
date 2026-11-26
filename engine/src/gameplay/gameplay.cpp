@@ -400,22 +400,22 @@ void register_framing_screens(Gameplay &gameplay, Engine &engine) {
 
 /** Install the engine hooks and the fixed-step system that drive the framework. */
 void register_hooks(Gameplay &gameplay, Engine &engine) {
-  engine.on_menu_quit = [&gameplay](Engine &) {
+  engine.hooks.on_menu_quit = [&gameplay](Engine &) {
     gameplay.open_confirm("Quit to Title?", [](Gameplay &g) { g.return_to_title(); });
   };
-  engine.on_menu_save_load = [&gameplay](Engine &, SaveLoadIntent intent) { gameplay.open_save_load(intent); };
+  engine.hooks.on_menu_save_load = [&gameplay](Engine &, SaveLoadIntent intent) { gameplay.open_save_load(intent); };
   // The framing screens replace the world; the pause menu must not open over any of them.
-  engine.blocks_pause_menu = [](world::GameMode mode) {
+  engine.hooks.blocks_pause_menu = [](world::GameMode mode) {
     return mode == screens::Splash || mode == screens::Title || mode == screens::GameOver || mode == screens::Loading ||
            mode == screens::Credits;
   };
 
-  engine.fixed_step_systems.emplace_back([&gameplay](Engine &, float dt) { gameplay.fixed_step(dt); });
+  engine.hooks.fixed_step_systems.emplace_back([&gameplay](Engine &, float dt) { gameplay.fixed_step(dt); });
 
-  engine.screen_input_hooks.emplace_back([&gameplay](Engine &e, const input::InputIntent &intent) {
+  engine.hooks.screen_input_handlers.emplace_back([&gameplay](Engine &e, const input::InputIntent &intent) {
     return screens::handle_hub_input(e, gameplay, intent);
   });
-  engine.screen_input_hooks.emplace_back(
+  engine.hooks.screen_input_handlers.emplace_back(
       [&gameplay](Engine &e, const input::InputIntent &) { return screens::handle_character_input(e, gameplay); });
 }
 

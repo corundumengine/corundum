@@ -10,7 +10,7 @@ namespace corundum::platform {
  *  Set fields are edge events observed since the previous poll, not levels: a
  *  backend clears each after reporting it. A backend that cannot observe an
  *  event leaves its field false. The engine turns these into run-state and
- *  quit decisions; game code observes them through Engine::on_platform_event.
+ *  quit decisions; game code observes them through `Engine::Hooks::on_platform_event`.
  *
  *  @note Distinct from corundum::input: these describe what the host OS did to
  *        the window, not what the player pressed.

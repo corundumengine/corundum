@@ -87,7 +87,7 @@ struct TitleState;
 
 /** The gameplay framework's pre-dispatch input hook: handles the menu hub's open/close/switch
  *  and tab cycling. Returns true when it consumed the step; safe to register as the only
- *  entry in `Engine::screen_input_hooks`.
+ *  entry in `Engine::Hooks::screen_input_handlers`.
  */
 bool handle_hub_input(Engine &engine, Gameplay &gameplay, const input::InputIntent &intent);
 

@@ -432,7 +432,7 @@ TEST_CASE("game over: a game hook watching a death flag opens it on the next ste
   corundum::gameplay::Gameplay gameplay{engine};
 
   // Keystone's pattern: its rules code sets a flag; on_fixed_update clears it and raises GameOver.
-  engine.on_fixed_update = [&gameplay](corundum::Engine &e, float) {
+  engine.hooks.on_fixed_update = [&gameplay](corundum::Engine &e, float) {
     if (!e.flags.contains("player_dead"))
       return;
     e.flags.erase("player_dead");
@@ -707,7 +707,7 @@ TEST_CASE("pause menu Quit to Title: confirm Yes returns to the title with no wo
   REQUIRE(corundum::render::mode(engine.render) != corundum::render::RenderMode::None);
 
   engine.flags["gold"] = 7;
-  engine.on_menu_quit(engine);
+  engine.hooks.on_menu_quit(engine);
   REQUIRE(engine.scene.mode() == screens::Confirm);
   press(engine, corundum::input::Action::Select); // Yes
 

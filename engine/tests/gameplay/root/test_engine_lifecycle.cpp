@@ -227,7 +227,7 @@ TEST_CASE("lifecycle: on_fixed_update calling request_quit ends the main loop") 
   REQUIRE(engine.initialize(std::move(config)).has_value());
 
   int hook_calls{0};
-  engine.on_fixed_update = [&hook_calls](corundum::Engine &e, float) {
+  engine.hooks.on_fixed_update = [&hook_calls](corundum::Engine &e, float) {
     ++hook_calls;
     e.request_quit();
   };
@@ -370,7 +370,7 @@ TEST_CASE("lifecycle: on_platform_event hook observes display changes") {
   REQUIRE(engine.initialize(std::move(config)).has_value());
 
   EventRecorder recorder;
-  engine.on_platform_event = std::ref(recorder);
+  engine.hooks.on_platform_event = std::ref(recorder);
 
   null_window(engine)->scripted_events.display_changed = true;
   CHECK(engine.run_frame(k_frame_time));

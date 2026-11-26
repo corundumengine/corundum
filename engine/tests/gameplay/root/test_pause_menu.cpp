@@ -511,7 +511,7 @@ TEST_CASE("pause menu: Save closes the menu and raises QuickSave exactly once") 
 
   int quick_saves = 0;
   int quick_loads = 0;
-  engine.on_fixed_update = [&](corundum::Engine &e, float) {
+  engine.hooks.on_fixed_update = [&](corundum::Engine &e, float) {
     if (e.input_state.is_pressed(corundum::input::Action::QuickSave))
       ++quick_saves;
     if (e.input_state.is_pressed(corundum::input::Action::QuickLoad))
@@ -545,7 +545,7 @@ TEST_CASE("pause menu: Load closes the menu and raises QuickLoad exactly once") 
   init_engine(engine);
 
   int quick_loads = 0;
-  engine.on_fixed_update = [&](corundum::Engine &e, float) {
+  engine.hooks.on_fixed_update = [&](corundum::Engine &e, float) {
     if (e.input_state.is_pressed(corundum::input::Action::QuickLoad))
       ++quick_loads;
   };
@@ -600,7 +600,7 @@ TEST_CASE("pause menu: Quit calls on_menu_quit instead of requesting quit") {
   init_engine(engine);
 
   int quits = 0;
-  engine.on_menu_quit = [&quits](corundum::Engine &) { ++quits; };
+  engine.hooks.on_menu_quit = [&quits](corundum::Engine &) { ++quits; };
 
   activate_quit(engine);
   CHECK(quits == 1);
@@ -625,7 +625,7 @@ TEST_CASE("pause menu: blocks_pause_menu suppresses opening the menu") {
   init_engine(engine);
   // NOLINTNEXTLINE(misc-const-correctness): constructing Gameplay registers the hub input hook.
   corundum::gameplay::Gameplay gameplay{engine};
-  engine.blocks_pause_menu = [](corundum::world::GameMode mode) { return mode == screens::Journal; };
+  engine.hooks.blocks_pause_menu = [](corundum::world::GameMode mode) { return mode == screens::Journal; };
 
   press(engine, corundum::input::Action::Journal);
   REQUIRE(engine.scene.mode() == screens::Journal);
